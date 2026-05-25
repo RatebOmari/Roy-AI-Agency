@@ -1,0 +1,116 @@
+{
+  "app": {
+    "name": "SocialPilot",
+    "tagline": "AI-powered replies for your social media",
+    "poweredBy": "Powered by Claude AI from Anthropic"
+  },
+  "login": {
+    "businessOwner": "Business",
+    "agency": "Agency",
+    "email": "Email",
+    "emailPlaceholder": "example@email.com",
+    "password": "Password",
+    "passwordPlaceholder": "••••••••",
+    "signIn": "Sign In"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "comments": "Comments",
+    "toneSettings": "Tone Settings",
+    "clients": "Clients",
+    "signOut": "Sign Out",
+    "account": "Account"
+  },
+  "dashboard": {
+    "welcome": "Welcome to",
+    "title": "Dashboard",
+    "subtitle": "AI replies to your comments automatically",
+    "repliesMonth": "replies this month",
+    "totalReplies": "Total Replies",
+    "pendingReview": "Pending Review",
+    "responseTime": "Response Time (min)",
+    "engagementRate": "Engagement Rate",
+    "platforms": "Platforms",
+    "reviewComments": "Review Comments",
+    "toneSettings": "Tone Settings"
+  },
+  "platforms": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "connect": "Connect Account",
+    "disconnect": "Disconnect",
+    "repliesToday": "Replies Today",
+    "pending": "Pending"
+  },
+  "comments": {
+    "title": "Comment Review",
+    "subtitle": "Review and approve AI-generated replies",
+    "pending": "pending",
+    "searchPlaceholder": "Search comments...",
+    "all": "All",
+    "approve": "Approve & Send",
+    "reject": "Reject",
+    "save": "Save & Send",
+    "cancel": "Cancel",
+    "originalComment": "Original Comment",
+    "aiReply": "AI Reply",
+    "noResults": "No matching comments",
+    "status": {
+      "pending": "Pending",
+      "approved": "Sent",
+      "rejected": "Rejected",
+      "edited": "Edited"
+    }
+  },
+  "settings": {
+    "title": "Tone Settings",
+    "subtitle": "Customize reply personality per platform",
+    "toneLabel": "Reply Tone",
+    "languageLabel": "Reply Language",
+    "blockedLabel": "Blocked Words",
+    "blockedPlaceholder": "e.g. competitor, free (comma separated)",
+    "blockedHint": "AI won't reply to comments containing these words",
+    "extraLabel": "Custom Instructions",
+    "extraPlaceholder": "e.g. Always mention the restaurant name in replies.",
+    "save": "Save Settings",
+    "saved": "Saved!",
+    "tones": {
+      "friendly": "Friendly & Warm",
+      "friendlyDesc": "Great for restaurants & cafés",
+      "professional": "Formal & Professional",
+      "professionalDesc": "Great for clinics & services",
+      "fun": "Fun & Playful",
+      "funDesc": "Great for entertainment accounts",
+      "informative": "Informative & Precise",
+      "informativeDesc": "Great for stores & tech"
+    },
+    "languages": {
+      "ar": "Arabic",
+      "en": "English",
+      "ar_en": "Arabic + English"
+    }
+  },
+  "agency": {
+    "title": "Agency Clients",
+    "subtitle": "Manage local business accounts",
+    "addClient": "Add Client",
+    "totalClients": "Total Clients",
+    "activeClients": "Active Clients",
+    "repliesMonth": "Replies This Month",
+    "searchPlaceholder": "Search by name or email...",
+    "client": "Client",
+    "platforms2": "Platforms",
+    "replies": "Replies",
+    "status": "Status",
+    "noResults": "No results found",
+    "viewDetails": "View Details",
+    "accountSettings": "Account Settings",
+    "pause": "Pause",
+    "activate": "Activate",
+    "statuses": {
+      "active": "Active",
+      "paused": "Paused",
+      "setup": "Setup"
+    }
+  }
+}

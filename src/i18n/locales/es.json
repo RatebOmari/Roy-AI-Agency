@@ -1,0 +1,116 @@
+{
+  "app": {
+    "name": "SocialPilot",
+    "tagline": "Respuestas con IA para tus redes sociales",
+    "poweredBy": "Desarrollado con Claude AI de Anthropic"
+  },
+  "login": {
+    "businessOwner": "Negocio",
+    "agency": "Agencia",
+    "email": "Correo electrónico",
+    "emailPlaceholder": "ejemplo@correo.com",
+    "password": "Contraseña",
+    "passwordPlaceholder": "••••••••",
+    "signIn": "Iniciar sesión"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "comments": "Comentarios",
+    "toneSettings": "Configurar Tono",
+    "clients": "Clientes",
+    "signOut": "Cerrar sesión",
+    "account": "Cuenta"
+  },
+  "dashboard": {
+    "welcome": "Bienvenido a",
+    "title": "Panel de control",
+    "subtitle": "La IA responde tus comentarios automáticamente",
+    "repliesMonth": "respuestas este mes",
+    "totalReplies": "Total de respuestas",
+    "pendingReview": "Pendientes",
+    "responseTime": "Tiempo de resp. (min)",
+    "engagementRate": "Tasa de engagement",
+    "platforms": "Plataformas",
+    "reviewComments": "Revisar comentarios",
+    "toneSettings": "Configurar tono"
+  },
+  "platforms": {
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "connect": "Conectar cuenta",
+    "disconnect": "Desconectar",
+    "repliesToday": "Resp. hoy",
+    "pending": "Pendiente"
+  },
+  "comments": {
+    "title": "Revisión de comentarios",
+    "subtitle": "Revisa y aprueba las respuestas de la IA",
+    "pending": "pendiente",
+    "searchPlaceholder": "Buscar comentarios...",
+    "all": "Todos",
+    "approve": "Aprobar y enviar",
+    "reject": "Rechazar",
+    "save": "Guardar y enviar",
+    "cancel": "Cancelar",
+    "originalComment": "Comentario original",
+    "aiReply": "Respuesta de IA",
+    "noResults": "No se encontraron comentarios",
+    "status": {
+      "pending": "Pendiente",
+      "approved": "Enviado",
+      "rejected": "Rechazado",
+      "edited": "Editado"
+    }
+  },
+  "settings": {
+    "title": "Configuración de tono",
+    "subtitle": "Personaliza la personalidad de respuestas por plataforma",
+    "toneLabel": "Tono de respuesta",
+    "languageLabel": "Idioma de respuestas",
+    "blockedLabel": "Palabras bloqueadas",
+    "blockedPlaceholder": "Ej: competidor, gratis (separadas por coma)",
+    "blockedHint": "La IA no responderá comentarios con estas palabras",
+    "extraLabel": "Instrucciones adicionales",
+    "extraPlaceholder": "Ej: Siempre menciona el nombre del restaurante.",
+    "save": "Guardar configuración",
+    "saved": "¡Guardado!",
+    "tones": {
+      "friendly": "Amigable y cercano",
+      "friendlyDesc": "Ideal para restaurantes y cafés",
+      "professional": "Formal y profesional",
+      "professionalDesc": "Ideal para clínicas y servicios",
+      "fun": "Divertido y dinámico",
+      "funDesc": "Ideal para cuentas de entretenimiento",
+      "informative": "Informativo y preciso",
+      "informativeDesc": "Ideal para tiendas y tecnología"
+    },
+    "languages": {
+      "ar": "Árabe",
+      "en": "Inglés",
+      "ar_en": "Árabe + Inglés"
+    }
+  },
+  "agency": {
+    "title": "Clientes de la agencia",
+    "subtitle": "Gestiona cuentas de negocios locales",
+    "addClient": "Agregar cliente",
+    "totalClients": "Total de clientes",
+    "activeClients": "Clientes activos",
+    "repliesMonth": "Respuestas este mes",
+    "searchPlaceholder": "Buscar por nombre o correo...",
+    "client": "Cliente",
+    "platforms2": "Plataformas",
+    "replies": "Respuestas",
+    "status": "Estado",
+    "noResults": "Sin resultados",
+    "viewDetails": "Ver detalles",
+    "accountSettings": "Configuración",
+    "pause": "Pausar",
+    "activate": "Activar",
+    "statuses": {
+      "active": "Activo",
+      "paused": "Pausado",
+      "setup": "Configurando"
+    }
+  }
+}

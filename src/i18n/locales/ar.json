@@ -1,0 +1,116 @@
+{
+  "app": {
+    "name": "SocialPilot",
+    "tagline": "الرد الذكي لعملك على السوشيال ميديا",
+    "poweredBy": "مدعوم بـ Claude AI من Anthropic"
+  },
+  "login": {
+    "businessOwner": "صاحب عمل",
+    "agency": "وكالة",
+    "email": "البريد الإلكتروني",
+    "emailPlaceholder": "example@email.com",
+    "password": "كلمة المرور",
+    "passwordPlaceholder": "••••••••",
+    "signIn": "دخول"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "comments": "التعليقات",
+    "toneSettings": "إعدادات النبرة",
+    "clients": "العملاء",
+    "signOut": "تسجيل الخروج",
+    "account": "الحساب"
+  },
+  "dashboard": {
+    "welcome": "مرحباً بك في",
+    "title": "لوحة التحكم",
+    "subtitle": "الذكاء الاصطناعي يرد على تعليقاتك تلقائياً",
+    "repliesMonth": "رد هذا الشهر",
+    "totalReplies": "إجمالي الردود",
+    "pendingReview": "بانتظار المراجعة",
+    "responseTime": "وقت الرد (د)",
+    "engagementRate": "معدل التفاعل",
+    "platforms": "المنصات",
+    "reviewComments": "مراجعة التعليقات",
+    "toneSettings": "إعدادات النبرة"
+  },
+  "platforms": {
+    "connected": "متصل",
+    "disconnected": "غير متصل",
+    "connect": "ربط الحساب",
+    "disconnect": "قطع الاتصال",
+    "repliesToday": "رد اليوم",
+    "pending": "معلق"
+  },
+  "comments": {
+    "title": "مراجعة التعليقات",
+    "subtitle": "راجع وقبل ردود الذكاء الاصطناعي",
+    "pending": "معلق",
+    "searchPlaceholder": "ابحث في التعليقات...",
+    "all": "الكل",
+    "approve": "قبول وإرسال",
+    "reject": "رفض",
+    "save": "حفظ وإرسال",
+    "cancel": "إلغاء",
+    "originalComment": "التعليق الأصلي",
+    "aiReply": "رد الذكاء الاصطناعي",
+    "noResults": "لا توجد تعليقات مطابقة",
+    "status": {
+      "pending": "معلق",
+      "approved": "مُرسَل",
+      "rejected": "مرفوض",
+      "edited": "معدّل"
+    }
+  },
+  "settings": {
+    "title": "إعدادات النبرة",
+    "subtitle": "خصص شخصية الردود لكل منصة",
+    "toneLabel": "نبرة الرد",
+    "languageLabel": "لغة الردود",
+    "blockedLabel": "كلمات ممنوعة",
+    "blockedPlaceholder": "مثال: منافس، مجاني (افصل بفاصلة)",
+    "blockedHint": "لن يُرسَل رد على تعليقات تحتوي هذه الكلمات",
+    "extraLabel": "تعليمات إضافية",
+    "extraPlaceholder": "مثال: دائماً اذكر اسم المطعم في الرد.",
+    "save": "حفظ الإعدادات",
+    "saved": "تم الحفظ!",
+    "tones": {
+      "friendly": "ودية وقريبة",
+      "friendlyDesc": "مناسبة للمطاعم والكافيهات",
+      "professional": "رسمية واحترافية",
+      "professionalDesc": "مناسبة للعيادات والخدمات",
+      "fun": "مرحة وخفيفة",
+      "funDesc": "مناسبة لحسابات الترفيه",
+      "informative": "معلوماتية ومحددة",
+      "informativeDesc": "مناسبة للمتاجر والتقنية"
+    },
+    "languages": {
+      "ar": "العربية",
+      "en": "الإنجليزية",
+      "ar_en": "عربي + إنجليزي"
+    }
+  },
+  "agency": {
+    "title": "عملاء الوكالة",
+    "subtitle": "إدارة حسابات الشركات المحلية",
+    "addClient": "إضافة عميل",
+    "totalClients": "إجمالي العملاء",
+    "activeClients": "عملاء نشطون",
+    "repliesMonth": "ردود هذا الشهر",
+    "searchPlaceholder": "بحث بالاسم أو البريد...",
+    "client": "العميل",
+    "platforms2": "المنصات",
+    "replies": "الردود",
+    "status": "الحالة",
+    "noResults": "لا توجد نتائج",
+    "viewDetails": "عرض التفاصيل",
+    "accountSettings": "إعدادات الحساب",
+    "pause": "إيقاف مؤقت",
+    "activate": "تفعيل",
+    "statuses": {
+      "active": "نشط",
+      "paused": "موقوف",
+      "setup": "إعداد"
+    }
+  }
+}

@@ -34,26 +34,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     roleHint: "client" | "agency" = "client"
   ): Promise<User> => {
     setIsLoading(true);
+
+    const DEMO_ACCOUNTS: Record<string, { password: string; role: "client" | "agency"; name: string; businessName: string }> = {
+      "client@demo.com": { password: "demo123", role: "client", name: "Demo Business", businessName: "Raleigh Eats" },
+      "agency@demo.com": { password: "demo123", role: "agency", name: "Roy Agency", businessName: "Roy AI Agency" },
+    };
+
     try {
-      const data = await api.post<LoginResponse>("/auth/login", { email, password });
+      const data = await api.post<LoginResponse>("/socialpilot/auth/login", { email, password });
       authStorage.setToken(data.token);
       authStorage.setUser(data.user);
       setToken(data.token);
       setUser(data.user);
       return data.user;
     } catch (err) {
-      // Demo fallback when n8n is not configured
+      // Always allow demo credentials as fallback (even if n8n is configured)
+      const demo = DEMO_ACCOUNTS[email.toLowerCase()];
+      if (demo && password === demo.password) {
+        const demoUser: User = {
+          id: "demo-" + demo.role,
+          email,
+          role: demo.role,
+          name: demo.name,
+          businessName: demo.businessName,
+        };
+        const demoToken = "demo_token_" + Date.now();
+        authStorage.setToken(demoToken);
+        authStorage.setUser(demoUser);
+        setToken(demoToken);
+        setUser(demoUser);
+        return demoUser;
+      }
+      // No n8n and no demo match — allow any credentials in pure demo mode
       if (!import.meta.env.VITE_N8N_WEBHOOK_URL) {
         const demoUser: User = {
           id: "demo-1",
           email,
           role: roleHint,
-          name: roleHint === "agency" ? "Roy Agency" : "مطعم الأصيل",
-          businessName: roleHint === "agency" ? "Roy AI Agency" : "مطعم الأصيل",
+          name: roleHint === "agency" ? "Roy Agency" : "Demo Business",
+          businessName: roleHint === "agency" ? "Roy AI Agency" : "My Business",
         };
-        authStorage.setToken("demo_token_" + Date.now());
+        const demoToken = "demo_token_" + Date.now();
+        authStorage.setToken(demoToken);
         authStorage.setUser(demoUser);
-        setToken("demo_token_" + Date.now());
+        setToken(demoToken);
         setUser(demoUser);
         return demoUser;
       }

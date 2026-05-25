@@ -32,8 +32,11 @@ class ApiClient {
         // ignore parse errors
       }
       if (res.status === 401) {
-        authStorage.clear();
-        window.location.href = "/login";
+        const token = authStorage.getToken();
+        if (!token?.startsWith("demo_token_")) {
+          authStorage.clear();
+          window.location.href = "/login";
+        }
       }
       throw err;
     }

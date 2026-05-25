@@ -10,10 +10,9 @@ const langs = [
 export function LanguageSwitcher() {
   const { i18n } = useTranslation();
 
-  const change = (code: string, dir: string) => {
+  const change = (code: string) => {
     i18n.changeLanguage(code);
     localStorage.setItem("sp-lang", code);
-    document.documentElement.dir = dir;
     document.documentElement.lang = code;
   };
 
@@ -23,7 +22,7 @@ export function LanguageSwitcher() {
       {langs.map((l) => (
         <button
           key={l.code}
-          onClick={() => change(l.code, l.dir)}
+          onClick={() => change(l.code)}
           className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
             i18n.language === l.code
               ? "bg-white shadow-sm text-foreground"

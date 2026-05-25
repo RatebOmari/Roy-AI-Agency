@@ -30,3 +30,6 @@ pnpm-debug.log*
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# Claude Code worktrees (temporary agent sandboxes)
+.claude/worktrees/

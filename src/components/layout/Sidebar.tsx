@@ -1,13 +1,15 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  LayoutDashboard, MessageSquare, Settings, Users,
-  LogOut, ChevronLeft, Menu, X, Zap,
+  LayoutDashboard, Inbox, Users, BarChart2, Zap,
+  Settings, LogOut, ChevronLeft, Menu, X, UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useAuth } from "@/contexts/AuthContext";
+import { useConversations } from "@/hooks/useConversations";
 
 type Role = "agency" | "client";
 
@@ -16,20 +18,48 @@ interface SidebarProps {
   businessName?: string;
 }
 
+function UnreadBadge() {
+  const { data = [] } = useConversations();
+  const count = data.reduce((s, c) => s + c.unreadCount, 0);
+  if (count === 0) return null;
+  return (
+    <span className="ml-auto w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
 export function Sidebar({ role, businessName }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+  const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const isRtl = i18n.language === "ar";
 
-  const navItems = [
-    { label: t("nav.dashboard"),    href: "/dashboard",      icon: LayoutDashboard, role: ["client"] },
-    { label: t("nav.comments"),     href: "/comments",       icon: MessageSquare,   role: ["client"] },
-    { label: t("nav.toneSettings"), href: "/settings",       icon: Settings,        role: ["client"] },
-    { label: t("nav.clients"),      href: "/agency/clients", icon: Users,           role: ["agency"] },
-  ].filter(i => i.role.includes(role));
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const clientNav = [
+    { label: "Dashboard",   href: "/dashboard",    icon: LayoutDashboard },
+    { label: "Inbox",       href: "/inbox",         icon: Inbox,           badge: <UnreadBadge /> },
+    { label: "Contacts",    href: "/contacts",      icon: UserCircle },
+    { label: "Analytics",   href: "/analytics",     icon: BarChart2 },
+    { label: "Automation",  href: "/automation",    icon: Zap },
+    { label: "Settings",    href: "/settings",      icon: Settings },
+  ];
+
+  const agencyNav = [
+    { label: t("nav.dashboard"), href: "/agency/dashboard", icon: LayoutDashboard },
+    { label: t("nav.clients"),   href: "/agency/clients",   icon: Users },
+    { label: "Analytics",        href: "/agency/analytics", icon: BarChart2 },
+    { label: "Settings",         href: "/agency/settings",  icon: Settings },
+  ];
+
+  const navItems = role === "client" ? clientNav : agencyNav;
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <>
@@ -48,7 +78,12 @@ export function Sidebar({ role, businessName }: SidebarProps) {
             )}
           >
             <item.icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
+            {!collapsed && (
+              <>
+                <span className="flex-1">{item.label}</span>
+                {"badge" in item && item.badge}
+              </>
+            )}
           </Link>
         );
       })}
@@ -105,7 +140,7 @@ export function Sidebar({ role, businessName }: SidebarProps) {
 
         <div className="p-4 border-t border-border">
           <button
-            onClick={() => navigate("/login")}
+            onClick={handleLogout}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted w-full transition-colors",
               collapsed && "justify-center"
@@ -160,7 +195,7 @@ export function Sidebar({ role, businessName }: SidebarProps) {
           </nav>
           <div className="p-4 border-t border-border">
             <button
-              onClick={() => navigate("/login")}
+              onClick={handleLogout}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted w-full"
             >
               <LogOut className="w-5 h-5" />

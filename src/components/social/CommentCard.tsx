@@ -3,8 +3,9 @@ import { Check, X, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import type { Platform } from "./PlatformCard";
+import type { ReplyStatus } from "@/types";
 
-export type ReplyStatus = "pending" | "approved" | "rejected" | "edited";
+export type { ReplyStatus };
 
 export interface Comment {
   id: string;
@@ -36,11 +37,12 @@ export function CommentCard({ comment, onApprove, onReject, onEdit }: CommentCar
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.aiReply);
 
-  const statusCls: Record<ReplyStatus, string> = {
-    pending:  "bg-yellow-100 text-yellow-700",
-    approved: "bg-green-100 text-green-700",
-    rejected: "bg-red-100 text-red-700",
-    edited:   "bg-blue-100 text-blue-700",
+  const statusCls: Partial<Record<ReplyStatus, string>> = {
+    pending:   "bg-yellow-100 text-yellow-700",
+    approved:  "bg-green-100 text-green-700",
+    rejected:  "bg-red-100 text-red-700",
+    edited:    "bg-blue-100 text-blue-700",
+    auto_sent: "bg-green-100 text-green-700",
   };
 
   return (
@@ -57,7 +59,7 @@ export function CommentCard({ comment, onApprove, onReject, onEdit }: CommentCar
           <p className="text-sm font-medium text-foreground">@{comment.username}</p>
           <p className="text-xs text-muted-foreground truncate">{comment.text}</p>
         </div>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusCls[comment.status]}`}>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusCls[comment.status] ?? "bg-muted text-muted-foreground"}`}>
           {t(`comments.status.${comment.status}`)}
         </span>
         {open ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}

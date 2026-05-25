@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversations } from "@/hooks/useConversations";
 
@@ -131,6 +132,9 @@ export function Sidebar({ role, businessName }: SidebarProps) {
 
         {/* Language + Logout */}
         <div className="p-3 border-t border-border space-y-1">
+          <div className={cn("pb-1", collapsed ? "flex justify-center px-1" : "px-1")}>
+            <ThemeToggle collapsed={collapsed} />
+          </div>
           {!collapsed && (
             <div className="px-1 pb-1">
               <LanguageSwitcher />

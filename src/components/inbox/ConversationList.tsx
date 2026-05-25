@@ -13,6 +13,8 @@ interface ConversationListProps {
   onSearchChange: (v: string) => void;
   activeTab: string;
   onTabChange: (t: string) => void;
+  channelFilter: string;
+  onChannelFilterChange: (v: string) => void;
 }
 
 const TABS = [
@@ -20,6 +22,14 @@ const TABS = [
   { key: "pending", label: "Pending" },
   { key: "open", label: "Open" },
   { key: "resolved", label: "Resolved" },
+];
+
+const CHANNEL_FILTERS = [
+  { key: "all",       label: "All Channels" },
+  { key: "comments",  label: "💬 Comments" },
+  { key: "dms",       label: "📩 DMs" },
+  { key: "sms",       label: "📱 SMS" },
+  { key: "whatsapp",  label: "WhatsApp" },
 ];
 
 const CHANNEL_ICONS: Record<Channel, React.ComponentType<{ className?: string }>> = {
@@ -71,6 +81,7 @@ function timeAgo(iso: string) {
 export function ConversationList({
   conversations, selectedId, onSelect,
   search, onSearchChange, activeTab, onTabChange,
+  channelFilter, onChannelFilterChange,
 }: ConversationListProps) {
   const filtered = conversations.filter(c => {
     const matchTab = activeTab === "all" || c.status === activeTab;
@@ -78,7 +89,12 @@ export function ConversationList({
       || c.contactName.toLowerCase().includes(search.toLowerCase())
       || c.lastMessage.toLowerCase().includes(search.toLowerCase())
       || c.contactHandle.toLowerCase().includes(search.toLowerCase());
-    return matchTab && matchSearch;
+    const matchChannel = channelFilter === "all"
+      || (channelFilter === "comments" && c.channel.endsWith("_comment"))
+      || (channelFilter === "dms" && (c.channel.endsWith("_dm") || c.channel === "facebook_messenger"))
+      || (channelFilter === "sms" && c.channel === "sms")
+      || (channelFilter === "whatsapp" && c.channel === "whatsapp_business");
+    return matchTab && matchSearch && matchChannel;
   });
 
   const totalUnread = conversations.reduce((s, c) => s + c.unreadCount, 0);
@@ -136,6 +152,24 @@ export function ConversationList({
             </button>
           );
         })}
+      </div>
+
+      {/* Channel filter chips */}
+      <div className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-none border-b border-border">
+        {CHANNEL_FILTERS.map(cf => (
+          <button
+            key={cf.key}
+            onClick={() => onChannelFilterChange(cf.key)}
+            className={cn(
+              "flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
+              channelFilter === cf.key
+                ? "bg-primary text-white"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {cf.label}
+          </button>
+        ))}
       </div>
 
       {/* List */}

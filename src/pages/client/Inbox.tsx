@@ -11,6 +11,7 @@ export default function Inbox() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data: conversations = [], isLoading } = useConversations();
@@ -78,6 +79,8 @@ export default function Inbox() {
               onSearchChange={setSearch}
               activeTab={activeTab}
               onTabChange={setActiveTab}
+              channelFilter={channelFilter}
+              onChannelFilterChange={setChannelFilter}
             />
           )}
         </div>

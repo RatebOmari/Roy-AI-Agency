@@ -13,6 +13,38 @@ const MOCK_STATS: DashboardStats = {
     { platform: "facebook",  connected: false, replies: 0,  pending: 0 },
     { platform: "whatsapp",  connected: false, replies: 0,  pending: 0 },
   ],
+  platformsV2: [
+    {
+      platform: "tiktok",
+      comments: { connected: true,  enabled: true,  replies: 38, pending: 5 },
+      messages: { connected: false, enabled: false },
+    },
+    {
+      platform: "instagram",
+      comments: { connected: true,  enabled: true,  replies: 20, pending: 2 },
+      messages: { connected: true,  enabled: true,  replies: 11, pending: 0 },
+    },
+    {
+      platform: "facebook",
+      comments: { connected: false, enabled: true  },
+      messages: { connected: false, enabled: true  },
+    },
+    {
+      platform: "whatsapp",
+      comments: { connected: false, enabled: false },
+      messages: { connected: false, enabled: true  },
+    },
+    {
+      platform: "sms",
+      comments: { connected: false, enabled: false },
+      messages: { connected: false, enabled: true  },
+    },
+    {
+      platform: "phone",
+      comments: { connected: false, enabled: false },
+      messages: { connected: false, enabled: false },
+    },
+  ],
 };
 
 export function useDashboard() {

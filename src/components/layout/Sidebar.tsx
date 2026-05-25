@@ -7,8 +7,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LanguageSwitcher } from "./LanguageSwitcher";
-import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversations } from "@/hooks/useConversations";
 
@@ -30,20 +28,60 @@ function UnreadBadge() {
   );
 }
 
-const CLIENT_NAV = [
-  { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
-  { label: "Inbox",      href: "/inbox",       icon: Inbox,          badge: true },
-  { label: "Contacts",   href: "/contacts",    icon: UserCircle },
-  { label: "Analytics",  href: "/analytics",   icon: BarChart2 },
-  { label: "Automation", href: "/automation",  icon: Zap },
-  { label: "Settings",   href: "/settings",    icon: Settings },
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: boolean;
+}
+
+interface NavGroup {
+  label?: string;
+  items: NavItem[];
+}
+
+const CLIENT_NAV_GROUPS: NavGroup[] = [
+  {
+    items: [
+      { label: "Dashboard", href: "/dashboard",  icon: LayoutDashboard },
+      { label: "Inbox",     href: "/inbox",       icon: Inbox, badge: true },
+    ],
+  },
+  {
+    label: "MANAGE",
+    items: [
+      { label: "Contacts",   href: "/contacts",   icon: UserCircle },
+      { label: "Analytics",  href: "/analytics",  icon: BarChart2 },
+      { label: "Automation", href: "/automation", icon: Zap },
+    ],
+  },
+  {
+    label: "CONFIG",
+    items: [
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
-const AGENCY_NAV = [
-  { label: "Dashboard",  href: "/agency/dashboard", icon: LayoutDashboard },
-  { label: "Clients",    href: "/agency/clients",   icon: Users },
-  { label: "Analytics",  href: "/agency/analytics", icon: BarChart2 },
-  { label: "Settings",   href: "/agency/settings",  icon: Settings },
+const AGENCY_NAV_GROUPS: NavGroup[] = [
+  {
+    items: [
+      { label: "Dashboard", href: "/agency/dashboard", icon: LayoutDashboard },
+      { label: "Clients",   href: "/agency/clients",   icon: Users },
+    ],
+  },
+  {
+    label: "MANAGE",
+    items: [
+      { label: "Analytics", href: "/agency/analytics", icon: BarChart2 },
+    ],
+  },
+  {
+    label: "CONFIG",
+    items: [
+      { label: "Settings", href: "/agency/settings", icon: Settings },
+    ],
+  },
 ];
 
 export function Sidebar({ role, businessName }: SidebarProps) {
@@ -59,34 +97,46 @@ export function Sidebar({ role, businessName }: SidebarProps) {
     navigate("/login");
   };
 
-  const navItems = role === "client" ? CLIENT_NAV : AGENCY_NAV;
+  const navGroups = role === "client" ? CLIENT_NAV_GROUPS : AGENCY_NAV_GROUPS;
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <>
-      {navItems.map((item) => {
-        const isActive = location.pathname === item.href;
-        return (
-          <Link
-            key={item.href}
-            to={item.href}
-            onClick={onClick}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
-              isActive
-                ? "bg-primary text-white shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            )}
-          >
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && (
-              <>
-                <span className="flex-1">{item.label}</span>
-                {"badge" in item && item.badge && <UnreadBadge />}
-              </>
-            )}
-          </Link>
-        );
-      })}
+      {navGroups.map((group, gi) => (
+        <div key={gi}>
+          {group.label && !collapsed && (
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 px-3 pt-3 pb-1 font-medium select-none">
+              {group.label}
+            </p>
+          )}
+          {group.label && collapsed && gi > 0 && (
+            <div className="border-t border-border/40 my-2 mx-2" />
+          )}
+          {group.items.map((item) => {
+            const isActive = location.pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                onClick={onClick}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                  isActive
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1">{item.label}</span>
+                    {"badge" in item && item.badge && <UnreadBadge />}
+                  </>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </>
   );
 
@@ -130,16 +180,8 @@ export function Sidebar({ role, businessName }: SidebarProps) {
           <NavLinks />
         </nav>
 
-        {/* Language + Logout */}
-        <div className="p-3 border-t border-border space-y-1">
-          <div className={cn("pb-1", collapsed ? "flex justify-center px-1" : "px-1")}>
-            <ThemeToggle collapsed={collapsed} />
-          </div>
-          {!collapsed && (
-            <div className="px-1 pb-1">
-              <LanguageSwitcher />
-            </div>
-          )}
+        {/* Sign out only */}
+        <div className="p-3 border-t border-border">
           <button
             onClick={handleLogout}
             className={cn(
@@ -164,7 +206,7 @@ export function Sidebar({ role, businessName }: SidebarProps) {
           </div>
           <span className="font-bold text-foreground text-sm">SocialPilot</span>
         </div>
-        <LanguageSwitcher />
+        <div className="w-9" /> {/* spacer to center logo */}
       </div>
 
       {/* Mobile overlay */}
@@ -191,7 +233,7 @@ export function Sidebar({ role, businessName }: SidebarProps) {
               <p className="text-sm font-semibold text-foreground">{businessName}</p>
             </div>
           )}
-          <nav className="flex-1 p-3 space-y-0.5">
+          <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
             <NavLinks onClick={() => setMobileOpen(false)} />
           </nav>
           <div className="p-3 border-t border-border">

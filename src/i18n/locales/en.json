@@ -64,8 +64,19 @@
     }
   },
   "settings": {
-    "title": "Tone Settings",
-    "subtitle": "Customize reply personality per platform",
+    "title": "Settings",
+    "subtitle": "Manage your account preferences",
+    "tabs": {
+      "aiSettings": "AI Settings",
+      "appearance": "Appearance",
+      "notifications": "Notifications"
+    },
+    "appearance": {
+      "theme": "Theme",
+      "themeHint": "Auto switches dark at 7 pm and light at 6 am",
+      "language": "Language",
+      "languageHint": "App interface language — saved to your account"
+    },
     "toneLabel": "Reply Tone",
     "languageLabel": "Reply Language",
     "blockedLabel": "Blocked Words",

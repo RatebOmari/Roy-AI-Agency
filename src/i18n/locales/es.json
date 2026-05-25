@@ -63,8 +63,19 @@
     }
   },
   "settings": {
-    "title": "Configuración de tono",
-    "subtitle": "Personaliza la personalidad de respuestas por plataforma",
+    "title": "Configuración",
+    "subtitle": "Gestiona las preferencias de tu cuenta",
+    "tabs": {
+      "aiSettings": "IA",
+      "appearance": "Apariencia",
+      "notifications": "Notificaciones"
+    },
+    "appearance": {
+      "theme": "Tema",
+      "themeHint": "El modo automático activa oscuro a las 7pm y claro a las 6am",
+      "language": "Idioma",
+      "languageHint": "Idioma de la interfaz — guardado en tu cuenta"
+    },
     "toneLabel": "Tono de respuesta",
     "languageLabel": "Idioma de respuestas",
     "blockedLabel": "Palabras bloqueadas",

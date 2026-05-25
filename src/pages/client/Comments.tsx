@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { CommentCard } from "@/components/social/CommentCard";
 import type { Comment, ReplyStatus } from "@/types";
-import type { Platform } from "@/components/social/PlatformCard";
+import type { Platform } from "@/types";
 import { Search, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useComments, useApproveComment, useRejectComment, useEditComment } from "@/hooks/useComments";

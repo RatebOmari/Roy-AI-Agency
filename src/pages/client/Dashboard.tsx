@@ -6,26 +6,38 @@ import { PlatformCard } from "@/components/social/PlatformCard";
 import { MessageSquare, TrendingUp, Clock, CheckCircle2, Settings, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboard } from "@/hooks/useDashboard";
-import { useConnectPlatform, useDisconnectPlatform } from "@/hooks/usePlatforms";
-import type { Platform } from "@/types";
+import { useConnectPlatformFeature, useDisconnectPlatformFeature } from "@/hooks/usePlatforms";
+import type { ExtendedPlatform, PlatformFeatureType, PlatformFeatureStatus } from "@/types";
+
+const ALL_PLATFORMS: ExtendedPlatform[] = ["tiktok", "instagram", "facebook", "whatsapp", "sms", "phone"];
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { data, isLoading } = useDashboard();
-  const connectMutation = useConnectPlatform();
-  const disconnectMutation = useDisconnectPlatform();
+  const connectMutation = useConnectPlatformFeature();
+  const disconnectMutation = useDisconnectPlatformFeature();
 
-  const platforms = data?.platforms ?? [];
+  const platformsV2 = data?.platformsV2 ?? [];
+  const permissions = user?.platformPermissions;
+
   const total   = data?.totalReplies ?? 0;
   const pending = data?.pendingReview ?? 0;
 
   const stats = [
     { label: t("dashboard.totalReplies"),   value: total,                          icon: MessageSquare, color: "text-primary",    bg: "bg-primary/10" },
-    { label: t("dashboard.pendingReview"),  value: pending,                         icon: Clock,         color: "text-yellow-600", bg: "bg-yellow-100" },
-    { label: t("dashboard.responseTime"),   value: data?.avgResponseTime ?? "–",   icon: TrendingUp,    color: "text-blue-600",   bg: "bg-blue-100" },
-    { label: t("dashboard.engagementRate"), value: data ? `${data.engagementRate}%` : "–", icon: CheckCircle2, color: "text-green-600", bg: "bg-green-100" },
+    { label: t("dashboard.pendingReview"),  value: pending,                         icon: Clock,         color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/20" },
+    { label: t("dashboard.responseTime"),   value: data?.avgResponseTime ?? "–",   icon: TrendingUp,    color: "text-blue-600",   bg: "bg-blue-100 dark:bg-blue-900/20" },
+    { label: t("dashboard.engagementRate"), value: data ? `${data.engagementRate}%` : "–", icon: CheckCircle2, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/20" },
   ];
+
+  const handleConnect = (platform: ExtendedPlatform, feature: PlatformFeatureType) => {
+    connectMutation.mutate({ platform, feature });
+  };
+
+  const handleDisconnect = (platform: ExtendedPlatform, feature: PlatformFeatureType) => {
+    disconnectMutation.mutate({ platform, feature });
+  };
 
   return (
     <AppLayout role="client" businessName={user?.businessName ?? "SocialPilot"}>
@@ -89,18 +101,36 @@ export default function Dashboard() {
 
         <div>
           <h2 className="text-base font-semibold text-foreground mb-4">{t("dashboard.platforms")}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(["tiktok", "instagram", "facebook", "whatsapp"] as Platform[]).map((p, i) => {
-              const info = platforms.find(pl => pl.platform === p);
-              const connected = info?.connected ?? false;
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {ALL_PLATFORMS.map((p, i) => {
+              const info = platformsV2.find(pl => pl.platform === p);
+              const perm = permissions?.[p];
+
+              const commentsStatus: PlatformFeatureStatus = info?.comments ?? {
+                connected: false,
+                enabled: perm?.comments ?? false,
+              };
+              const messagesStatus: PlatformFeatureStatus = info?.messages ?? {
+                connected: false,
+                enabled: perm?.messages ?? false,
+              };
+
+              // Merge permissions with mock data: if admin disabled a feature, override enabled
+              const effectiveComments: PlatformFeatureStatus = perm
+                ? { ...commentsStatus, enabled: perm.comments }
+                : commentsStatus;
+              const effectiveMessages: PlatformFeatureStatus = perm
+                ? { ...messagesStatus, enabled: perm.messages }
+                : messagesStatus;
+
               return (
                 <motion.div key={p} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.05 }}>
                   <PlatformCard
                     platform={p}
-                    connected={connected}
-                    stats={connected && info ? { replies: info.replies, pending: info.pending } : undefined}
-                    onConnect={(pl) => connectMutation.mutate(pl)}
-                    onDisconnect={(pl) => disconnectMutation.mutate(pl)}
+                    commentsStatus={effectiveComments}
+                    messagesStatus={effectiveMessages}
+                    onConnect={handleConnect}
+                    onDisconnect={handleDisconnect}
                   />
                 </motion.div>
               );

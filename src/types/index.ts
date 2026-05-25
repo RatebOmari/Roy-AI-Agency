@@ -1,4 +1,6 @@
 export type Platform = "tiktok" | "instagram" | "facebook" | "whatsapp";
+export type ExtendedPlatform = Platform | "sms" | "phone";
+export type PlatformFeatureType = "comments" | "messages";
 export type Channel =
   | "tiktok_comment" | "tiktok_dm"
   | "instagram_comment" | "instagram_dm"
@@ -11,12 +13,26 @@ export type LanguageType = "ar" | "en" | "ar_en";
 export type ConversationStatus = "open" | "pending" | "resolved" | "closed";
 export type Priority = "urgent" | "normal" | "low";
 
+export interface PlatformFeatureStatus {
+  connected: boolean;
+  enabled: boolean;
+  replies?: number;
+  pending?: number;
+}
+
+export interface PlatformConnectionV2 {
+  platform: ExtendedPlatform;
+  comments: PlatformFeatureStatus;
+  messages: PlatformFeatureStatus;
+}
+
 export interface User {
   id: string;
   email: string;
   role: "client" | "agency";
   name: string;
   businessName: string;
+  platformPermissions?: Record<ExtendedPlatform, { comments: boolean; messages: boolean }>;
 }
 
 export interface Comment {
@@ -58,6 +74,7 @@ export interface DashboardStats {
   avgResponseTime: string;
   engagementRate: number;
   platforms: PlatformConnection[];
+  platformsV2?: PlatformConnectionV2[];
 }
 
 export interface AgencyClient {

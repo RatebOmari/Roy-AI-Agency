@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Inbox, Users, BarChart2, Zap,
-  Settings, LogOut, ChevronLeft, Menu, X, UserCircle,
+  Settings, LogOut, ChevronRight, Menu, X, UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -29,37 +29,36 @@ function UnreadBadge() {
   );
 }
 
+const CLIENT_NAV = [
+  { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
+  { label: "Inbox",      href: "/inbox",       icon: Inbox,          badge: true },
+  { label: "Contacts",   href: "/contacts",    icon: UserCircle },
+  { label: "Analytics",  href: "/analytics",   icon: BarChart2 },
+  { label: "Automation", href: "/automation",  icon: Zap },
+  { label: "Settings",   href: "/settings",    icon: Settings },
+];
+
+const AGENCY_NAV = [
+  { label: "Dashboard",  href: "/agency/dashboard", icon: LayoutDashboard },
+  { label: "Clients",    href: "/agency/clients",   icon: Users },
+  { label: "Analytics",  href: "/agency/analytics", icon: BarChart2 },
+  { label: "Settings",   href: "/agency/settings",  icon: Settings },
+];
+
 export function Sidebar({ role, businessName }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
+  useTranslation(); // ensures i18n is initialized for child components
   const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isRtl = i18n.language === "ar";
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  const clientNav = [
-    { label: "Dashboard",   href: "/dashboard",    icon: LayoutDashboard },
-    { label: "Inbox",       href: "/inbox",         icon: Inbox,           badge: <UnreadBadge /> },
-    { label: "Contacts",    href: "/contacts",      icon: UserCircle },
-    { label: "Analytics",   href: "/analytics",     icon: BarChart2 },
-    { label: "Automation",  href: "/automation",    icon: Zap },
-    { label: "Settings",    href: "/settings",      icon: Settings },
-  ];
-
-  const agencyNav = [
-    { label: t("nav.dashboard"), href: "/agency/dashboard", icon: LayoutDashboard },
-    { label: t("nav.clients"),   href: "/agency/clients",   icon: Users },
-    { label: "Analytics",        href: "/agency/analytics", icon: BarChart2 },
-    { label: "Settings",         href: "/agency/settings",  icon: Settings },
-  ];
-
-  const navItems = role === "client" ? clientNav : agencyNav;
+  const navItems = role === "client" ? CLIENT_NAV : AGENCY_NAV;
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <>
@@ -81,7 +80,7 @@ export function Sidebar({ role, businessName }: SidebarProps) {
             {!collapsed && (
               <>
                 <span className="flex-1">{item.label}</span>
-                {"badge" in item && item.badge}
+                {"badge" in item && item.badge && <UnreadBadge />}
               </>
             )}
           </Link>
@@ -92,53 +91,51 @@ export function Sidebar({ role, businessName }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar — always LEFT */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-card border-border transition-all duration-300 h-screen sticky top-0",
-          isRtl ? "border-l" : "border-r",
-          collapsed ? "w-20" : "w-64"
+          "hidden lg:flex flex-col bg-card border-r border-border transition-all duration-300 h-screen sticky top-0 flex-shrink-0",
+          collapsed ? "w-[68px]" : "w-60"
         )}
       >
-        <div className="h-16 flex items-center justify-between px-4 border-b border-border">
+        {/* Logo */}
+        <div className="h-14 flex items-center justify-between px-4 border-b border-border">
           {!collapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+                <Zap className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="font-bold text-foreground text-lg">SocialPilot</span>
+              <span className="font-bold text-foreground">SocialPilot</span>
             </div>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className={cn("p-1.5 rounded-lg hover:bg-muted transition-colors", collapsed && "mx-auto")}
+            className={cn("p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground", collapsed && "mx-auto")}
           >
-            <ChevronLeft className={cn("w-5 h-5 text-muted-foreground transition-transform",
-              collapsed && "rotate-180",
-              isRtl && !collapsed && "rotate-180",
-              isRtl && collapsed && "rotate-0"
-            )} />
+            <ChevronRight className={cn("w-4 h-4 transition-transform", collapsed ? "" : "rotate-180")} />
           </button>
         </div>
 
+        {/* Business name */}
         {!collapsed && businessName && (
           <div className="px-4 py-3 border-b border-border">
-            <p className="text-xs text-muted-foreground">{t("nav.account")}</p>
-            <p className="text-sm font-medium text-foreground truncate">{businessName}</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-0.5">Account</p>
+            <p className="text-sm font-semibold text-foreground truncate">{businessName}</p>
           </div>
         )}
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {/* Nav */}
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           <NavLinks />
         </nav>
 
-        {!collapsed && (
-          <div className="px-4 pb-3">
-            <LanguageSwitcher />
-          </div>
-        )}
-
-        <div className="p-4 border-t border-border">
+        {/* Language + Logout */}
+        <div className="p-3 border-t border-border space-y-1">
+          {!collapsed && (
+            <div className="px-1 pb-1">
+              <LanguageSwitcher />
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className={cn(
@@ -146,26 +143,27 @@ export function Sidebar({ role, businessName }: SidebarProps) {
               collapsed && "justify-center"
             )}
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>{t("nav.signOut")}</span>}
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            {!collapsed && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
 
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 right-0 left-0 h-16 bg-card border-b border-border z-50 flex items-center justify-between px-4">
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-card border-b border-border z-50 flex items-center justify-between px-4">
         <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 rounded-lg hover:bg-muted">
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <Zap className="w-3.5 h-3.5 text-white" />
+          <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+            <Zap className="w-3 h-3 text-white" />
           </div>
-          <span className="font-bold text-foreground">SocialPilot</span>
+          <span className="font-bold text-foreground text-sm">SocialPilot</span>
         </div>
         <LanguageSwitcher />
       </div>
 
+      {/* Mobile overlay */}
       {mobileOpen && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -175,31 +173,30 @@ export function Sidebar({ role, businessName }: SidebarProps) {
         />
       )}
 
+      {/* Mobile drawer — always from LEFT */}
       {mobileOpen && (
         <motion.aside
-          initial={isRtl ? { x: 280 } : { x: -280 }}
+          initial={{ x: -260 }}
           animate={{ x: 0 }}
-          className={cn(
-            "lg:hidden fixed top-16 bottom-0 w-64 bg-card border-border z-50 flex flex-col",
-            isRtl ? "right-0 border-l" : "left-0 border-r"
-          )}
+          className="lg:hidden fixed top-14 bottom-0 left-0 w-60 bg-card border-r border-border z-50 flex flex-col"
+          dir="ltr"
         >
           {businessName && (
             <div className="px-4 py-3 border-b border-border">
-              <p className="text-xs text-muted-foreground">{t("nav.account")}</p>
-              <p className="text-sm font-medium text-foreground">{businessName}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-0.5">Account</p>
+              <p className="text-sm font-semibold text-foreground">{businessName}</p>
             </div>
           )}
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 p-3 space-y-0.5">
             <NavLinks onClick={() => setMobileOpen(false)} />
           </nav>
-          <div className="p-4 border-t border-border">
+          <div className="p-3 border-t border-border">
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted w-full"
             >
-              <LogOut className="w-5 h-5" />
-              <span>{t("nav.signOut")}</span>
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
             </button>
           </div>
         </motion.aside>

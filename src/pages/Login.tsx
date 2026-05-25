@@ -22,7 +22,7 @@ export default function Login() {
     setError("");
     try {
       const user = await login(email, password, role);
-      navigate(user.role === "agency" ? "/agency/clients" : "/dashboard");
+      navigate(user.role === "agency" ? "/agency/dashboard" : "/dashboard");
     } catch {
       setError(t("login.invalidCredentials"));
     }
@@ -117,11 +117,9 @@ export default function Login() {
             </button>
           </form>
 
-          {!import.meta.env.VITE_N8N_WEBHOOK_URL && (
-            <p className="text-xs text-center text-muted-foreground border-t border-border pt-3">
-              Demo: <span dir="ltr">client@demo.com / demo123</span>
-            </p>
-          )}
+          <p className="text-xs text-center text-muted-foreground border-t border-border pt-3">
+            Demo — <span dir="ltr" className="font-mono">client@demo.com</span> or <span dir="ltr" className="font-mono">agency@demo.com</span> · password: <span dir="ltr" className="font-mono">demo123</span>
+          </p>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">{t("app.poweredBy")}</p>

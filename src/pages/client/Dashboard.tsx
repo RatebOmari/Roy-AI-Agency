@@ -76,9 +76,9 @@ export default function Dashboard() {
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          <Link to="/comments" className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl text-sm font-medium hover:bg-muted transition-colors">
+          <Link to="/inbox" className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl text-sm font-medium hover:bg-muted transition-colors">
             <MessageSquare className="w-4 h-4" />
-            {t("dashboard.reviewComments")}
+            Open Inbox
             {pending > 0 && <span className="bg-primary text-white text-xs rounded-full px-1.5 py-0.5 font-bold">{pending}</span>}
           </Link>
           <Link to="/settings" className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl text-sm font-medium hover:bg-muted transition-colors">

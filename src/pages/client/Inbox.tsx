@@ -4,7 +4,7 @@ import { ConversationList } from "@/components/inbox/ConversationList";
 import { ConversationPane } from "@/components/inbox/ConversationPane";
 import { useConversations, useReplyToConversation } from "@/hooks/useConversations";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Conversation, ConversationStatus } from "@/types";
+import type { Conversation } from "@/types";
 import { Loader2 } from "lucide-react";
 
 export default function Inbox() {
@@ -16,9 +16,9 @@ export default function Inbox() {
   const { data: conversations = [], isLoading } = useConversations();
   const replyMutation = useReplyToConversation();
 
+  // Local optimistic state
   const [localConvs, setLocalConvs] = useState<Conversation[] | null>(null);
   const displayed = localConvs ?? conversations;
-
   const selectedConv = displayed.find(c => c.id === selectedId) ?? null;
 
   const handleApprove = (convId: string, msgId: string, content: string) => {
@@ -59,26 +59,19 @@ export default function Inbox() {
     replyMutation.mutate({ conversationId: convId, content, action: "edit" });
   };
 
-  const filteredForList = displayed.filter(c => {
-    const matchTab = activeTab === "all" || c.status === (activeTab as ConversationStatus);
-    const matchSearch = !search
-      || c.contactName.toLowerCase().includes(search.toLowerCase())
-      || c.lastMessage.toLowerCase().includes(search.toLowerCase());
-    return matchTab && matchSearch;
-  });
-
   return (
     <AppLayout role="client" businessName={user?.businessName}>
-      <div className="flex h-[calc(100vh-64px)] lg:h-screen -m-6 lg:-m-8 overflow-hidden">
-        {/* Left Panel — Conversation List */}
-        <div className="w-80 flex-shrink-0 border-r border-border bg-card flex flex-col">
+      {/* Full-height split pane that bleed past the AppLayout padding */}
+      <div className="flex h-[calc(100vh-56px)] -m-6 lg:-m-8 overflow-hidden border-t border-border">
+        {/* Left panel */}
+        <div className="w-80 flex-shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <ConversationList
-              conversations={filteredForList}
+              conversations={displayed}
               selectedId={selectedId}
               onSelect={setSelectedId}
               search={search}
@@ -89,7 +82,7 @@ export default function Inbox() {
           )}
         </div>
 
-        {/* Right Panel — Conversation Thread */}
+        {/* Right panel */}
         <div className="flex-1 flex flex-col bg-background overflow-hidden">
           <ConversationPane
             conversation={selectedConv}

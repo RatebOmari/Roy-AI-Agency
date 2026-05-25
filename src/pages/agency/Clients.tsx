@@ -1,29 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Users, TrendingUp, CheckCircle, Search, Plus, MoreHorizontal, Eye, Settings, Pause, Play, MessageSquare } from "lucide-react";
+import { Users, TrendingUp, CheckCircle, Search, Plus, MoreHorizontal, Eye, Settings, Pause, Play, MessageSquare, Loader2 } from "lucide-react";
 import type { Platform } from "@/components/social/PlatformCard";
-
-type Status = "active" | "paused" | "setup";
-
-interface Client {
-  id: string;
-  name: string;
-  owner: string;
-  email: string;
-  platforms: Platform[];
-  replies: number;
-  status: Status;
-}
-
-const mock: Client[] = [
-  { id: "1", name: "Al-Asala Restaurant", owner: "Mohammed Al-Qahtani", email: "asala@mail.com",  platforms: ["tiktok","instagram"],           replies: 342, status: "active" },
-  { id: "2", name: "Fiona Salon",         owner: "Nour Al-Omari",       email: "fiona@mail.com",  platforms: ["tiktok","instagram","facebook"], replies: 218, status: "active" },
-  { id: "3", name: "Smile Clinic",        owner: "Dr. Sami Al-Shammari", email: "smile@mail.com", platforms: ["facebook","whatsapp"],           replies: 87,  status: "active" },
-  { id: "4", name: "Breeq Café",          owner: "Layla Al-Mansour",    email: "breeq@mail.com",  platforms: ["instagram"],                    replies: 0,   status: "setup" },
-  { id: "5", name: "Tec Store",           owner: "Ali Al-Zahrani",      email: "tec@mail.com",    platforms: ["tiktok","whatsapp"],            replies: 156, status: "paused" },
-];
+import type { AgencyClient, ClientStatus } from "@/types";
+import { useClients, useUpdateClientStatus } from "@/hooks/useClients";
 
 const pColor: Record<Platform, string> = {
   tiktok: "bg-black text-white", instagram: "bg-pink-500 text-white",
@@ -31,7 +13,7 @@ const pColor: Record<Platform, string> = {
 };
 const pShort: Record<Platform, string> = { tiktok: "TT", instagram: "IG", facebook: "FB", whatsapp: "WA" };
 
-const statusCls: Record<Status, string> = {
+const statusCls: Record<ClientStatus, string> = {
   active: "bg-green-100 text-green-700",
   paused: "bg-yellow-100 text-yellow-700",
   setup:  "bg-blue-100 text-blue-700",
@@ -39,9 +21,16 @@ const statusCls: Record<Status, string> = {
 
 export default function AgencyClients() {
   const { t } = useTranslation();
-  const [clients, setClients] = useState(mock);
+  const { data, isLoading } = useClients();
+  const statusMutation = useUpdateClientStatus();
+
+  const [clients, setClients] = useState<AgencyClient[]>([]);
   const [search, setSearch] = useState("");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (data) setClients(data);
+  }, [data]);
 
   const filtered = clients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -49,15 +38,17 @@ export default function AgencyClients() {
     c.email.includes(search.toLowerCase())
   );
 
-  const toggle = (id: string) =>
-    setClients(p => p.map(c => c.id === id
-      ? { ...c, status: (c.status === "active" ? "paused" : "active") as Status }
-      : c
-    ));
+  const toggle = (id: string) => {
+    const client = clients.find(c => c.id === id);
+    if (!client) return;
+    const newStatus: ClientStatus = client.status === "active" ? "paused" : "active";
+    setClients(p => p.map(c => c.id === id ? { ...c, status: newStatus } : c));
+    statusMutation.mutate({ id, status: newStatus });
+  };
 
   const stats = {
-    total: clients.length,
-    active: clients.filter(c => c.status === "active").length,
+    total:   clients.length,
+    active:  clients.filter(c => c.status === "active").length,
     replies: clients.reduce((s, c) => s + c.replies, 0),
   };
 
@@ -89,7 +80,7 @@ export default function AgencyClients() {
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
               <div>
-                <p className="text-xl font-bold text-foreground">{s.value}</p>
+                <p className="text-xl font-bold text-foreground">{isLoading ? "–" : s.value}</p>
                 <p className="text-sm text-muted-foreground">{s.label}</p>
               </div>
             </motion.div>
@@ -109,76 +100,82 @@ export default function AgencyClients() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden"
         >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.client")}</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">{t("agency.platforms2")}</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.replies")}</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.status")}</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t("agency.noResults")}</td></tr>
-                ) : filtered.map(c => (
-                  <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-foreground">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.owner}</p>
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <div className="flex gap-1 flex-wrap">
-                        {c.platforms.map(p => (
-                          <span key={p} className={`text-xs font-bold px-1.5 py-0.5 rounded ${pColor[p]}`}>{pShort[p]}</span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">{c.replies.toLocaleString()}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusCls[c.status]}`}>
-                        {t(`agency.statuses.${c.status}`)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 relative">
-                      <button
-                        onClick={() => setOpenMenu(openMenu === c.id ? null : c.id)}
-                        className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                      {openMenu === c.id && (
-                        <div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-lg py-1 w-44">
-                          <button className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted">
-                            <Eye className="w-4 h-4" /> {t("agency.viewDetails")}
-                          </button>
-                          <button className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted">
-                            <Settings className="w-4 h-4" /> {t("agency.accountSettings")}
-                          </button>
-                          <button
-                            onClick={() => { toggle(c.id); setOpenMenu(null); }}
-                            className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
-                          >
-                            {c.status === "active"
-                              ? <><Pause className="w-4 h-4" /> {t("agency.pause")}</>
-                              : <><Play className="w-4 h-4" /> {t("agency.activate")}</>
-                            }
-                          </button>
-                        </div>
-                      )}
-                    </td>
+          {isLoading && clients.length === 0 ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.client")}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">{t("agency.platforms2")}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.replies")}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.status")}</th>
+                    <th className="px-4 py-3" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t("agency.noResults")}</td></tr>
+                  ) : filtered.map(c => (
+                    <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-foreground">{c.name}</p>
+                        <p className="text-xs text-muted-foreground">{c.owner}</p>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <div className="flex gap-1 flex-wrap">
+                          {c.platforms.map(p => (
+                            <span key={p} className={`text-xs font-bold px-1.5 py-0.5 rounded ${pColor[p]}`}>{pShort[p]}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">{c.replies.toLocaleString()}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusCls[c.status]}`}>
+                          {t(`agency.statuses.${c.status}`)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 relative">
+                        <button
+                          onClick={() => setOpenMenu(openMenu === c.id ? null : c.id)}
+                          className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                        {openMenu === c.id && (
+                          <div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-lg py-1 w-44">
+                            <button className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted">
+                              <Eye className="w-4 h-4" /> {t("agency.viewDetails")}
+                            </button>
+                            <button className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted">
+                              <Settings className="w-4 h-4" /> {t("agency.accountSettings")}
+                            </button>
+                            <button
+                              onClick={() => { toggle(c.id); setOpenMenu(null); }}
+                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
+                            >
+                              {c.status === "active"
+                                ? <><Pause className="w-4 h-4" /> {t("agency.pause")}</>
+                                : <><Play className="w-4 h-4" /> {t("agency.activate")}</>
+                              }
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </motion.div>
       </div>
     </AppLayout>

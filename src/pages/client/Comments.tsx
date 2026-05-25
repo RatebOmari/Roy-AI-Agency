@@ -1,32 +1,58 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { CommentCard, type Comment, type ReplyStatus } from "@/components/social/CommentCard";
+import { CommentCard } from "@/components/social/CommentCard";
+import type { Comment, ReplyStatus } from "@/types";
 import type { Platform } from "@/components/social/PlatformCard";
-import { Search } from "lucide-react";
-
-const mock: Comment[] = [
-  { id: "1", platform: "tiktok",    username: "sara_foodie",   text: "Where are you located? 😍",           aiReply: "Thanks Sara! We're in the city center, check the bio for full details 📍",  status: "pending",  timestamp: "5 min ago" },
-  { id: "2", platform: "instagram", username: "ahmed_reviews", text: "Food was amazing! What are your hours?", aiReply: "Thank you Ahmed! We're open daily from 12pm to midnight 😊",               status: "pending",  timestamp: "12 min ago" },
-  { id: "3", platform: "tiktok",    username: "foodlover99",   text: "Do you have delivery?",                aiReply: "Yes! Delivery available via food apps 🛵",                                  status: "approved", timestamp: "25 min ago" },
-  { id: "4", platform: "facebook",  username: "Mohammed Ali",  text: "Visited and loved it, highly recommend!", aiReply: "Thank you so much Mohammed! Your kind words mean a lot ❤️",             status: "approved", timestamp: "1 hr ago" },
-  { id: "5", platform: "whatsapp",  username: "+966 5X XXX",   text: "No reply for so long!",               aiReply: "We sincerely apologize! Our team will reach out immediately 🙏",           status: "rejected", timestamp: "2 hrs ago" },
-];
+import { Search, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useComments, useApproveComment, useRejectComment, useEditComment } from "@/hooks/useComments";
 
 export default function Comments() {
   const { t } = useTranslation();
-  const [comments, setComments] = useState(mock);
+  const { user } = useAuth();
   const [pFilter, setPFilter] = useState<Platform | "all">("all");
   const [sFilter, setSFilter] = useState<ReplyStatus | "all">("all");
   const [search, setSearch] = useState("");
+  const [localComments, setLocalComments] = useState<Comment[]>([]);
+
+  const { data, isLoading } = useComments({ platform: pFilter, status: sFilter });
+  const approveMutation = useApproveComment();
+  const rejectMutation = useRejectComment();
+  const editMutation = useEditComment();
+
+  useEffect(() => {
+    if (data) setLocalComments(data);
+  }, [data]);
+
+  const filtered = localComments.filter(c =>
+    (!search || c.text.toLowerCase().includes(search.toLowerCase()) || c.username.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const pending = localComments.filter(c => c.status === "pending").length;
+
+  const approve = (id: string) => {
+    setLocalComments(p => p.map(c => c.id === id ? { ...c, status: "approved" as ReplyStatus } : c));
+    approveMutation.mutate(id);
+  };
+
+  const reject = (id: string) => {
+    setLocalComments(p => p.map(c => c.id === id ? { ...c, status: "rejected" as ReplyStatus } : c));
+    rejectMutation.mutate(id);
+  };
+
+  const edit = (id: string, aiReply: string) => {
+    setLocalComments(p => p.map(c => c.id === id ? { ...c, aiReply, status: "edited" as ReplyStatus } : c));
+    editMutation.mutate({ id, aiReply });
+  };
 
   const platforms: { id: Platform | "all"; label: string }[] = [
-    { id: "all", label: t("comments.all") },
-    { id: "tiktok", label: "TikTok" },
+    { id: "all",       label: t("comments.all") },
+    { id: "tiktok",    label: "TikTok" },
     { id: "instagram", label: "Instagram" },
-    { id: "facebook", label: "Facebook" },
-    { id: "whatsapp", label: "WhatsApp" },
+    { id: "facebook",  label: "Facebook" },
+    { id: "whatsapp",  label: "WhatsApp" },
   ];
 
   const statuses: { id: ReplyStatus | "all"; label: string }[] = [
@@ -36,20 +62,8 @@ export default function Comments() {
     { id: "rejected", label: t("comments.status.rejected") },
   ];
 
-  const filtered = comments.filter(c =>
-    (pFilter === "all" || c.platform === pFilter) &&
-    (sFilter === "all" || c.status === sFilter) &&
-    (!search || c.text.toLowerCase().includes(search.toLowerCase()) || c.username.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  const pending = comments.filter(c => c.status === "pending").length;
-
-  const approve = (id: string) => setComments(p => p.map(c => c.id === id ? { ...c, status: "approved" as ReplyStatus } : c));
-  const reject  = (id: string) => setComments(p => p.map(c => c.id === id ? { ...c, status: "rejected" as ReplyStatus } : c));
-  const edit    = (id: string, reply: string) => setComments(p => p.map(c => c.id === id ? { ...c, aiReply: reply, status: "edited" as ReplyStatus } : c));
-
   return (
-    <AppLayout role="client" businessName="Al-Asala Restaurant">
+    <AppLayout role="client" businessName={user?.businessName ?? "SocialPilot"}>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
           <div>
@@ -93,16 +107,22 @@ export default function Comments() {
           </div>
         </motion.div>
 
-        <div className="space-y-3">
-          {filtered.length === 0
-            ? <div className="text-center py-12 text-muted-foreground">{t("comments.noResults")}</div>
-            : filtered.map((c, i) => (
-                <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                  <CommentCard comment={c} onApprove={approve} onReject={reject} onEdit={edit} />
-                </motion.div>
-              ))
-          }
-        </div>
+        {isLoading && localComments.length === 0 ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.length === 0
+              ? <div className="text-center py-12 text-muted-foreground">{t("comments.noResults")}</div>
+              : filtered.map((c, i) => (
+                  <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                    <CommentCard comment={c} onApprove={approve} onReject={reject} onEdit={edit} />
+                  </motion.div>
+                ))
+            }
+          </div>
+        )}
       </div>
     </AppLayout>
   );

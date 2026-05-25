@@ -1,39 +1,35 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PlatformCard, type Platform } from "@/components/social/PlatformCard";
-import { MessageSquare, TrendingUp, Clock, CheckCircle2, Settings } from "lucide-react";
-
-const initialPlatforms: Record<Platform, { connected: boolean; replies: number; pending: number }> = {
-  tiktok:    { connected: true,  replies: 42, pending: 5 },
-  instagram: { connected: true,  replies: 31, pending: 2 },
-  facebook:  { connected: false, replies: 0,  pending: 0 },
-  whatsapp:  { connected: false, replies: 0,  pending: 0 },
-};
+import { PlatformCard } from "@/components/social/PlatformCard";
+import { MessageSquare, TrendingUp, Clock, CheckCircle2, Settings, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useDashboard } from "@/hooks/useDashboard";
+import { useConnectPlatform, useDisconnectPlatform } from "@/hooks/usePlatforms";
+import type { Platform } from "@/types";
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const [platforms, setPlatforms] = useState(initialPlatforms);
+  const { user } = useAuth();
+  const { data, isLoading } = useDashboard();
+  const connectMutation = useConnectPlatform();
+  const disconnectMutation = useDisconnectPlatform();
 
-  const total   = Object.values(platforms).reduce((s, p) => s + p.replies, 0);
-  const pending = Object.values(platforms).reduce((s, p) => s + p.pending, 0);
-
-  const handleConnect    = (p: Platform) => setPlatforms(prev => ({ ...prev, [p]: { ...prev[p], connected: true } }));
-  const handleDisconnect = (p: Platform) => setPlatforms(prev => ({ ...prev, [p]: { connected: false, replies: 0, pending: 0 } }));
+  const platforms = data?.platforms ?? [];
+  const total   = data?.totalReplies ?? 0;
+  const pending = data?.pendingReview ?? 0;
 
   const stats = [
-    { label: t("dashboard.totalReplies"),   value: total,   icon: MessageSquare, color: "text-primary",    bg: "bg-primary/10" },
-    { label: t("dashboard.pendingReview"),  value: pending, icon: Clock,         color: "text-yellow-600", bg: "bg-yellow-100" },
-    { label: t("dashboard.responseTime"),   value: "< 3",   icon: TrendingUp,    color: "text-blue-600",   bg: "bg-blue-100" },
-    { label: t("dashboard.engagementRate"), value: "87%",   icon: CheckCircle2,  color: "text-green-600",  bg: "bg-green-100" },
+    { label: t("dashboard.totalReplies"),   value: total,                          icon: MessageSquare, color: "text-primary",    bg: "bg-primary/10" },
+    { label: t("dashboard.pendingReview"),  value: pending,                         icon: Clock,         color: "text-yellow-600", bg: "bg-yellow-100" },
+    { label: t("dashboard.responseTime"),   value: data?.avgResponseTime ?? "–",   icon: TrendingUp,    color: "text-blue-600",   bg: "bg-blue-100" },
+    { label: t("dashboard.engagementRate"), value: data ? `${data.engagementRate}%` : "–", icon: CheckCircle2, color: "text-green-600", bg: "bg-green-100" },
   ];
 
   return (
-    <AppLayout role="client" businessName="Al-Asala Restaurant">
+    <AppLayout role="client" businessName={user?.businessName ?? "SocialPilot"}>
       <div className="space-y-8">
-        {/* Hero */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -46,13 +42,17 @@ export default function Dashboard() {
               <p className="text-white/70 text-sm mt-1">{t("dashboard.subtitle")}</p>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold">{total}</p>
-              <p className="text-white/70 text-sm">{t("dashboard.repliesMonth")}</p>
+              {isLoading
+                ? <Loader2 className="w-6 h-6 animate-spin text-white/70 mt-1" />
+                : <>
+                    <p className="text-3xl font-bold">{total}</p>
+                    <p className="text-white/70 text-sm">{t("dashboard.repliesMonth")}</p>
+                  </>
+              }
             </div>
           </div>
         </motion.div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((s, i) => (
             <motion.div
@@ -67,7 +67,7 @@ export default function Dashboard() {
                   <s.icon className={`w-5 h-5 ${s.color}`} />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-foreground">{s.value}</p>
+                  <p className="text-xl font-bold text-foreground">{isLoading ? "–" : s.value}</p>
                   <p className="text-xs text-muted-foreground">{s.label}</p>
                 </div>
               </div>
@@ -75,7 +75,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Quick Actions */}
         <div className="flex gap-3 flex-wrap">
           <Link to="/comments" className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl text-sm font-medium hover:bg-muted transition-colors">
             <MessageSquare className="w-4 h-4" />
@@ -88,21 +87,24 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Platforms */}
         <div>
           <h2 className="text-base font-semibold text-foreground mb-4">{t("dashboard.platforms")}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(Object.keys(platforms) as Platform[]).map((p, i) => (
-              <motion.div key={p} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.05 }}>
-                <PlatformCard
-                  platform={p}
-                  connected={platforms[p].connected}
-                  stats={platforms[p].connected ? { replies: platforms[p].replies, pending: platforms[p].pending } : undefined}
-                  onConnect={handleConnect}
-                  onDisconnect={handleDisconnect}
-                />
-              </motion.div>
-            ))}
+            {(["tiktok", "instagram", "facebook", "whatsapp"] as Platform[]).map((p, i) => {
+              const info = platforms.find(pl => pl.platform === p);
+              const connected = info?.connected ?? false;
+              return (
+                <motion.div key={p} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.05 }}>
+                  <PlatformCard
+                    platform={p}
+                    connected={connected}
+                    stats={connected && info ? { replies: info.replies, pending: info.pending } : undefined}
+                    onConnect={(pl) => connectMutation.mutate(pl)}
+                    onDisconnect={(pl) => disconnectMutation.mutate(pl)}
+                  />
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </div>

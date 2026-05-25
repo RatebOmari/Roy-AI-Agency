@@ -11,7 +11,8 @@
     "emailPlaceholder": "example@email.com",
     "password": "Password",
     "passwordPlaceholder": "••••••••",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "invalidCredentials": "Invalid email or password"
   },
   "nav": {
     "dashboard": "Dashboard",

@@ -979,11 +979,89 @@ function QueueTab({ posts, onEdit, onDelete, onNew, businessName }: {
 
 // ── Calendar Tab ──────────────────────────────────────────────────────────────
 
-function CalendarTab({ posts, onNew }: { posts: ScheduledPost[]; onNew: (date?: string) => void }) {
+function CalendarPostPreview({ post, businessName, onEdit, onClose }: {
+  post: ScheduledPost;
+  businessName: string;
+  onEdit: (p: ScheduledPost) => void;
+  onClose: () => void;
+}) {
+  const [activePlatform, setActivePlatform] = useState<Platform>(post.platforms[0] ?? "instagram");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="w-full max-w-sm bg-card rounded-2xl border border-border shadow-xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-semibold text-foreground truncate">{formatDate(post.scheduledAt)}</span>
+            <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0", STATUS_STYLE[post.status])}>
+              {post.status}
+            </span>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground flex-shrink-0 ml-2">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Platform tabs — only if multi-platform */}
+        {post.platforms.length > 1 && (
+          <div className="flex gap-1.5 px-4 pt-3">
+            {post.platforms.map(pl => (
+              <button
+                key={pl}
+                onClick={() => setActivePlatform(pl)}
+                className={cn(
+                  "px-3 py-1 rounded-lg text-xs font-medium capitalize transition-colors",
+                  activePlatform === pl ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {pl}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Preview card */}
+        <div className="p-4 overflow-y-auto max-h-[60vh]">
+          <PlatformPreviewCard post={post} platform={activePlatform} businessName={businessName} />
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 px-4 pb-4">
+          <button
+            onClick={() => { onEdit(post); onClose(); }}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors flex-1"
+          >
+            <Pencil className="w-3.5 h-3.5" /> Edit Post
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function CalendarTab({ posts, onNew, onEdit, businessName }: {
+  posts: ScheduledPost[];
+  onNew: (date?: string) => void;
+  onEdit: (p: ScheduledPost) => void;
+  businessName: string;
+}) {
   const today = new Date();
-  const [year, setYear]   = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [year, setYear]     = useState(today.getFullYear());
+  const [month, setMonth]   = useState(today.getMonth());
+  const [selectedDay, setSelectedDay]   = useState<number | null>(null);
+  const [previewPost, setPreviewPost]   = useState<ScheduledPost | null>(null);
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -999,21 +1077,35 @@ function CalendarTab({ posts, onNew }: { posts: ScheduledPost[]; onNew: (date?: 
 
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); setSelectedDay(null); };
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); setSelectedDay(null); };
+  const goToday   = () => { setYear(today.getFullYear()); setMonth(today.getMonth()); setSelectedDay(null); };
 
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
   const selectedPosts = selectedDay ? postsForDay(selectedDay) : [];
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <h3 className="font-semibold text-foreground">{MONTHS[month]} {year}</h3>
-        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
-          <ChevronRight className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <h3 className="font-semibold text-foreground w-36 text-center">{MONTHS[month]} {year}</h3>
+          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        {!isCurrentMonth && (
+          <button
+            onClick={goToday}
+            className="text-xs font-medium text-primary hover:bg-primary/10 px-2.5 py-1 rounded-lg transition-colors"
+          >
+            Today
+          </button>
+        )}
       </div>
 
+      {/* Grid */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="grid grid-cols-7 border-b border-border">
           {DAYS.map(d => (
@@ -1055,15 +1147,16 @@ function CalendarTab({ posts, onNew }: { posts: ScheduledPost[]; onNew: (date?: 
         </div>
       </div>
 
+      {/* Day panel */}
       <AnimatePresence>
         {selectedDay && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="bg-card rounded-2xl border border-border p-4 space-y-3"
+            className="bg-card rounded-2xl border border-border p-4 space-y-2"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-1">
               <h4 className="font-medium text-foreground text-sm">{MONTHS[month]} {selectedDay}</h4>
               <button
                 onClick={() => onNew(new Date(year, month, selectedDay, 10).toISOString())}
@@ -1072,22 +1165,61 @@ function CalendarTab({ posts, onNew }: { posts: ScheduledPost[]; onNew: (date?: 
                 <Plus className="w-3 h-3" /> Add post
               </button>
             </div>
+
             {selectedPosts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No posts scheduled for this day.</p>
+              <p className="text-sm text-muted-foreground py-2">No posts scheduled — click Add post to create one.</p>
             ) : (
-              selectedPosts.map(p => (
-                <div key={p.id} className="flex items-start gap-2 p-2 bg-muted/50 rounded-xl">
-                  <div className="flex gap-1 mt-1">
-                    {p.platforms.map(pl => <span key={pl} className={cn("w-2 h-2 rounded-full flex-shrink-0", PLATFORM_COLOR[pl])} />)}
-                  </div>
-                  {p.mediaUrl && (
-                    <img src={p.mediaUrl} alt="Post" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
-                  )}
-                  <p className="text-xs text-foreground line-clamp-2">{p.content}</p>
-                </div>
-              ))
+              selectedPosts
+                .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""))
+                .map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setPreviewPost(p)}
+                    className="w-full flex items-center gap-3 p-2.5 bg-muted/40 hover:bg-muted rounded-xl transition-colors text-left group"
+                  >
+                    {/* Time */}
+                    <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-lg flex-shrink-0 tabular-nums">
+                      {shortTime(p.scheduledAt)}
+                    </span>
+
+                    {/* Platform dots */}
+                    <div className="flex gap-1 flex-shrink-0">
+                      {p.platforms.map(pl => (
+                        <span key={pl} className={cn("w-2 h-2 rounded-full flex-shrink-0", PLATFORM_COLOR[pl])} />
+                      ))}
+                    </div>
+
+                    {/* Thumbnail */}
+                    {p.mediaUrl && (
+                      <img src={p.mediaUrl} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                    )}
+
+                    {/* Caption */}
+                    <p className="text-xs text-foreground line-clamp-1 flex-1 min-w-0">{p.content}</p>
+
+                    {/* Status + arrow */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full hidden sm:inline", STATUS_STYLE[p.status])}>
+                        {p.status}
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                  </button>
+                ))
             )}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Post preview modal */}
+      <AnimatePresence>
+        {previewPost && (
+          <CalendarPostPreview
+            post={previewPost}
+            businessName={businessName}
+            onEdit={onEdit}
+            onClose={() => setPreviewPost(null)}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -1458,7 +1590,7 @@ export default function Content() {
               />
             )}
             {activeTab === "calendar" && (
-              <CalendarTab posts={posts} onNew={openNew} />
+              <CalendarTab posts={posts} onNew={openNew} onEdit={openEdit} businessName={businessName} />
             )}
             {activeTab === "generate" && (
               <GenerateTab onAddToQueue={openFromGenerate} />

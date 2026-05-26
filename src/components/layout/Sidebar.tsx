@@ -89,7 +89,7 @@ export function Sidebar({ role, businessName }: SidebarProps) {
   const navigate = useNavigate();
   useTranslation(); // ensures i18n is initialized for child components
   const { logout } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sp-sidebar-collapsed") === "true");
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
@@ -160,7 +160,7 @@ export function Sidebar({ role, businessName }: SidebarProps) {
             </div>
           )}
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => { const next = !collapsed; setCollapsed(next); localStorage.setItem("sp-sidebar-collapsed", String(next)); }}
             className={cn("p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground", collapsed && "mx-auto")}
           >
             <ChevronRight className={cn("w-4 h-4 transition-transform", collapsed ? "" : "rotate-180")} />

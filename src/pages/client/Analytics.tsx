@@ -51,7 +51,7 @@ export default function Analytics() {
                   <stat.icon className="w-4 h-4 text-primary" />
                 </div>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  stat.trend.startsWith("+") ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                  stat.trend.startsWith("+") ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
                 }`}>
                   {stat.trend}
                 </span>
@@ -101,17 +101,19 @@ export default function Analytics() {
           <div className="bg-card rounded-2xl p-5 border border-border">
             <h3 className="font-semibold text-foreground mb-5">Channel Breakdown</h3>
             <div className="flex items-center gap-6">
-              <ResponsiveContainer width={160} height={160}>
-                <PieChart>
-                  <Pie data={CHANNEL_DATA} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" paddingAngle={2}>
-                    {CHANNEL_DATA.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-col gap-2">
+              <div className="w-40 h-40 flex-shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={CHANNEL_DATA} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" paddingAngle={2}>
+                      {CHANNEL_DATA.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-col gap-2 flex-1 min-w-0">
                 {CHANNEL_DATA.map(d => (
                   <div key={d.name} className="flex items-center gap-2 text-sm">
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: d.color }} />

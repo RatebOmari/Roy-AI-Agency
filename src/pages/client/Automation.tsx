@@ -48,10 +48,10 @@ const ACTION_LABELS: Record<AutomationRule["action"], string> = {
 };
 
 const ACTION_COLORS: Record<AutomationRule["action"], string> = {
-  auto_send: "bg-green-100 text-green-700",
-  skip_review: "bg-blue-100 text-blue-700",
-  escalate: "bg-red-100 text-red-700",
-  assign_to: "bg-purple-100 text-purple-700",
+  auto_send: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400",
+  skip_review: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
+  escalate: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+  assign_to: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400",
 };
 
 export default function Automation() {
@@ -83,43 +83,43 @@ export default function Automation() {
             <h3 className="font-semibold text-foreground">Hybrid AI Thresholds</h3>
           </div>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
+            <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
               <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-green-600" />
+                <span className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-green-600 dark:text-green-400" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-green-800">Auto-Send</p>
-                  <p className="text-xs text-green-600">AI confidence ≥ 85% — reply sent immediately</p>
+                  <p className="text-sm font-medium text-green-800 dark:text-green-300">Auto-Send</p>
+                  <p className="text-xs text-green-600 dark:text-green-500">AI confidence ≥ 85% — reply sent immediately</p>
                 </div>
               </div>
-              <span className="text-lg font-bold text-green-700">≥ 85%</span>
+              <span className="text-lg font-bold text-green-700 dark:text-green-400">≥ 85%</span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-xl">
+            <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl">
               <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-yellow-600" />
+                <span className="w-8 h-8 rounded-lg bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-yellow-800">Review Queue</p>
-                  <p className="text-xs text-yellow-600">AI confidence 50–84% — waits for approval</p>
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Review Queue</p>
+                  <p className="text-xs text-yellow-600 dark:text-yellow-500">AI confidence 50–84% — waits for approval</p>
                 </div>
               </div>
-              <span className="text-lg font-bold text-yellow-700">50–84%</span>
+              <span className="text-lg font-bold text-yellow-700 dark:text-yellow-400">50–84%</span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-red-50 rounded-xl">
+            <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-xl">
               <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-red-600" />
+                <span className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-red-600 dark:text-red-400" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-red-800">Human Escalation</p>
-                  <p className="text-xs text-red-600">AI confidence &lt; 50% — flagged for human response</p>
+                  <p className="text-sm font-medium text-red-800 dark:text-red-300">Human Escalation</p>
+                  <p className="text-xs text-red-600 dark:text-red-500">AI confidence &lt; 50% — flagged for human response</p>
                 </div>
               </div>
-              <span className="text-lg font-bold text-red-700">&lt; 50%</span>
+              <span className="text-lg font-bold text-red-700 dark:text-red-400">&lt; 50%</span>
             </div>
           </div>
         </div>

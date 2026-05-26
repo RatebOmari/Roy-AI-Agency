@@ -131,7 +131,7 @@ export function useGeneratePost() {
 
 export function useGenerateImage() {
   return useMutation({
-    mutationFn: (params: { prompt: string; caption?: string; platform?: Platform }) =>
+    mutationFn: (params: { prompt: string; caption?: string; platform?: Platform; brandStyle?: string }) =>
       api.post<{ url: string }>("/content/generate-image", params),
   });
 }

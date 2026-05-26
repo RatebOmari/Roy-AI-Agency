@@ -6,13 +6,14 @@ import {
   Loader2, ChevronLeft, ChevronRight, ChevronDown, X, CheckCircle2,
   Heart, MessageCircle, Send, Bookmark, Share2, MoreHorizontal,
   Globe, ThumbsUp, Music, CheckCheck, Image, Upload, Info,
-  LayoutGrid, Clock, Star,
+  LayoutGrid, Clock, Star, Palette,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useScheduledPosts, useCreatePost, useUpdatePost, useDeletePost,
   useGeneratePost, useGenerateImage,
 } from "@/hooks/useContent";
+import { useBrandSettings } from "@/hooks/useSettings";
 import type { ScheduledPost, Platform, ToneType, PostStatus } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -1108,9 +1109,11 @@ function GenerateTab({ onAddToQueue }: {
 
   const generateCaption = useGeneratePost();
   const generateImage   = useGenerateImage();
+  const { data: brandData } = useBrandSettings();
 
   const isGenerating = generateCaption.isPending || generateImage.isPending;
   const hasResult    = captionResult !== null || generateCaption.isPending;
+  const activeBrandStyle = brandData?.imageStyle?.trim() || undefined;
 
   const handleGenerate = () => {
     if (!prompt.trim()) return;
@@ -1121,7 +1124,7 @@ function GenerateTab({ onAddToQueue }: {
       { onSuccess: (data) => setCaptionResult(data) }
     );
     generateImage.mutate(
-      { prompt: prompt.trim(), platform },
+      { prompt: prompt.trim(), platform, brandStyle: activeBrandStyle },
       { onSuccess: (data) => setImageResult(data.url) }
     );
   };
@@ -1237,6 +1240,14 @@ function GenerateTab({ onAddToQueue }: {
           ))}
         </div>
       </div>
+
+      {/* Brand style indicator */}
+      {activeBrandStyle && (
+        <div className="flex items-center gap-1.5 text-xs text-primary/80">
+          <Palette className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="truncate">Brand style active: <span className="font-medium">{activeBrandStyle.slice(0, 60)}{activeBrandStyle.length > 60 ? "…" : ""}</span></span>
+        </div>
+      )}
 
       {/* Single Generate Post button */}
       <button

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { ToneSettingsMap } from "@/types";
+import type { ToneSettingsMap, BrandSettings } from "@/types";
 
 const DEFAULT_SETTINGS: ToneSettingsMap = {
   tiktok:    { tone: "friendly",      language: "ar_en", blocked: "", extra: "" },
@@ -30,6 +30,32 @@ export function useSaveSettings() {
       api.post<void>("/settings", settings),
     onSuccess: (_data, variables) => {
       queryClient.setQueryData(["settings"], variables);
+    },
+  });
+}
+
+const DEFAULT_BRAND: BrandSettings = { imageStyle: "" };
+
+export function useBrandSettings() {
+  return useQuery({
+    queryKey: ["brandSettings"],
+    queryFn: async () => {
+      try {
+        return await api.get<BrandSettings>("/brand");
+      } catch {
+        return DEFAULT_BRAND;
+      }
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useSaveBrandStyle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: BrandSettings) => api.post<void>("/brand", data),
+    onSuccess: (_data, variables) => {
+      queryClient.setQueryData(["brandSettings"], variables);
     },
   });
 }

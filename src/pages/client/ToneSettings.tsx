@@ -4,9 +4,9 @@ import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
-import { CheckCircle2, Loader2, Bell } from "lucide-react";
+import { CheckCircle2, Loader2, Bell, Palette, Wand2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSettings, useSaveSettings } from "@/hooks/useSettings";
+import { useSettings, useSaveSettings, useBrandSettings, useSaveBrandStyle } from "@/hooks/useSettings";
 import type { ToneSettingsMap, PlatformSettings } from "@/types";
 import type { Platform } from "@/types";
 
@@ -22,10 +22,20 @@ const languageKeys = ["ar", "en", "ar_en"] as const;
 
 const defaultConfig: PlatformSettings = { tone: "friendly", language: "ar", blocked: "", extra: "" };
 
-type TabKey = "ai" | "appearance" | "notifications";
+const BRAND_PRESETS: { label: string; emoji: string; value: string }[] = [
+  { label: "Restaurant/Café",  emoji: "🍽️", value: "Warm golden lighting, rustic wooden surfaces, fresh herbs, appetizing food close-up photography, soft bokeh background, cozy inviting atmosphere" },
+  { label: "Retail/Fashion",   emoji: "👗", value: "Clean bright backgrounds, lifestyle photography, vibrant product shots, minimalist modern aesthetic, natural daylight, aspirational" },
+  { label: "Beauty/Wellness",  emoji: "✨", value: "Soft pastel tones, natural diffused lighting, clean skincare and wellness aesthetic, calm luxurious spa-like mood, airy and fresh" },
+  { label: "Fitness/Sports",   emoji: "💪", value: "High energy bold colors, dynamic action shots, motivational mood, modern gym aesthetic, strong contrast, vibrant and powerful" },
+  { label: "Tech/Digital",     emoji: "💻", value: "Minimalist clean design, blue and white tones, crisp sharp imagery, futuristic professional look, flat lay or device mockups" },
+  { label: "Luxury/Premium",   emoji: "👑", value: "Dark moody cinematic lighting, gold and black accents, premium textures like marble or velvet, sophisticated elegant, high-end editorial style" },
+];
+
+type TabKey = "ai" | "brand" | "appearance" | "notifications";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "ai",            label: "AI Settings" },
+  { key: "brand",         label: "Brand Identity" },
   { key: "appearance",    label: "Appearance" },
   { key: "notifications", label: "Notifications" },
 ];
@@ -35,8 +45,22 @@ export default function ToneSettings() {
   const { user } = useAuth();
   const { data: serverSettings, isLoading } = useSettings();
   const saveMutation = useSaveSettings();
+  const { data: brandData } = useBrandSettings();
+  const saveBrandMutation = useSaveBrandStyle();
 
   const [tab, setTab] = useState<TabKey>("ai");
+  const [imageStyle, setImageStyle] = useState("");
+  const [brandSaved, setBrandSaved] = useState(false);
+
+  useEffect(() => {
+    if (brandData) setImageStyle(brandData.imageStyle);
+  }, [brandData]);
+
+  const handleBrandSave = async () => {
+    await saveBrandMutation.mutateAsync({ imageStyle });
+    setBrandSaved(true);
+    setTimeout(() => setBrandSaved(false), 2000);
+  };
   const [active, setActive] = useState<Platform>("tiktok");
   const [saved, setSaved] = useState(false);
   const [configs, setConfigs] = useState<ToneSettingsMap>({
@@ -166,6 +190,78 @@ export default function ToneSettings() {
                 </button>
               </motion.div>
             )}
+          </motion.div>
+        )}
+
+        {/* Brand Identity tab */}
+        {tab === "brand" && (
+          <motion.div key="brand" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-card rounded-2xl border border-border p-6 shadow-sm space-y-6"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Palette className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Image Style Guide</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Describe your brand's visual look once. Every AI-generated image will automatically match it.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quick-start presets</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {BRAND_PRESETS.map(p => (
+                  <button
+                    key={p.label}
+                    onClick={() => setImageStyle(p.value)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border text-left text-xs hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                  >
+                    <span className="text-base">{p.emoji}</span>
+                    <span className="font-medium text-foreground leading-tight">{p.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Wand2 className="w-3.5 h-3.5 text-primary" />
+                <p className="text-sm font-medium text-foreground">Your brand style</p>
+              </div>
+              <textarea
+                value={imageStyle}
+                onChange={e => setImageStyle(e.target.value)}
+                rows={4}
+                placeholder="e.g. Warm golden lighting, rustic wooden surfaces, cozy restaurant atmosphere, soft bokeh background, appetizing food photography, vibrant fresh colors"
+                className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-background resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                Use plain language. Include colors, lighting, mood, textures, and photography style. DALL-E understands natural descriptions.
+              </p>
+            </div>
+
+            {imageStyle.trim() && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/5 border border-primary/20">
+                <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                <p className="text-xs text-primary font-medium">Style guide active — will be applied to all image generations</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleBrandSave}
+              disabled={saveBrandMutation.isPending}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+            >
+              {saveBrandMutation.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : brandSaved
+                  ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
+                  : "Save Brand Style"
+              }
+            </button>
           </motion.div>
         )}
 

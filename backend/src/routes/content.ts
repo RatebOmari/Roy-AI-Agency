@@ -129,9 +129,10 @@ app.post("/generate", zValidator("json", generateSchema), async (c) => {
 });
 
 const generateImageSchema = z.object({
-  prompt:   z.string().min(1),
-  caption:  z.string().optional(),
-  platform: z.string().optional(),
+  prompt:     z.string().min(1),
+  caption:    z.string().optional(),
+  platform:   z.string().optional(),
+  brandStyle: z.string().optional(),
 });
 
 const DEMO_IMAGES = [
@@ -144,16 +145,20 @@ const DEMO_IMAGES = [
 
 // POST /generate-image — DALL-E 3 or demo Unsplash photo
 app.post("/generate-image", zValidator("json", generateImageSchema), async (c) => {
-  const { prompt, caption, platform } = c.req.valid("json");
+  const { prompt, caption, platform, brandStyle } = c.req.valid("json");
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (apiKey) {
     try {
+      const styleGuide = brandStyle?.trim()
+        ? `Brand visual style: ${brandStyle}.`
+        : "Professional photography style, vibrant colors, high quality.";
       const fullPrompt = [
         `Social media post image for ${platform ?? "Instagram"}.`,
         `Topic: ${prompt}.`,
         caption ? `Caption context: ${caption}.` : "",
-        "Professional food photography style, vibrant colors, high quality, appetizing.",
+        styleGuide,
+        "Optimized for social media, no text overlays.",
       ].filter(Boolean).join(" ");
 
       const res = await fetch("https://api.openai.com/v1/images/generations", {

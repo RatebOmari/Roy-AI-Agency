@@ -16,6 +16,7 @@ import campaignsRoutes     from "./routes/campaigns.js";
 import flowsRoutes         from "./routes/flows.js";
 import teamRoutes          from "./routes/team.js";
 import listeningRoutes     from "./routes/listening.js";
+import brandRoutes         from "./routes/brand.js";
 
 const app = new Hono();
 
@@ -48,6 +49,7 @@ api.route("/campaigns",      campaignsRoutes);
 api.route("/flows",          flowsRoutes);
 api.route("/team",           teamRoutes);
 api.route("/listening",      listeningRoutes);
+api.route("/brand",          brandRoutes);
 
 app.route("/api", api);
 

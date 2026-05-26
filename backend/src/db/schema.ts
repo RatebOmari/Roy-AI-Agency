@@ -220,6 +220,15 @@ export const listeningKeywords = pgTable("listening_keywords", {
   createdAt:    timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── Brand Settings ────────────────────────────────────────────────────────────
+
+export const brandSettings = pgTable("brand_settings", {
+  id:         uuid("id").primaryKey().defaultRandom(),
+  userId:     uuid("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  imageStyle: text("image_style").notNull().default(""),
+  updatedAt:  timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ── Post Metrics ──────────────────────────────────────────────────────────────
 
 export const postMetrics = pgTable("post_metrics", {

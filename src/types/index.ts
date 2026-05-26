@@ -330,6 +330,12 @@ export interface Mention {
   timestamp: string;
 }
 
+// ── Brand Settings ────────────────────────────────────────────────────────────
+
+export interface BrandSettings {
+  imageStyle: string;
+}
+
 // ── Post Metrics ──────────────────────────────────────────────────────────────
 
 export interface PostMetrics {

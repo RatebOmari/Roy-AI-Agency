@@ -83,11 +83,13 @@ const TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 
 // ── Channel maps ───────────────────────────────────────────────────────────
 
-const CHANNEL_FILTERS = [
-  { key: "all",      label: "All"       },
-  { key: "dms",      label: "📩 DMs"    },
-  { key: "sms",      label: "📱 SMS"    },
-  { key: "whatsapp", label: "WhatsApp"  },
+const CHANNEL_FILTERS: { key: string; label: string; activeClass: string }[] = [
+  { key: "all",       label: "All",       activeClass: "bg-primary text-white" },
+  { key: "instagram", label: "Instagram", activeClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white" },
+  { key: "tiktok",    label: "TikTok",    activeClass: "bg-zinc-900 text-white dark:bg-zinc-700" },
+  { key: "facebook",  label: "Facebook",  activeClass: "bg-blue-600 text-white" },
+  { key: "whatsapp",  label: "WhatsApp",  activeClass: "bg-green-500 text-white" },
+  { key: "sms",       label: "SMS",       activeClass: "bg-slate-500 text-white" },
 ];
 
 const CHANNEL_ICONS: Record<Channel, React.ComponentType<{ className?: string }>> = {
@@ -155,9 +157,11 @@ export function ConversationList({
       || c.lastMessage.toLowerCase().includes(search.toLowerCase())
       || c.contactHandle.toLowerCase().includes(search.toLowerCase());
     const matchChannel = channelFilter === "all"
-      || (channelFilter === "dms" && (c.channel.endsWith("_dm") || c.channel === "facebook_messenger"))
-      || (channelFilter === "sms" && c.channel === "sms")
-      || (channelFilter === "whatsapp" && c.channel === "whatsapp_business");
+      || (channelFilter === "instagram" && (c.channel === "instagram_dm" || c.channel === "instagram_comment"))
+      || (channelFilter === "tiktok"    && (c.channel === "tiktok_dm"    || c.channel === "tiktok_comment"))
+      || (channelFilter === "facebook"  && (c.channel === "facebook_comment" || c.channel === "facebook_messenger"))
+      || (channelFilter === "whatsapp"  && c.channel === "whatsapp_business")
+      || (channelFilter === "sms"       && c.channel === "sms");
     const matchTab = (() => {
       if (activeTab === "all") return true;
       return getConvTier(c) === activeTab;
@@ -244,7 +248,7 @@ export function ConversationList({
             className={cn(
               "flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
               channelFilter === cf.key
-                ? "bg-primary text-white"
+                ? cf.activeClass
                 : "bg-muted text-muted-foreground hover:text-foreground"
             )}
           >

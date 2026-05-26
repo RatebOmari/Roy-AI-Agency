@@ -5,7 +5,7 @@ import type { Conversation, Message } from "@/types";
 import { MessageBubble } from "./MessageBubble";
 import { useInternalNotes, useCreateNote, useDeleteNote } from "@/hooks/useTeam";
 import {
-  CheckCheck, X, Edit3, Send, ChevronDown,
+  CheckCheck, X, Edit3, Send,
   Tag, Flag, AlertTriangle, CheckCircle2,
   AtSign, Smartphone, MessageCircle, MessageSquare, Phone,
   ArrowLeft, StickyNote, Trash2, Loader2, Plus,
@@ -234,9 +234,6 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
             <StickyNote className="w-3 h-3" /> Notes
           </button>
         </div>
-        <button className="p-1.5 hover:bg-muted rounded-lg transition-colors">
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </button>
       </div>
 
       {/* Notes panel */}

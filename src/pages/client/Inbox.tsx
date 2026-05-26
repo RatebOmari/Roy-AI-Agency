@@ -97,7 +97,12 @@ export default function Inbox() {
             <ConversationList
               conversations={displayed}
               selectedId={selectedId}
-              onSelect={setSelectedId}
+              onSelect={id => {
+                setSelectedId(id);
+                setLocalConvs(prev => (prev ?? conversations).map(c =>
+                  c.id !== id ? c : { ...c, unreadCount: 0 }
+                ));
+              }}
               search={search}
               onSearchChange={setSearch}
               activeTab={activeTab}

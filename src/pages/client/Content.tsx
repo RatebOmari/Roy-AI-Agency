@@ -1037,7 +1037,9 @@ function QueueTab({ posts, onEdit, onDelete, onNew, businessName }: {
         /* ── Preview / grid view ── */
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {sorted.flatMap(post =>
-            post.platforms.map(platform => (
+            post.platforms
+              .filter(platform => platformFilter === "all" || platform === platformFilter)
+              .map(platform => (
               <motion.div
                 key={post.id + platform}
                 initial={{ opacity: 0, y: 10 }}

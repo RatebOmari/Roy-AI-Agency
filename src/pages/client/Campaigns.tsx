@@ -13,7 +13,7 @@ import {
   useDeleteCampaign,
   useSendCampaign,
 } from "@/hooks/useCampaigns";
-import type { Campaign, CampaignStatus, Platform } from "@/types";
+import type { Campaign, CampaignAudienceType, CampaignStatus, Platform } from "@/types";
 import { cn } from "@/lib/utils";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -67,6 +67,29 @@ function pct(part: number, total: number) {
   return Math.round((part / total) * 100);
 }
 
+// ── Audience Data ─────────────────────────────────────────────────────────────
+
+const TOTAL_CONTACTS = 89;
+
+const TAG_REACH: Record<string, number> = {
+  vip: 12,
+  regular: 47,
+  complaint: 8,
+  dietary: 23,
+  "purchase-intent": 31,
+  appointment: 19,
+  spanish: 15,
+};
+
+const PLATFORM_REACH: Record<string, { label: string; count: number; chipClass: string }> = {
+  instagram: { label: "Instagram", count: 124, chipClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white" },
+  whatsapp:  { label: "WhatsApp",  count: 89,  chipClass: "bg-green-500 text-white" },
+  facebook:  { label: "Facebook",  count: 67,  chipClass: "bg-blue-600 text-white" },
+  tiktok:    { label: "TikTok",    count: 43,  chipClass: "bg-zinc-900 text-white dark:bg-zinc-700" },
+};
+
+const ALL_TAGS = Object.keys(TAG_REACH);
+
 // ── WhatsApp Bubble Preview ───────────────────────────────────────────────────
 
 function WhatsAppBubble({ message }: { message: string }) {
@@ -99,14 +122,22 @@ interface CampaignDialogProps {
 }
 
 function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProps) {
-  const [name, setName]           = useState(initial?.name ?? "");
-  const [message, setMessage]     = useState(initial?.message ?? "");
+  const [name, setName]               = useState(initial?.name ?? "");
+  const [message, setMessage]         = useState(initial?.message ?? "");
   const [scheduledAt, setScheduledAt] = useState(
     initial?.scheduledAt ? initial.scheduledAt.slice(0, 16) : ""
   );
+  const [audienceType, setAudienceType]   = useState<CampaignAudienceType>(initial?.audienceType ?? "all");
+  const [audienceValue, setAudienceValue] = useState(initial?.audienceValue ?? "");
 
   const MAX_CHARS = 1024;
   const remaining = MAX_CHARS - message.length;
+
+  const estimatedReach =
+    audienceType === "all"      ? TOTAL_CONTACTS
+    : audienceType === "tag"    ? (audienceValue ? (TAG_REACH[audienceValue] ?? 0) : 0)
+    : audienceType === "platform" ? (audienceValue ? (PLATFORM_REACH[audienceValue]?.count ?? 0) : 0)
+    : 0;
 
   const handleSave = (saveStatus: "draft" | "scheduled") => {
     if (!name.trim() || !message.trim()) return;
@@ -116,6 +147,8 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
       platform: "whatsapp",
       status: saveStatus,
       scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
+      audienceType,
+      audienceValue: audienceType !== "all" ? audienceValue : undefined,
     });
   };
 
@@ -161,6 +194,88 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
           <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
           <span className="text-xs font-medium text-green-700 dark:text-green-400">WhatsApp Business</span>
           <span className="text-xs text-muted-foreground ml-1">— only platform currently supported</span>
+        </div>
+
+        {/* Audience */}
+        <div className="space-y-2.5">
+          <label className="text-xs font-medium text-muted-foreground block">Audience</label>
+
+          {/* Type chips */}
+          <div className="flex gap-2">
+            {(["all", "tag", "platform"] as CampaignAudienceType[]).map(t => (
+              <button
+                key={t}
+                onClick={() => { setAudienceType(t); setAudienceValue(""); }}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors",
+                  audienceType === t
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+                )}
+              >
+                {t === "all" ? "All Contacts" : t === "tag" ? "By Tag" : "By Platform"}
+              </button>
+            ))}
+          </div>
+
+          {/* Tag picker */}
+          {audienceType === "tag" && (
+            <div className="flex gap-1.5 flex-wrap">
+              {ALL_TAGS.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setAudienceValue(tag === audienceValue ? "" : tag)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                    audienceValue === tag
+                      ? "bg-primary text-white border-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  #{tag} <span className="opacity-60 ml-1">{TAG_REACH[tag]}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Platform picker */}
+          {audienceType === "platform" && (
+            <div className="flex gap-1.5 flex-wrap">
+              {Object.entries(PLATFORM_REACH).map(([key, { label, count, chipClass }]) => (
+                <button
+                  key={key}
+                  onClick={() => setAudienceValue(key === audienceValue ? "" : key)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-semibold transition-all",
+                    audienceValue === key
+                      ? chipClass + " ring-2 ring-offset-1 ring-primary"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {label} <span className="opacity-70 ml-1">{count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Estimated reach */}
+          <div className={cn(
+            "flex items-center gap-2 px-3 py-2 rounded-xl text-xs",
+            estimatedReach > 0
+              ? "bg-primary/5 border border-primary/20 text-primary"
+              : "bg-muted border border-border text-muted-foreground"
+          )}>
+            <span className="font-bold text-sm">{estimatedReach}</span>
+            <span>
+              {audienceType === "all"
+                ? "warm contacts will receive this message"
+                : audienceType === "tag" && audienceValue
+                  ? `contacts tagged #${audienceValue} will receive this message`
+                  : audienceType === "platform" && audienceValue
+                    ? `${PLATFORM_REACH[audienceValue]?.label} contacts will receive this message`
+                    : "— select a filter above to see estimated reach"}
+            </span>
+          </div>
         </div>
 
         {/* Message */}
@@ -438,7 +553,11 @@ export default function Campaigns() {
                       sendConfirmId === campaign.id ? (
                         <div className="flex items-center gap-1">
                           <span className="text-[11px] text-muted-foreground mr-1">
-                            Send to all contacts?
+                            {campaign.audienceType === "tag" && campaign.audienceValue
+                              ? `Send to #${campaign.audienceValue} contacts?`
+                              : campaign.audienceType === "platform" && campaign.audienceValue
+                                ? `Send to ${PLATFORM_REACH[campaign.audienceValue]?.label ?? campaign.audienceValue} contacts?`
+                                : "Send to all contacts?"}
                           </span>
                           <button
                             onClick={() => handleSend(campaign.id)}
@@ -512,6 +631,27 @@ export default function Campaigns() {
                 <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
                   {campaign.message}
                 </p>
+
+                {/* Audience pill */}
+                {campaign.audienceType && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium text-muted-foreground">Audience:</span>
+                    <span className={cn(
+                      "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+                      campaign.audienceType === "all"
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-primary/10 text-primary"
+                    )}>
+                      {campaign.audienceType === "all"
+                        ? "All Contacts"
+                        : campaign.audienceType === "tag"
+                          ? `#${campaign.audienceValue}`
+                          : campaign.audienceValue
+                            ? PLATFORM_REACH[campaign.audienceValue]?.label ?? campaign.audienceValue
+                            : "—"}
+                    </span>
+                  </div>
+                )}
 
                 {/* Stats row — sent campaigns only */}
                 {campaign.status === "sent" && (

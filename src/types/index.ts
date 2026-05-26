@@ -242,12 +242,16 @@ export interface ReplyTemplate {
 
 export type CampaignStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
 
+export type CampaignAudienceType = "all" | "tag" | "platform";
+
 export interface Campaign {
   id: string;
   name: string;
   message: string;
   mediaUrl?: string;
   platform: Platform;
+  audienceType: CampaignAudienceType;
+  audienceValue?: string;
   scheduledAt?: string;
   status: CampaignStatus;
   sentCount: number;

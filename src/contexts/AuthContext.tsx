@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { api } from "@/lib/api";
+import { api, registerUnauthorizedHandler } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
 import type { User, LoginResponse } from "@/types";
 
@@ -26,6 +26,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(savedToken);
       setUser(savedUser);
     }
+  }, []);
+
+  useEffect(() => {
+    registerUnauthorizedHandler(() => {
+      setToken(null);
+      setUser(null);
+    });
   }, []);
 
   const login = useCallback(async (

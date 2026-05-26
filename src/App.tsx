@@ -28,31 +28,65 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
   return <>{children}</>;
 }
 
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-6">
+          <div className="max-w-md text-center space-y-4">
+            <p className="text-foreground font-semibold">Something went wrong</p>
+            <p className="text-muted-foreground text-sm">{this.state.error.message}</p>
+            <button
+              onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+              className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium"
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/"                    element={<Navigate to="/login" replace />} />
-          <Route path="/login"               element={<Login />} />
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/"                    element={<Navigate to="/login" replace />} />
+            <Route path="/login"               element={<Login />} />
 
-          {/* Client */}
-          <Route path="/dashboard"           element={<ProtectedRoute requiredRole="client"><Dashboard /></ProtectedRoute>} />
-          <Route path="/inbox"               element={<ProtectedRoute requiredRole="client"><Inbox /></ProtectedRoute>} />
-          <Route path="/comments"            element={<ProtectedRoute requiredRole="client"><Comments /></ProtectedRoute>} />
-          <Route path="/contacts"            element={<ProtectedRoute requiredRole="client"><Contacts /></ProtectedRoute>} />
-          <Route path="/analytics"           element={<ProtectedRoute requiredRole="client"><Analytics /></ProtectedRoute>} />
-          <Route path="/automation"          element={<ProtectedRoute requiredRole="client"><Automation /></ProtectedRoute>} />
-          <Route path="/settings"            element={<ProtectedRoute requiredRole="client"><ToneSettings /></ProtectedRoute>} />
+            {/* Client */}
+            <Route path="/dashboard"           element={<ProtectedRoute requiredRole="client"><Dashboard /></ProtectedRoute>} />
+            <Route path="/inbox"               element={<ProtectedRoute requiredRole="client"><Inbox /></ProtectedRoute>} />
+            <Route path="/comments"            element={<ProtectedRoute requiredRole="client"><Comments /></ProtectedRoute>} />
+            <Route path="/contacts"            element={<ProtectedRoute requiredRole="client"><Contacts /></ProtectedRoute>} />
+            <Route path="/analytics"           element={<ProtectedRoute requiredRole="client"><Analytics /></ProtectedRoute>} />
+            <Route path="/automation"          element={<ProtectedRoute requiredRole="client"><Automation /></ProtectedRoute>} />
+            <Route path="/settings"            element={<ProtectedRoute requiredRole="client"><ToneSettings /></ProtectedRoute>} />
 
-          {/* Agency */}
-          <Route path="/agency/dashboard"    element={<ProtectedRoute requiredRole="agency"><AgencyDashboard /></ProtectedRoute>} />
-          <Route path="/agency/clients"      element={<ProtectedRoute requiredRole="agency"><AgencyClients /></ProtectedRoute>} />
-          <Route path="/agency/analytics"    element={<ProtectedRoute requiredRole="agency"><AgencyAnalytics /></ProtectedRoute>} />
-          <Route path="/agency/settings"     element={<ProtectedRoute requiredRole="agency"><AgencySettings /></ProtectedRoute>} />
+            {/* Agency */}
+            <Route path="/agency/dashboard"    element={<ProtectedRoute requiredRole="agency"><AgencyDashboard /></ProtectedRoute>} />
+            <Route path="/agency/clients"      element={<ProtectedRoute requiredRole="agency"><AgencyClients /></ProtectedRoute>} />
+            <Route path="/agency/analytics"    element={<ProtectedRoute requiredRole="agency"><AgencyAnalytics /></ProtectedRoute>} />
+            <Route path="/agency/settings"     element={<ProtectedRoute requiredRole="agency"><AgencySettings /></ProtectedRoute>} />
 
-          <Route path="*"                    element={<Navigate to="/login" replace />} />
-        </Routes>
+            <Route path="*"                    element={<Navigate to="/login" replace />} />
+          </Routes>
+        </ErrorBoundary>
       </BrowserRouter>
     </QueryClientProvider>
   );

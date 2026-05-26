@@ -3,6 +3,12 @@ import type { ApiError } from "@/types";
 
 const BASE_URL = import.meta.env.VITE_N8N_WEBHOOK_URL ?? "";
 
+// Called by AuthContext to enable clean React-state logout on 401
+let _onUnauthorized: (() => void) | null = null;
+export function registerUnauthorizedHandler(cb: () => void) {
+  _onUnauthorized = cb;
+}
+
 class ApiClient {
   private async request<T>(
     path: string,
@@ -32,10 +38,11 @@ class ApiClient {
         // ignore parse errors
       }
       if (res.status === 401) {
-        const token = authStorage.getToken();
-        if (!token?.startsWith("demo_token_")) {
+        const currentToken = authStorage.getToken();
+        if (!currentToken?.startsWith("demo_token_")) {
           authStorage.clear();
-          window.location.href = "/login";
+          // Notify React context to update state (no hard reload)
+          _onUnauthorized?.();
         }
       }
       throw err;

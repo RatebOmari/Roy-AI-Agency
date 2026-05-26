@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Conversation, Message } from "@/types";
 import { MessageBubble } from "./MessageBubble";
+import { useInternalNotes, useCreateNote, useDeleteNote } from "@/hooks/useTeam";
 import {
   CheckCheck, X, Edit3, Send, ChevronDown,
   Tag, Flag, AlertTriangle, CheckCircle2,
   AtSign, Smartphone, MessageCircle, MessageSquare, Phone,
-  ArrowLeft,
+  ArrowLeft, StickyNote, Trash2, Loader2, Plus,
 } from "lucide-react";
 
 interface ConversationPaneProps {
@@ -78,9 +79,70 @@ function ConfidenceBanner({ confidence, status }: { confidence?: number; status?
   );
 }
 
+function NotesPanel({ conversationId }: { conversationId: string }) {
+  const { data: notes = [] } = useInternalNotes(conversationId);
+  const createNote = useCreateNote();
+  const deleteNote = useDeleteNote();
+  const [text, setText] = useState("");
+
+  const handleAdd = () => {
+    if (!text.trim()) return;
+    createNote.mutate({ conversationId, content: text.trim(), authorName: "You" });
+    setText("");
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+        {notes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-10">
+            <StickyNote className="w-8 h-8 mb-2 opacity-20" />
+            <p className="text-xs">No internal notes yet</p>
+            <p className="text-[11px] opacity-60 mt-1">Notes are only visible to your team</p>
+          </div>
+        ) : (
+          notes.map(note => (
+            <div key={note.id} className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 rounded-xl p-3 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground">{note.authorName}</span>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span>{new Date(note.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                  <button onClick={() => deleteNote.mutate(note.id)} className="hover:text-destructive transition-colors">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-foreground leading-relaxed">{note.content}</p>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="border-t border-border px-4 py-3 bg-card space-y-2">
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          rows={2}
+          placeholder="Add an internal note… (not visible to customer)"
+          className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+          onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAdd(); }}
+        />
+        <button
+          onClick={handleAdd}
+          disabled={!text.trim() || createNote.isPending}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
+        >
+          {createNote.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+          Add Note
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function ConversationPane({ conversation, onApprove, onReject, onEdit, onBack }: ConversationPaneProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [activePanel, setActivePanel] = useState<"messages" | "notes">("messages");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -92,6 +154,7 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
   useEffect(() => {
     setEditingId(null);
     setEditContent("");
+    setActivePanel("messages");
   }, [conversation?.id]);
 
   if (!conversation) {
@@ -152,20 +215,49 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
           </div>
         )}
 
+        {/* Tab switcher */}
+        <div className="flex bg-muted rounded-lg p-0.5 gap-0.5">
+          <button
+            onClick={() => setActivePanel("messages")}
+            className={cn("px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+              activePanel === "messages" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Messages
+          </button>
+          <button
+            onClick={() => setActivePanel("notes")}
+            className={cn("px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1",
+              activePanel === "notes" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <StickyNote className="w-3 h-3" /> Notes
+          </button>
+        </div>
         <button className="p-1.5 hover:bg-muted rounded-lg transition-colors">
           <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
 
+      {/* Notes panel */}
+      {activePanel === "notes" && (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <NotesPanel conversationId={conversation.id} />
+        </div>
+      )}
+
       {/* Messages */}
+      {activePanel === "messages" && (
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 flex flex-col gap-3">
         {conversation.messages.map(msg => (
           <MessageBubble key={msg.id} message={msg} />
         ))}
       </div>
 
-      {/* Reply actions */}
-      {pendingReply && (
+      )}
+
+      {/* Reply actions — only in messages panel */}
+      {activePanel === "messages" && pendingReply && (
         <AnimatePresence>
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -233,7 +325,7 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
         </AnimatePresence>
       )}
 
-      {!pendingReply && (
+      {activePanel === "messages" && !pendingReply && (
         <div className="border-t border-border px-5 py-3 bg-card">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />

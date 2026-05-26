@@ -224,3 +224,119 @@ export interface OfferItem {
   description: string;
   expiresAt?: string;
 }
+
+// ── Reply Templates ───────────────────────────────────────────────────────────
+
+export interface ReplyTemplate {
+  id: string;
+  title: string;
+  content: string;
+  platforms: Platform[];
+  language: LanguageType;
+  active: boolean;
+  createdAt: string;
+}
+
+// ── Campaigns (WhatsApp Broadcasts) ──────────────────────────────────────────
+
+export type CampaignStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
+
+export interface Campaign {
+  id: string;
+  name: string;
+  message: string;
+  mediaUrl?: string;
+  platform: Platform;
+  scheduledAt?: string;
+  status: CampaignStatus;
+  sentCount: number;
+  readCount: number;
+  replyCount: number;
+  createdAt: string;
+}
+
+// ── Chatbot Flows ─────────────────────────────────────────────────────────────
+
+export type FlowTrigger = "greeting" | "keyword" | "order" | "inquiry" | "fallback";
+export type FlowStepType = "message" | "quick_replies" | "collect_input" | "condition" | "handoff";
+
+export interface FlowStep {
+  id: string;
+  type: FlowStepType;
+  content?: string;
+  options?: string[];
+  inputLabel?: string;
+  inputKey?: string;
+  conditionKey?: string;
+  conditionValue?: string;
+}
+
+export interface ChatbotFlow {
+  id: string;
+  name: string;
+  trigger: FlowTrigger;
+  triggerValue?: string;
+  platform: Platform;
+  steps: FlowStep[];
+  active: boolean;
+  triggerCount: number;
+  createdAt: string;
+}
+
+// ── Team Members & Internal Notes ─────────────────────────────────────────────
+
+export type TeamRole = "admin" | "agent" | "viewer";
+export type TeamMemberStatus = "active" | "invited" | "disabled";
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: TeamRole;
+  status: TeamMemberStatus;
+  createdAt: string;
+}
+
+export interface InternalNote {
+  id: string;
+  conversationId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
+// ── Social Listening ──────────────────────────────────────────────────────────
+
+export type MentionSentiment = "positive" | "negative" | "neutral";
+
+export interface ListeningKeyword {
+  id: string;
+  keyword: string;
+  platforms: Platform[];
+  active: boolean;
+  mentionCount: number;
+  createdAt: string;
+}
+
+export interface Mention {
+  id: string;
+  keywordId: string;
+  keyword: string;
+  platform: Platform;
+  username: string;
+  content: string;
+  url?: string;
+  sentiment: MentionSentiment;
+  timestamp: string;
+}
+
+// ── Post Metrics ──────────────────────────────────────────────────────────────
+
+export interface PostMetrics {
+  postId: string;
+  likes: number;
+  comments: number;
+  reach: number;
+  shares: number;
+  recordedAt: string;
+}

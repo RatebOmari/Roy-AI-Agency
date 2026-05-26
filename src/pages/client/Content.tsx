@@ -6,7 +6,7 @@ import {
   Loader2, ChevronLeft, ChevronRight, X, CheckCircle2,
   Heart, MessageCircle, Send, Bookmark, Share2, MoreHorizontal,
   Globe, ThumbsUp, Music, CheckCheck, Image, Upload, Info,
-  LayoutGrid,
+  LayoutGrid, Clock, Star,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -41,6 +41,105 @@ const STATUS_STYLE: Record<PostStatus, string> = {
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+// ── Best Time to Post (static recommendations) ───────────────────────────────
+
+const BEST_TIMES: Record<Platform, { day: string; time: string; note: string }[]> = {
+  instagram: [
+    { day: "Tuesday",   time: "11:00", note: "Peak engagement" },
+    { day: "Wednesday", time: "14:00", note: "Lunch scroll" },
+    { day: "Friday",    time: "17:00", note: "End of week" },
+  ],
+  tiktok: [
+    { day: "Tuesday",  time: "09:00", note: "Morning commute" },
+    { day: "Thursday", time: "19:00", note: "Evening prime" },
+    { day: "Saturday", time: "11:00", note: "Weekend browse" },
+  ],
+  facebook: [
+    { day: "Wednesday", time: "13:00", note: "Midday break" },
+    { day: "Thursday",  time: "08:00", note: "Morning check" },
+    { day: "Friday",    time: "13:00", note: "TGIF scroll" },
+  ],
+  whatsapp: [
+    { day: "Monday",   time: "08:30", note: "Start of week" },
+    { day: "Thursday", time: "18:00", note: "After work" },
+    { day: "Sunday",   time: "20:00", note: "Weekend evening" },
+  ],
+};
+
+// ── Seasonal Templates ────────────────────────────────────────────────────────
+
+interface SeasonalTemplate {
+  id: string;
+  category: string;
+  emoji: string;
+  title: string;
+  prompt: string;
+  platform: Platform;
+  tone: ToneType;
+  color: string;
+}
+
+const SEASONAL_TEMPLATES: SeasonalTemplate[] = [
+  {
+    id: "st1", category: "Ramadan", emoji: "🌙",
+    title: "Iftar Special",
+    prompt: "We're offering a special Ramadan iftar platter for families. Highlight the festive atmosphere, the warmth of sharing a meal together, and our exclusive Ramadan discount.",
+    platform: "instagram", tone: "friendly",
+    color: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
+  },
+  {
+    id: "st2", category: "Ramadan", emoji: "🌙",
+    title: "Ramadan Kareem Greeting",
+    prompt: "Wishing our customers Ramadan Kareem! Share warm wishes for the holy month and let them know about our special Ramadan hours and menu.",
+    platform: "facebook", tone: "friendly",
+    color: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
+  },
+  {
+    id: "st3", category: "Eid", emoji: "🎊",
+    title: "Eid Mubarak Celebration",
+    prompt: "Eid Mubarak to all our customers! Announce our special Eid celebration offer — 20% off all orders today. Warm festive message in both Arabic and English.",
+    platform: "whatsapp", tone: "fun",
+    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+  },
+  {
+    id: "st4", category: "Eid", emoji: "🎊",
+    title: "Eid Family Gathering",
+    prompt: "Eid is about family gatherings. Promote our large family platters and group reservations for Eid celebrations. Festive and warm tone.",
+    platform: "instagram", tone: "friendly",
+    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+  },
+  {
+    id: "st5", category: "National Day", emoji: "🇸🇦",
+    title: "Saudi National Day",
+    prompt: "Happy Saudi National Day! Celebrate with a special promotion and express pride in the occasion. Post in both Arabic and English with patriotic energy.",
+    platform: "instagram", tone: "fun",
+    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+  },
+  {
+    id: "st6", category: "Weekend", emoji: "🔥",
+    title: "Weekend Vibes",
+    prompt: "It's the weekend! Promote our weekend special menu and create excitement. Perfect for a Friday or Saturday post to drive traffic.",
+    platform: "tiktok", tone: "fun",
+    color: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/40",
+  },
+  {
+    id: "st7", category: "New Menu", emoji: "✨",
+    title: "New Item Launch",
+    prompt: "We just added a new dish to our menu! Build excitement and curiosity, tease the flavors and ingredients, and encourage followers to come try it this week.",
+    platform: "instagram", tone: "fun",
+    color: "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800/40",
+  },
+  {
+    id: "st8", category: "Review Request", emoji: "⭐",
+    title: "Ask for a Review",
+    prompt: "Kindly ask happy customers to leave us a review. Warm, appreciative tone. Mention that reviews help small businesses grow and we read every single one.",
+    platform: "whatsapp", tone: "friendly",
+    color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
+  },
+];
+
+const SEASONAL_CATEGORIES = ["All", "Ramadan", "Eid", "National Day", "Weekend", "New Menu", "Review Request"];
 
 function formatDate(iso?: string) {
   if (!iso) return "—";
@@ -398,6 +497,39 @@ function PostDialog({ initial, onSave, onClose, saving }: PostDialogProps) {
         </div>
 
         {/* Schedule + Status */}
+        {platforms.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-primary" /> Best Times to Post
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {platforms.flatMap(p =>
+                (BEST_TIMES[p] ?? []).slice(0, 2).map(slot => (
+                  <button
+                    key={p + slot.day + slot.time}
+                    onClick={() => {
+                      const now = new Date();
+                      const dayIndex = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].indexOf(slot.day);
+                      const diff = (dayIndex - now.getDay() + 7) % 7;
+                      const target = new Date(now);
+                      target.setDate(now.getDate() + (diff === 0 ? 7 : diff));
+                      const [h, m] = slot.time.split(":").map(Number);
+                      target.setHours(h, m, 0, 0);
+                      setScheduledAt(target.toISOString().slice(0, 16));
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
+                  >
+                    <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", PLATFORM_COLOR[p])} />
+                    <span className="font-medium">{slot.day.slice(0, 3)}</span>
+                    <span>{slot.time}</span>
+                    <span className="text-[10px] opacity-60">{slot.note}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">Schedule Date & Time</p>
@@ -759,6 +891,7 @@ function GenerateTab({ onAddToQueue }: {
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [tone, setTone]         = useState<ToneType>("friendly");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [seasonalCategory, setSeasonalCategory] = useState("All");
 
   const generateCaption = useGeneratePost();
   const generateImage   = useGenerateImage();
@@ -789,6 +922,45 @@ function GenerateTab({ onAddToQueue }: {
           Describe what you want to post about and the AI will write a caption and generate an image optimized for your platform.
           In production, the AI also reads your Resources (menu, offers, hours) for context.
         </p>
+      </div>
+
+      {/* Seasonal Templates Picker */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+          <Star className="w-3.5 h-3.5 text-amber-500" /> Quick-Start Templates
+        </p>
+        <div className="flex gap-2 flex-wrap mb-3">
+          {SEASONAL_CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSeasonalCategory(cat)}
+              className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                seasonalCategory === cat ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {SEASONAL_TEMPLATES
+            .filter(t => seasonalCategory === "All" || t.category === seasonalCategory)
+            .map(t => (
+              <button
+                key={t.id}
+                onClick={() => { setPrompt(t.prompt); setPlatform(t.platform); setTone(t.tone); }}
+                className={cn(
+                  "text-left p-3 rounded-xl border text-xs transition-all hover:shadow-sm",
+                  t.color
+                )}
+              >
+                <span className="text-base leading-none">{t.emoji}</span>
+                <p className="font-semibold text-foreground mt-1">{t.title}</p>
+                <p className="text-muted-foreground mt-0.5 line-clamp-2 text-[11px]">{t.prompt}</p>
+              </button>
+            ))
+          }
+        </div>
       </div>
 
       {/* Prompt */}

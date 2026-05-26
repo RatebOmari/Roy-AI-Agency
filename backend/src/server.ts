@@ -11,6 +11,11 @@ import conversationsRoutes from "./routes/conversations.js";
 import platformsRoutes     from "./routes/platforms.js";
 import contentRoutes       from "./routes/content.js";
 import resourcesRoutes     from "./routes/resources.js";
+import templatesRoutes     from "./routes/templates.js";
+import campaignsRoutes     from "./routes/campaigns.js";
+import flowsRoutes         from "./routes/flows.js";
+import teamRoutes          from "./routes/team.js";
+import listeningRoutes     from "./routes/listening.js";
 
 const app = new Hono();
 
@@ -38,6 +43,11 @@ api.route("/conversations",  conversationsRoutes);
 api.route("/platforms",      platformsRoutes);
 api.route("/content",        contentRoutes);
 api.route("/resources",      resourcesRoutes);
+api.route("/templates",      templatesRoutes);
+api.route("/campaigns",      campaignsRoutes);
+api.route("/flows",          flowsRoutes);
+api.route("/team",           teamRoutes);
+api.route("/listening",      listeningRoutes);
 
 app.route("/api", api);
 

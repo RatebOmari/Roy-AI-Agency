@@ -11,6 +11,11 @@ import Automation from "./pages/client/Automation";
 import Contacts from "./pages/client/Contacts";
 import Content from "./pages/client/Content";
 import Resources from "./pages/client/Resources";
+import Templates from "./pages/client/Templates";
+import Campaigns from "./pages/client/Campaigns";
+import Flows from "./pages/client/Flows";
+import Team from "./pages/client/Team";
+import Listening from "./pages/client/Listening";
 import AgencyDashboard from "./pages/agency/Dashboard";
 import AgencyClients from "./pages/agency/Clients";
 import AgencyAnalytics from "./pages/agency/Analytics";
@@ -80,6 +85,11 @@ export default function App() {
             <Route path="/automation"          element={<ProtectedRoute requiredRole="client"><Automation /></ProtectedRoute>} />
             <Route path="/content"             element={<ProtectedRoute requiredRole="client"><Content /></ProtectedRoute>} />
             <Route path="/resources"           element={<ProtectedRoute requiredRole="client"><Resources /></ProtectedRoute>} />
+            <Route path="/templates"           element={<ProtectedRoute requiredRole="client"><Templates /></ProtectedRoute>} />
+            <Route path="/campaigns"           element={<ProtectedRoute requiredRole="client"><Campaigns /></ProtectedRoute>} />
+            <Route path="/flows"               element={<ProtectedRoute requiredRole="client"><Flows /></ProtectedRoute>} />
+            <Route path="/team"                element={<ProtectedRoute requiredRole="client"><Team /></ProtectedRoute>} />
+            <Route path="/listening"           element={<ProtectedRoute requiredRole="client"><Listening /></ProtectedRoute>} />
             <Route path="/settings"            element={<ProtectedRoute requiredRole="client"><ToneSettings /></ProtectedRoute>} />
 
             {/* Agency */}

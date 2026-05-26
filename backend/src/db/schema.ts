@@ -134,3 +134,100 @@ export const resources = pgTable("resources", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// ── Reply Templates ───────────────────────────────────────────────────────────
+
+export const replyTemplates = pgTable("reply_templates", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  userId:    uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title:     text("title").notNull(),
+  content:   text("content").notNull(),
+  platforms: text("platforms").array().notNull().default(sql`'{}'::text[]`),
+  language:  text("language").notNull().default("en"),
+  active:    boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Campaigns ─────────────────────────────────────────────────────────────────
+
+export const campaignStatusEnum = pgEnum("campaign_status", ["draft","scheduled","sending","sent","failed"]);
+
+export const campaigns = pgTable("campaigns", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  userId:      uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:        text("name").notNull(),
+  message:     text("message").notNull(),
+  mediaUrl:    text("media_url"),
+  platform:    text("platform").notNull().default("whatsapp"),
+  scheduledAt: timestamp("scheduled_at"),
+  status:      campaignStatusEnum("status").notNull().default("draft"),
+  sentCount:   integer("sent_count").notNull().default(0),
+  readCount:   integer("read_count").notNull().default(0),
+  replyCount:  integer("reply_count").notNull().default(0),
+  createdAt:   timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Chatbot Flows ─────────────────────────────────────────────────────────────
+
+export const flowTriggerEnum = pgEnum("flow_trigger", ["greeting","keyword","order","inquiry","fallback"]);
+
+export const chatbotFlows = pgTable("chatbot_flows", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:         text("name").notNull(),
+  trigger:      flowTriggerEnum("trigger").notNull().default("greeting"),
+  triggerValue: text("trigger_value"),
+  platform:     text("platform").notNull().default("whatsapp"),
+  steps:        text("steps").notNull().default("[]"),
+  active:       boolean("active").notNull().default(false),
+  triggerCount: integer("trigger_count").notNull().default(0),
+  createdAt:    timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Team Members & Internal Notes ─────────────────────────────────────────────
+
+export const teamRoleEnum         = pgEnum("team_role",          ["admin","agent","viewer"]);
+export const teamMemberStatusEnum = pgEnum("team_member_status", ["active","invited","disabled"]);
+
+export const teamMembers = pgTable("team_members", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  userId:    uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:      text("name").notNull(),
+  email:     text("email").notNull(),
+  role:      teamRoleEnum("role").notNull().default("agent"),
+  status:    teamMemberStatusEnum("status").notNull().default("invited"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const internalNotes = pgTable("internal_notes", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  conversationId: text("conversation_id").notNull(),
+  userId:         uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  authorName:     text("author_name").notNull(),
+  content:        text("content").notNull(),
+  createdAt:      timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Social Listening ──────────────────────────────────────────────────────────
+
+export const listeningKeywords = pgTable("listening_keywords", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  keyword:      text("keyword").notNull(),
+  platforms:    text("platforms").array().notNull().default(sql`'{}'::text[]`),
+  active:       boolean("active").notNull().default(true),
+  mentionCount: integer("mention_count").notNull().default(0),
+  createdAt:    timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Post Metrics ──────────────────────────────────────────────────────────────
+
+export const postMetrics = pgTable("post_metrics", {
+  id:         uuid("id").primaryKey().defaultRandom(),
+  postId:     uuid("post_id").notNull().references(() => scheduledPosts.id, { onDelete: "cascade" }),
+  likes:      integer("likes").notNull().default(0),
+  comments:   integer("comments").notNull().default(0),
+  reach:      integer("reach").notNull().default(0),
+  shares:     integer("shares").notNull().default(0),
+  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+});

@@ -1,0 +1,104 @@
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import { eq, and, desc } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { campaigns } from "../db/schema.js";
+import { authMiddleware } from "../middleware/auth.js";
+
+const app = new Hono();
+app.use("*", authMiddleware);
+
+// GET / — list all campaigns for user, ordered by createdAt desc
+app.get("/", async (c) => {
+  const user = c.get("user");
+  const rows = await db
+    .select()
+    .from(campaigns)
+    .where(eq(campaigns.userId, user.sub))
+    .orderBy(desc(campaigns.createdAt));
+  return c.json(rows);
+});
+
+const campaignSchema = z.object({
+  name:        z.string().min(1),
+  message:     z.string().min(1),
+  platform:    z.string().min(1),
+  scheduledAt: z.string().nullable().optional(),
+  mediaUrl:    z.string().nullable().optional(),
+});
+
+// POST / — create campaign
+app.post("/", zValidator("json", campaignSchema), async (c) => {
+  const user = c.get("user");
+  const body = c.req.valid("json");
+  const [row] = await db
+    .insert(campaigns)
+    .values({
+      userId:      user.sub,
+      name:        body.name,
+      message:     body.message,
+      platform:    body.platform,
+      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
+      mediaUrl:    body.mediaUrl ?? null,
+      status:      "draft",
+    })
+    .returning();
+  return c.json(row, 201);
+});
+
+// PUT /:id — update campaign (ownership check)
+app.put("/:id", zValidator("json", campaignSchema.partial()), async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const body = c.req.valid("json");
+
+  const [row] = await db
+    .update(campaigns)
+    .set({
+      ...(body.name        !== undefined && { name:        body.name }),
+      ...(body.message     !== undefined && { message:     body.message }),
+      ...(body.platform    !== undefined && { platform:    body.platform }),
+      ...(body.scheduledAt !== undefined && { scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null }),
+      ...(body.mediaUrl    !== undefined && { mediaUrl:    body.mediaUrl ?? null }),
+    })
+    .where(and(eq(campaigns.id, id), eq(campaigns.userId, user.sub)))
+    .returning();
+
+  if (!row) return c.json({ message: "Not found" }, 404);
+  return c.json(row);
+});
+
+// DELETE /:id — delete campaign (ownership check)
+app.delete("/:id", async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  await db
+    .delete(campaigns)
+    .where(and(eq(campaigns.id, id), eq(campaigns.userId, user.sub)));
+  return c.json({ ok: true });
+});
+
+// POST /:id/send — mock send campaign
+app.post("/:id/send", async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+
+  const sentCount  = Math.floor(Math.random() * 451) + 50; // 50–500
+  const readCount  = Math.floor(sentCount * (Math.random() * 0.6 + 0.2)); // 20–80% of sent
+
+  const [row] = await db
+    .update(campaigns)
+    .set({
+      status:    "sent",
+      sentCount,
+      readCount,
+    })
+    .where(and(eq(campaigns.id, id), eq(campaigns.userId, user.sub)))
+    .returning();
+
+  if (!row) return c.json({ message: "Not found" }, 404);
+  return c.json(row);
+});
+
+export default app;

@@ -180,7 +180,6 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border bg-card">
-        {/* Mobile back button */}
         {onBack && (
           <button
             onClick={onBack}
@@ -197,15 +196,9 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
               <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <ChannelBadge channel={conversation.channel} />
             <span className="text-xs text-muted-foreground">{conversation.contactHandle}</span>
-          </div>
-        </div>
-
-        {/* Tags */}
-        {conversation.tags.length > 0 && (
-          <div className="hidden sm:flex items-center gap-1">
             {conversation.tags.map(tag => (
               <span key={tag} className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                 <Tag className="w-2.5 h-2.5" />
@@ -213,27 +206,36 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
               </span>
             ))}
           </div>
-        )}
-
-        {/* Tab switcher */}
-        <div className="flex bg-muted rounded-lg p-0.5 gap-0.5">
-          <button
-            onClick={() => setActivePanel("messages")}
-            className={cn("px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
-              activePanel === "messages" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Messages
-          </button>
-          <button
-            onClick={() => setActivePanel("notes")}
-            className={cn("px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1",
-              activePanel === "notes" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <StickyNote className="w-3 h-3" /> Notes
-          </button>
         </div>
+      </div>
+
+      {/* Tab strip — sits below the header as its own row */}
+      <div className="flex border-b border-border bg-card">
+        <button
+          onClick={() => setActivePanel("messages")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors border-b-2",
+            activePanel === "messages"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          Messages
+        </button>
+        <button
+          onClick={() => setActivePanel("notes")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors border-b-2",
+            activePanel === "notes"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <StickyNote className="w-3.5 h-3.5" />
+          Team Notes
+          <span className="text-[10px] text-muted-foreground/70 font-normal ml-0.5">· private</span>
+        </button>
       </div>
 
       {/* Notes panel */}
@@ -246,9 +248,9 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
       {/* Messages */}
       {activePanel === "messages" && (
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 flex flex-col gap-3">
-        {conversation.messages.map(msg => (
-          <MessageBubble key={msg.id} message={msg} />
-        ))}
+        {conversation.messages
+          .filter(m => !(m.direction === "outbound" && m.replyStatus === "pending"))
+          .map(msg => <MessageBubble key={msg.id} message={msg} />)}
       </div>
 
       )}

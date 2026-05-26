@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ConversationList } from "@/components/inbox/ConversationList";
 import { ConversationPane } from "@/components/inbox/ConversationPane";
@@ -6,6 +6,7 @@ import { useConversations, useReplyToConversation } from "@/hooks/useConversatio
 import { useAuth } from "@/contexts/AuthContext";
 import type { Conversation } from "@/types";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function Inbox() {
   const { user } = useAuth();
@@ -21,6 +22,13 @@ export default function Inbox() {
   const [localConvs, setLocalConvs] = useState<Conversation[] | null>(null);
   const displayed = localConvs ?? conversations;
   const selectedConv = displayed.find(c => c.id === selectedId) ?? null;
+
+  // Auto-select first conversation on load (desktop UX)
+  useEffect(() => {
+    if (conversations.length > 0 && !selectedId) {
+      setSelectedId(conversations[0].id);
+    }
+  }, [conversations.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleApprove = (convId: string, msgId: string, content: string) => {
     setLocalConvs(prev => (prev ?? conversations).map(c =>
@@ -60,12 +68,21 @@ export default function Inbox() {
     replyMutation.mutate({ conversationId: convId, content, action: "edit" });
   };
 
+  // On mobile: show list when nothing selected, show pane when selected
+  const showList = !selectedId;
+  const showPane = !!selectedId;
+
   return (
     <AppLayout role="client" businessName={user?.businessName}>
-      {/* Full-height split pane that bleed past the AppLayout padding */}
+      {/* Full-height split pane that bleeds past the AppLayout padding */}
       <div className="flex h-[calc(100vh-56px)] -m-6 lg:-m-8 overflow-hidden border-t border-border">
-        {/* Left panel */}
-        <div className="w-80 flex-shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
+
+        {/* Left panel — full width on mobile (list only), fixed 320px on desktop */}
+        <div className={cn(
+          "flex-shrink-0 border-r border-border bg-card flex flex-col overflow-hidden",
+          "w-full lg:w-80",
+          showList  ? "flex"        : "hidden lg:flex",
+        )}>
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -85,13 +102,17 @@ export default function Inbox() {
           )}
         </div>
 
-        {/* Right panel */}
-        <div className="flex-1 flex flex-col bg-background overflow-hidden">
+        {/* Right panel — hidden on mobile until conversation selected */}
+        <div className={cn(
+          "flex-1 flex-col bg-background overflow-hidden",
+          showPane ? "flex" : "hidden lg:flex",
+        )}>
           <ConversationPane
             conversation={selectedConv}
             onApprove={handleApprove}
             onReject={handleReject}
             onEdit={handleEdit}
+            onBack={() => setSelectedId(null)}
           />
         </div>
       </div>

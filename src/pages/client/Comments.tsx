@@ -37,11 +37,21 @@ export default function Comments() {
 
   useEffect(() => { if (data) setLocalComments(data); }, [data]);
 
-  const filtered = localComments.filter(c =>
-    !search ||
-    c.text.toLowerCase().includes(search.toLowerCase()) ||
-    c.username.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = localComments
+    .filter(c => {
+      const matchPlatform = pFilter === "all" || c.platform === pFilter;
+      const matchStatus   = sFilter === "all" || c.status   === sFilter;
+      const matchSearch   = !search
+        || c.text.toLowerCase().includes(search.toLowerCase())
+        || c.username.toLowerCase().includes(search.toLowerCase());
+      return matchPlatform && matchStatus && matchSearch;
+    })
+    .sort((a, b) => {
+      // pending always first, then by timestamp descending
+      if (a.status === "pending" && b.status !== "pending") return -1;
+      if (b.status === "pending" && a.status !== "pending") return  1;
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
 
   const counts = {
     pending:  localComments.filter(c => c.status === "pending").length,

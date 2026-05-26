@@ -66,7 +66,11 @@ export function useComments(filter: CommentsFilter = {}) {
         const query = params.toString();
         return await api.get<Comment[]>(`/comments${query ? `?${query}` : ""}`);
       } catch {
-        return MOCK_COMMENTS;
+        return MOCK_COMMENTS.filter(c => {
+          if (filter.platform && filter.platform !== "all" && c.platform !== filter.platform) return false;
+          if (filter.status   && filter.status   !== "all" && c.status   !== filter.status)   return false;
+          return true;
+        });
       }
     },
     staleTime: 30_000,

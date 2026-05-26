@@ -128,3 +128,10 @@ export function useGeneratePost() {
       api.post<{ caption: string; hashtags: string[] }>("/content/generate", params),
   });
 }
+
+export function useGenerateImage() {
+  return useMutation({
+    mutationFn: (params: { prompt: string; caption?: string; platform?: Platform }) =>
+      api.post<{ url: string }>("/content/generate-image", params),
+  });
+}

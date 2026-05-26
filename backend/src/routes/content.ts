@@ -128,4 +128,47 @@ app.post("/generate", zValidator("json", generateSchema), async (c) => {
   });
 });
 
+const generateImageSchema = z.object({
+  prompt:   z.string().min(1),
+  caption:  z.string().optional(),
+  platform: z.string().optional(),
+});
+
+const DEMO_IMAGES = [
+  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600",
+  "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600",
+  "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600",
+  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600",
+  "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600",
+];
+
+// POST /generate-image — DALL-E 3 or demo Unsplash photo
+app.post("/generate-image", zValidator("json", generateImageSchema), async (c) => {
+  const { prompt, caption, platform } = c.req.valid("json");
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (apiKey) {
+    try {
+      const fullPrompt = [
+        `Social media post image for ${platform ?? "Instagram"}.`,
+        `Topic: ${prompt}.`,
+        caption ? `Caption context: ${caption}.` : "",
+        "Professional food photography style, vibrant colors, high quality, appetizing.",
+      ].filter(Boolean).join(" ");
+
+      const res = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: "dall-e-3", prompt: fullPrompt, n: 1, size: "1024x1024" }),
+      });
+      const data = await res.json() as { data: { url: string }[] };
+      return c.json({ url: data.data[0].url });
+    } catch {
+      // fall through to demo
+    }
+  }
+
+  return c.json({ url: DEMO_IMAGES[Math.floor(Math.random() * DEMO_IMAGES.length)] });
+});
+
 export default app;

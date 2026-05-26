@@ -1,126 +1,182 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { CommentCard } from "@/components/social/CommentCard";
-import type { Comment, ReplyStatus } from "@/types";
-import type { Platform } from "@/types";
-import { Search, Loader2 } from "lucide-react";
+import type { Comment, ReplyStatus, Platform } from "@/types";
+import { Search, MessageSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useComments, useApproveComment, useRejectComment, useEditComment } from "@/hooks/useComments";
 
+const PLATFORM_FILTERS: { id: Platform | "all"; label: string; activeClass: string }[] = [
+  { id: "all",       label: "All",       activeClass: "bg-primary text-white" },
+  { id: "instagram", label: "Instagram", activeClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white" },
+  { id: "tiktok",    label: "TikTok",    activeClass: "bg-zinc-900 text-white dark:bg-zinc-700" },
+  { id: "facebook",  label: "Facebook",  activeClass: "bg-blue-600 text-white" },
+  { id: "whatsapp",  label: "WhatsApp",  activeClass: "bg-green-500 text-white" },
+];
+
+const STATUS_FILTERS: { id: ReplyStatus | "all"; label: string }[] = [
+  { id: "all",      label: "All"      },
+  { id: "pending",  label: "Pending"  },
+  { id: "approved", label: "Approved" },
+  { id: "rejected", label: "Rejected" },
+];
+
 export default function Comments() {
-  const { t } = useTranslation();
   const { user } = useAuth();
   const [pFilter, setPFilter] = useState<Platform | "all">("all");
   const [sFilter, setSFilter] = useState<ReplyStatus | "all">("all");
-  const [search, setSearch] = useState("");
+  const [search,  setSearch]  = useState("");
   const [localComments, setLocalComments] = useState<Comment[]>([]);
 
   const { data, isLoading } = useComments({ platform: pFilter, status: sFilter });
   const approveMutation = useApproveComment();
-  const rejectMutation = useRejectComment();
-  const editMutation = useEditComment();
+  const rejectMutation  = useRejectComment();
+  const editMutation    = useEditComment();
 
-  useEffect(() => {
-    if (data) setLocalComments(data);
-  }, [data]);
+  useEffect(() => { if (data) setLocalComments(data); }, [data]);
 
   const filtered = localComments.filter(c =>
-    (!search || c.text.toLowerCase().includes(search.toLowerCase()) || c.username.toLowerCase().includes(search.toLowerCase()))
+    !search ||
+    c.text.toLowerCase().includes(search.toLowerCase()) ||
+    c.username.toLowerCase().includes(search.toLowerCase())
   );
 
-  const pending = localComments.filter(c => c.status === "pending").length;
+  const counts = {
+    pending:  localComments.filter(c => c.status === "pending").length,
+    approved: localComments.filter(c => c.status === "approved" || c.status === "auto_sent" || c.status === "edited").length,
+    rejected: localComments.filter(c => c.status === "rejected").length,
+  };
 
   const approve = (id: string) => {
     setLocalComments(p => p.map(c => c.id === id ? { ...c, status: "approved" as ReplyStatus } : c));
     approveMutation.mutate(id);
   };
-
   const reject = (id: string) => {
     setLocalComments(p => p.map(c => c.id === id ? { ...c, status: "rejected" as ReplyStatus } : c));
     rejectMutation.mutate(id);
   };
-
   const edit = (id: string, aiReply: string) => {
     setLocalComments(p => p.map(c => c.id === id ? { ...c, aiReply, status: "edited" as ReplyStatus } : c));
     editMutation.mutate({ id, aiReply });
   };
 
-  const platforms: { id: Platform | "all"; label: string }[] = [
-    { id: "all",       label: t("comments.all") },
-    { id: "tiktok",    label: "TikTok" },
-    { id: "instagram", label: "Instagram" },
-    { id: "facebook",  label: "Facebook" },
-    { id: "whatsapp",  label: "WhatsApp" },
-  ];
-
-  const statuses: { id: ReplyStatus | "all"; label: string }[] = [
-    { id: "all",      label: t("comments.all") },
-    { id: "pending",  label: t("comments.status.pending") },
-    { id: "approved", label: t("comments.status.approved") },
-    { id: "rejected", label: t("comments.status.rejected") },
-  ];
-
   return (
     <AppLayout role="client" businessName={user?.businessName ?? "SocialPilot"}>
-      <div className="space-y-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{t("comments.title")}</h1>
-            <p className="text-sm text-muted-foreground">{t("comments.subtitle")}</p>
+      <div className="space-y-6 max-w-2xl">
+
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Comments</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Review and manage AI replies to comments</p>
+            </div>
+            {counts.pending > 0 && (
+              <span className="flex-shrink-0 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-sm font-semibold px-3 py-1.5 rounded-xl">
+                {counts.pending} pending
+              </span>
+            )}
           </div>
-          {pending > 0 && (
-            <span className="bg-yellow-100 text-yellow-700 rounded-xl px-4 py-2 text-sm font-medium">
-              {pending} {t("comments.pending")}
-            </span>
+
+          {/* Stats row */}
+          {localComments.length > 0 && (
+            <div className="flex gap-3 mt-4">
+              {[
+                { label: "Pending",  count: counts.pending,  color: "text-yellow-600 dark:text-yellow-400" },
+                { label: "Sent",     count: counts.approved, color: "text-green-600 dark:text-green-400"  },
+                { label: "Rejected", count: counts.rejected, color: "text-red-500 dark:text-red-400"      },
+              ].map(s => (
+                <div key={s.label} className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-xl">
+                  <span className={cn("text-sm font-bold", s.color)}>{s.count}</span>
+                  <span className="text-xs text-muted-foreground">{s.label}</span>
+                </div>
+              ))}
+            </div>
           )}
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-card rounded-2xl p-4 border border-border shadow-sm space-y-3"
+        {/* Filters */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+          className="space-y-3"
         >
+          {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder={t("comments.searchPlaceholder")}
-              className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+              placeholder="Search by username or comment…"
+              className="w-full h-9 pl-9 pr-4 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {platforms.map(f => (
-              <button key={f.id} onClick={() => setPFilter(f.id as Platform | "all")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${pFilter === f.id ? "bg-primary text-white border-primary" : "bg-muted border-transparent text-muted-foreground"}`}>
+
+          {/* Platform chips */}
+          <div className="flex gap-1.5 flex-wrap">
+            {PLATFORM_FILTERS.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setPFilter(f.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
+                  pFilter === f.id ? f.activeClass : "bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
                 {f.label}
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {statuses.map(f => (
-              <button key={f.id} onClick={() => setSFilter(f.id as ReplyStatus | "all")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${sFilter === f.id ? "bg-foreground text-background border-foreground" : "bg-muted border-transparent text-muted-foreground"}`}>
+
+          {/* Status chips */}
+          <div className="flex gap-1.5 flex-wrap">
+            {STATUS_FILTERS.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setSFilter(f.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-xs font-medium transition-colors border",
+                  sFilter === f.id
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+                )}
+              >
                 {f.label}
+                {f.id !== "all" && (
+                  <span className="ml-1 opacity-60">
+                    {f.id === "pending"  ? counts.pending  :
+                     f.id === "approved" ? counts.approved :
+                     f.id === "rejected" ? counts.rejected : ""}
+                  </span>
+                )}
               </button>
             ))}
           </div>
         </motion.div>
 
+        {/* List */}
         {isLoading && localComments.length === 0 ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="flex justify-center py-16">
+            <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+            <MessageSquare className="w-10 h-10 mb-3 opacity-20" />
+            <p className="text-sm font-medium">No comments found</p>
+            <p className="text-xs mt-1 opacity-60">Try adjusting your filters</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.length === 0
-              ? <div className="text-center py-12 text-muted-foreground">{t("comments.noResults")}</div>
-              : filtered.map((c, i) => (
-                  <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                    <CommentCard comment={c} onApprove={approve} onReject={reject} onEdit={edit} />
-                  </motion.div>
-                ))
-            }
+            {filtered.map((c, i) => (
+              <motion.div
+                key={c.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+              >
+                <CommentCard comment={c} onApprove={approve} onReject={reject} onEdit={edit} />
+              </motion.div>
+            ))}
           </div>
         )}
       </div>

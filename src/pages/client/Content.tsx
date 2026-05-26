@@ -81,7 +81,8 @@ interface SeasonalTemplate {
 }
 
 const SEASONAL_TEMPLATES: SeasonalTemplate[] = [
-  // ── American Holidays ──────────────────────────────────────────────────────
+
+  // ── American Holidays (12) ─────────────────────────────────────────────────
   {
     id: "ah1", category: "American Holidays", emoji: "🦃",
     title: "Thanksgiving",
@@ -104,27 +105,70 @@ const SEASONAL_TEMPLATES: SeasonalTemplate[] = [
     color: "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800/40",
   },
   {
-    id: "ah4", category: "American Holidays", emoji: "💝",
+    id: "ah4", category: "American Holidays", emoji: "🎊",
+    title: "New Year's Day",
+    prompt: "Happy New Year! Welcome the new year with a message of hope and fresh beginnings. Promote our New Year's Day brunch or first-day-of-the-year special offer.",
+    platform: "instagram", tone: "friendly",
+    color: "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800/40",
+  },
+  {
+    id: "ah5", category: "American Holidays", emoji: "💝",
     title: "Valentine's Day",
     prompt: "Valentine's Day is here! Promote our romantic dining experience, couples special menu, or sweet treats for loved ones. Make it feel special and intimate.",
     platform: "instagram", tone: "friendly",
     color: "bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800/40",
   },
   {
-    id: "ah5", category: "American Holidays", emoji: "💐",
+    id: "ah6", category: "American Holidays", emoji: "🍀",
+    title: "St. Patrick's Day",
+    prompt: "Happy St. Patrick's Day! Share in the luck of the Irish with a fun, festive post. Promote our green-themed specials or Irish-inspired dishes for the holiday.",
+    platform: "instagram", tone: "fun",
+    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+  },
+  {
+    id: "ah7", category: "American Holidays", emoji: "💐",
     title: "Mother's Day",
     prompt: "Honor the amazing moms in our community! Promote our Mother's Day brunch or dinner special and make it easy for families to book a memorable celebration.",
     platform: "facebook", tone: "friendly",
     color: "bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800/40",
   },
   {
-    id: "ah6", category: "American Holidays", emoji: "🇺🇸",
+    id: "ah8", category: "American Holidays", emoji: "👨‍👧",
+    title: "Father's Day",
+    prompt: "Celebrate Dad this Father's Day! Promote our Father's Day dining special — hearty portions, bold flavors, and a great time for the whole family to treat the man of the house.",
+    platform: "facebook", tone: "fun",
+    color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
+  },
+  {
+    id: "ah9", category: "American Holidays", emoji: "🇺🇸",
     title: "4th of July",
     prompt: "Happy Independence Day! Celebrate American freedom with patriotic energy. Promote our summer BBQ-style specials and create a fun, festive vibe for the holiday.",
     platform: "instagram", tone: "fun",
-    color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
+    color: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40",
   },
-  // ── Religious & Cultural ───────────────────────────────────────────────────
+  {
+    id: "ah10", category: "American Holidays", emoji: "🏈",
+    title: "Super Bowl Sunday",
+    prompt: "It's Super Bowl Sunday! Promote our game-day party platters, shareable appetizers, and takeout specials. Perfect post for sports fans gathering to watch the big game.",
+    platform: "instagram", tone: "fun",
+    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+  },
+  {
+    id: "ah11", category: "American Holidays", emoji: "🎃",
+    title: "Halloween",
+    prompt: "Happy Halloween! Get spooky with a fun, themed post promoting our Halloween special menu, costume night, or trick-or-treat family deal. Playful and festive energy.",
+    platform: "tiktok", tone: "fun",
+    color: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/40",
+  },
+  {
+    id: "ah12", category: "American Holidays", emoji: "🎓",
+    title: "Back to School",
+    prompt: "Back to school season is here! Promote our family meal deals, quick lunch specials, or student discounts to help busy families and students get through the new school year.",
+    platform: "facebook", tone: "friendly",
+    color: "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/40",
+  },
+
+  // ── Religious & Cultural (9) ───────────────────────────────────────────────
   {
     id: "rc1", category: "Religious & Cultural", emoji: "🌙",
     title: "Ramadan Iftar Special",
@@ -156,11 +200,40 @@ const SEASONAL_TEMPLATES: SeasonalTemplate[] = [
   {
     id: "rc5", category: "Religious & Cultural", emoji: "🕎",
     title: "Hanukkah",
-    prompt: "Happy Hanukkah! Celebrate the Festival of Lights with a warm message to our community and share our holiday dining options for festive gatherings.",
+    prompt: "Happy Hanukkah! Celebrate the Festival of Lights with a warm message to our community and share our holiday dining options for festive family gatherings.",
     platform: "instagram", tone: "friendly",
     color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
   },
-  // ── Promotions ─────────────────────────────────────────────────────────────
+  {
+    id: "rc6", category: "Religious & Cultural", emoji: "🪔",
+    title: "Diwali",
+    prompt: "Happy Diwali! Celebrate the Festival of Lights with a warm, colorful post. Promote our Diwali special menu or sweet treats and welcome our South Asian community.",
+    platform: "instagram", tone: "friendly",
+    color: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
+  },
+  {
+    id: "rc7", category: "Religious & Cultural", emoji: "🐉",
+    title: "Chinese New Year",
+    prompt: "Happy Chinese New Year! Celebrate the Lunar New Year with a festive post featuring lucky dishes or themed specials. Welcome the new year with prosperity and good fortune.",
+    platform: "instagram", tone: "fun",
+    color: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40",
+  },
+  {
+    id: "rc8", category: "Religious & Cultural", emoji: "✡️",
+    title: "Rosh Hashanah",
+    prompt: "Shana Tova! Wishing our Jewish community a sweet New Year. Promote our honey cake, apple dishes, or holiday family meal options for Rosh Hashanah gatherings.",
+    platform: "facebook", tone: "friendly",
+    color: "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/40",
+  },
+  {
+    id: "rc9", category: "Religious & Cultural", emoji: "🇸🇦",
+    title: "Saudi National Day",
+    prompt: "Happy Saudi National Day! Celebrate with a special promotion and express pride in the occasion. Post in both Arabic and English with patriotic and festive energy.",
+    platform: "instagram", tone: "fun",
+    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+  },
+
+  // ── Promotions (8) ─────────────────────────────────────────────────────────
   {
     id: "pr1", category: "Promotions", emoji: "🔥",
     title: "Weekend Special",
@@ -189,7 +262,36 @@ const SEASONAL_TEMPLATES: SeasonalTemplate[] = [
     platform: "facebook", tone: "fun",
     color: "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800/40",
   },
-  // ── Business ───────────────────────────────────────────────────────────────
+  {
+    id: "pr5", category: "Promotions", emoji: "🥡",
+    title: "Free Delivery Day",
+    prompt: "Today only — free delivery on all orders! Announce our free delivery promotion with urgency and make it easy for customers to order right now from their phone.",
+    platform: "whatsapp", tone: "fun",
+    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+  },
+  {
+    id: "pr6", category: "Promotions", emoji: "☀️",
+    title: "Summer Special",
+    prompt: "Summer is here! Promote our refreshing summer menu — cold drinks, light dishes, and seasonal specials perfect for the hot weather. Energetic and sunny vibe.",
+    platform: "instagram", tone: "fun",
+    color: "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/40",
+  },
+  {
+    id: "pr7", category: "Promotions", emoji: "🤝",
+    title: "Refer a Friend",
+    prompt: "Spread the love! Tell your friends about our referral program — both you and a friend get a reward when they place their first order. Keep it simple, fun, and shareable.",
+    platform: "whatsapp", tone: "friendly",
+    color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
+  },
+  {
+    id: "pr8", category: "Promotions", emoji: "🍱",
+    title: "Lunch Special",
+    prompt: "Lunchtime deal alert! Promote our affordable lunch combo or midday special — quick, filling, and great value. Target the office crowd and lunch-break crowd.",
+    platform: "facebook", tone: "informative",
+    color: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/40",
+  },
+
+  // ── Business (8) ───────────────────────────────────────────────────────────
   {
     id: "bz1", category: "Business", emoji: "✨",
     title: "New Item Launch",
@@ -206,16 +308,44 @@ const SEASONAL_TEMPLATES: SeasonalTemplate[] = [
   },
   {
     id: "bz3", category: "Business", emoji: "🎉",
-    title: "Grand Opening / Anniversary",
-    prompt: "We're celebrating a milestone — our grand opening or anniversary! Express gratitude to our community, share the story behind the business, and announce a special celebration offer.",
-    platform: "instagram", tone: "friendly",
+    title: "Grand Opening",
+    prompt: "We're officially open! Announce our grand opening with excitement, share our story, and invite the community to come experience what makes us special. Include a grand opening offer.",
+    platform: "instagram", tone: "fun",
     color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
   },
   {
-    id: "bz4", category: "Business", emoji: "📸",
+    id: "bz4", category: "Business", emoji: "🏆",
+    title: "Business Anniversary",
+    prompt: "We're celebrating our anniversary! Thank our incredible customers for their loyalty over the years, share a milestone moment, and announce a special anniversary offer as our way of saying thank you.",
+    platform: "instagram", tone: "friendly",
+    color: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
+  },
+  {
+    id: "bz5", category: "Business", emoji: "📸",
     title: "Behind the Scenes",
     prompt: "Take followers behind the scenes of our kitchen or prep process. Build trust and authenticity by showing the care and passion that goes into every dish we make.",
     platform: "tiktok", tone: "informative",
+    color: "bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/40",
+  },
+  {
+    id: "bz6", category: "Business", emoji: "👨‍🍳",
+    title: "Meet the Team",
+    prompt: "Introduce a team member or the face behind the food! Humanize the brand, share a fun fact about a staff member, and make customers feel connected to the people serving them.",
+    platform: "instagram", tone: "friendly",
+    color: "bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800/40",
+  },
+  {
+    id: "bz7", category: "Business", emoji: "💬",
+    title: "Customer Spotlight",
+    prompt: "Share a glowing customer review or testimonial as a post. Express genuine gratitude, quote the review (with permission), and reinforce that real people love what we do.",
+    platform: "facebook", tone: "friendly",
+    color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
+  },
+  {
+    id: "bz8", category: "Business", emoji: "🕐",
+    title: "Hours Change",
+    prompt: "Important update: our hours are changing! Announce the new operating hours clearly and thank customers for their understanding. Keep it short, clear, and helpful.",
+    platform: "whatsapp", tone: "informative",
     color: "bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/40",
   },
 ];

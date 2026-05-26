@@ -108,12 +108,6 @@ const CHANNEL_COLORS: Record<Channel, string> = {
   phone_call: "bg-slate-700 text-white",
 };
 
-const CHANNEL_LABEL: Record<Channel, string> = {
-  tiktok_comment: "TikTok",       tiktok_dm: "TikTok DM",
-  instagram_comment: "Instagram", instagram_dm: "Instagram DM",
-  facebook_comment: "Facebook",   facebook_messenger: "Messenger",
-  whatsapp_business: "WhatsApp",  sms: "SMS", phone_call: "Call",
-};
 
 function ConvAvatar({ conv }: { conv: Conversation }) {
   const Icon = CHANNEL_ICONS[conv.channel];

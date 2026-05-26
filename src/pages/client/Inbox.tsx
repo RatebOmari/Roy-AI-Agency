@@ -55,6 +55,12 @@ export default function Inbox() {
     replyMutation.mutate({ conversationId: convId, content: "", action: "reject" });
   };
 
+  const handleResolve = (convId: string) => {
+    setLocalConvs(prev => (prev ?? conversations).map(c =>
+      c.id !== convId ? c : { ...c, status: "resolved" as const }
+    ));
+  };
+
   const handleEdit = (convId: string, msgId: string, content: string) => {
     setLocalConvs(prev => (prev ?? conversations).map(c =>
       c.id !== convId ? c : {
@@ -112,6 +118,7 @@ export default function Inbox() {
             onApprove={handleApprove}
             onReject={handleReject}
             onEdit={handleEdit}
+            onResolve={handleResolve}
             onBack={() => setSelectedId(null)}
           />
         </div>

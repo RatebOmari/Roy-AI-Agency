@@ -1035,37 +1035,75 @@ function QueueTab({ posts, onEdit, onDelete, onNew, businessName }: {
 
       ) : (
         /* ── Preview / grid view ── */
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {sorted.flatMap(post =>
-            post.platforms
-              .filter(platform => platformFilter === "all" || platform === platformFilter)
-              .map(platform => (
-              <motion.div
-                key={post.id + platform}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-2"
-              >
-                <PlatformPreviewCard post={post} platform={platform} businessName={businessName} />
-                <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-1.5">
-                    <div className={cn("w-2 h-2 rounded-full", PLATFORM_COLOR[platform])} />
-                    <span className="text-xs text-muted-foreground capitalize">{platform}</span>
-                    <span className="text-[10px] text-muted-foreground">· {relativeTime(post.scheduledAt)}</span>
+        (() => {
+          // platforms that actually appear in the filtered set
+          const visiblePlatforms = (platformFilter === "all" ? PLATFORMS.map(p => p.key) : [platformFilter])
+            .filter(pl => sorted.some(post => post.platforms.includes(pl))) as Platform[];
+
+          const GRID: Record<Platform, string> = {
+            instagram: "grid-cols-2 gap-4",
+            tiktok:    "grid-cols-2 sm:grid-cols-3 gap-4",
+            facebook:  "grid-cols-1 sm:grid-cols-2 gap-5",
+            whatsapp:  "grid-cols-1 sm:grid-cols-2 gap-4",
+          };
+
+          return (
+            <div className="space-y-8">
+              {visiblePlatforms.map(platform => {
+                const platformPosts = sorted.filter(p => p.platforms.includes(platform));
+                const platformMeta = PLATFORMS.find(p => p.key === platform)!;
+                return (
+                  <div key={platform}>
+                    {/* Platform section header — only shown when All is selected */}
+                    {platformFilter === "all" && (
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className={cn("w-3 h-3 rounded-full flex-shrink-0", PLATFORM_COLOR[platform])} />
+                        <span className="text-sm font-semibold text-foreground">{platformMeta.label}</span>
+                        <div className="flex-1 h-px bg-border" />
+                        <span className="text-xs text-muted-foreground">{platformPosts.length} post{platformPosts.length !== 1 ? "s" : ""}</span>
+                      </div>
+                    )}
+
+                    <div className={cn("grid", GRID[platform])}>
+                      {platformPosts.map((post, i) => (
+                        <motion.div
+                          key={post.id + platform}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className="flex flex-col gap-2"
+                        >
+                          <PlatformPreviewCard post={post} platform={platform} businessName={businessName} />
+
+                          {/* Card footer */}
+                          <div className="flex items-center justify-between gap-2 px-0.5">
+                            <span className="text-xs font-medium text-foreground/70 truncate">
+                              {relativeTime(post.scheduledAt)}
+                            </span>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                onClick={() => onEdit(post)}
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-primary/10 hover:text-primary text-muted-foreground transition-colors"
+                              >
+                                <Pencil className="w-3 h-3" /> Edit
+                              </button>
+                              <button
+                                onClick={() => onDelete(post.id)}
+                                className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => onEdit(post)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => onDelete(post.id)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </div>
+                );
+              })}
+            </div>
+          );
+        })()
       )}
     </div>
   );

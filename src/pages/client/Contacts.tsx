@@ -138,10 +138,10 @@ function ContactProfile({
   onBack?: () => void;
 }) {
   const navigate = useNavigate();
-  const [notes,     setNotes]     = useState(contact.notes);
-  const [notesDirty,setNotesDirty]= useState(false);
-  const [saved,     setSaved]     = useState(false);
-  const [newTag,    setNewTag]    = useState("");
+  const [notes,      setNotes]      = useState(contact.notes);
+  const [notesDirty, setNotesDirty] = useState(false);
+  const [saved,      setSaved]      = useState(false);
+  const [newTag,     setNewTag]     = useState("");
 
   const saveNotes = () => {
     onUpdate({ notes });
@@ -241,18 +241,19 @@ function ContactProfile({
             placeholder="Add notes about this contact…"
             className="w-full px-3 py-2.5 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
           />
-          <button
-            onClick={saveNotes}
-            disabled={!notesDirty && !saved}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
-              saved
-                ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                : "bg-primary text-white hover:bg-primary/90 disabled:opacity-40"
-            )}
-          >
-            {saved ? <><CheckCircle2 className="w-3 h-3" /> Saved</> : "Save Notes"}
-          </button>
+          {saved ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 w-fit">
+              <CheckCircle2 className="w-3 h-3" /> Saved
+            </div>
+          ) : (
+            <button
+              onClick={saveNotes}
+              disabled={!notesDirty}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-40 transition-colors w-fit"
+            >
+              Save Notes
+            </button>
+          )}
         </section>
 
         {/* Recent activity */}
@@ -281,13 +282,20 @@ function ContactProfile({
       </div>
 
       {/* Footer — Campaign CTA */}
-      <div className="border-t border-border px-4 py-3 bg-card">
+      <div className="border-t border-border px-4 py-3 bg-card space-y-2">
+        {contact.tags.length > 0 && (
+          <p className="text-[11px] text-muted-foreground text-center">
+            Broadcast to all{" "}
+            <span className="font-semibold text-foreground">#{contact.tags[0]}</span>
+            {" "}contacts — or choose audience in Campaigns
+          </p>
+        )}
         <button
           onClick={() => navigate("/campaigns")}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors"
         >
           <Megaphone className="w-4 h-4" />
-          Send Campaign to Contacts
+          Send Campaign
         </button>
       </div>
     </div>
@@ -306,8 +314,12 @@ export default function Contacts() {
 
   const selectedContact = contacts.find(c => c.id === selectedId) ?? null;
 
-  const allTags      = Array.from(new Set(contacts.flatMap(c => c.tags))).sort();
-  const allPlatforms = Array.from(new Set(contacts.flatMap(c => c.handles.map(h => channelPlatform(h.channel))))).filter(p => p !== "other");
+  const allTags = Array.from(new Set(contacts.flatMap(c => c.tags))).sort();
+
+  // Canonical platform order — only show platforms that actually exist in contacts
+  const PLATFORM_ORDER = ["instagram", "tiktok", "facebook", "whatsapp", "sms"];
+  const contactPlatforms = new Set(contacts.flatMap(c => c.handles.map(h => channelPlatform(h.channel))));
+  const allPlatforms = PLATFORM_ORDER.filter(p => contactPlatforms.has(p));
 
   const filtered = contacts.filter(c => {
     const matchSearch   = !search || c.name.toLowerCase().includes(search.toLowerCase())

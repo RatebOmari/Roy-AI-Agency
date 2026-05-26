@@ -77,6 +77,7 @@ const TAG_REACH: Record<string, number> = {
   complaint: 8,
   dietary: 23,
   "purchase-intent": 31,
+  "order-inquiry": 26,
   appointment: 19,
   spanish: 15,
 };

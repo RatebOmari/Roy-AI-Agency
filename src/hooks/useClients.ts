@@ -15,7 +15,8 @@ export function useClients() {
     queryKey: ["clients"],
     queryFn: async () => {
       try {
-        return await api.get<AgencyClient[]>("/socialpilot/clients");
+        const result = await api.get<AgencyClient[]>("/socialpilot/clients");
+        return Array.isArray(result) ? result : MOCK_CLIENTS;
       } catch {
         return MOCK_CLIENTS;
       }

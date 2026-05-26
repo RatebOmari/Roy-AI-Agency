@@ -52,7 +52,9 @@ export function useDashboard() {
     queryKey: ["dashboard"],
     queryFn: async () => {
       try {
-        return await api.get<DashboardStats>("/socialpilot/dashboard");
+        const result = await api.get<DashboardStats>("/socialpilot/dashboard");
+        if (!result || typeof result !== "object" || Array.isArray(result)) throw new Error("unexpected response");
+        return result as DashboardStats;
       } catch {
         return MOCK_STATS;
       }

@@ -132,7 +132,9 @@ export function useConversations(filter?: { status?: ConversationStatus | "all";
     queryKey: ["conversations", filter],
     queryFn: async () => {
       try {
-        return await api.get<Conversation[]>("/socialpilot/conversations");
+        const result = await api.get<Conversation[]>("/socialpilot/conversations");
+        if (!Array.isArray(result)) throw new Error("unexpected response");
+        return result;
       } catch {
         let data = MOCK_CONVERSATIONS;
         if (filter?.status && filter.status !== "all") {

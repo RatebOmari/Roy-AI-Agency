@@ -6,7 +6,7 @@ export function useConnectPlatform() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (platform: Platform) =>
-      api.post<{ oauthUrl?: string; connected?: boolean }>("/socialpilot/platforms/connect", { platform }),
+      api.post<{ oauthUrl?: string; connected?: boolean }>("/platforms/connect", { platform }),
     onSuccess: (data) => {
       if (data.oauthUrl) {
         window.location.href = data.oauthUrl;
@@ -24,7 +24,7 @@ export function useDisconnectPlatform() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (platform: Platform) =>
-      api.post<void>("/socialpilot/platforms/disconnect", { platform }),
+      api.post<void>("/platforms/disconnect", { platform }),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -35,7 +35,7 @@ export function useConnectPlatformFeature() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ platform, feature }: { platform: ExtendedPlatform; feature: PlatformFeatureType }) =>
-      api.post<{ oauthUrl?: string; connected?: boolean }>("/socialpilot/platforms/connect", { platform, feature }),
+      api.post<{ oauthUrl?: string; connected?: boolean }>("/platforms/connect", { platform, feature }),
     onSuccess: (data) => {
       if (data.oauthUrl) {
         window.location.href = data.oauthUrl;
@@ -53,7 +53,7 @@ export function useDisconnectPlatformFeature() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ platform, feature }: { platform: ExtendedPlatform; feature: PlatformFeatureType }) =>
-      api.post<void>("/socialpilot/platforms/disconnect", { platform, feature }),
+      api.post<void>("/platforms/disconnect", { platform, feature }),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },

@@ -56,7 +56,7 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.post("/socialpilot/clients/action", {
+      await api.post("/clients/action", {
         action: "updatePermissions",
         clientId: client.id,
         permissions: perms,

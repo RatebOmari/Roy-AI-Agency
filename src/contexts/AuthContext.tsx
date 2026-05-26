@@ -57,14 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      const data = await api.post<LoginResponse>("/socialpilot/auth/login", { email, password });
+      const data = await api.post<LoginResponse>("/auth/login", { email, password });
       authStorage.setToken(data.token);
       authStorage.setUser(data.user);
       setToken(data.token);
       setUser(data.user);
       return data.user;
     } catch (err) {
-      // Always allow demo credentials as fallback (even if n8n is configured)
+      // Always fall back to demo credentials if backend is unavailable or creds don't match
       const demo = DEMO_ACCOUNTS[email.toLowerCase()];
       if (demo && password === demo.password) {
         const demoUser: User = {
@@ -82,8 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(demoUser);
         return demoUser;
       }
-      // No n8n and no demo match — allow any credentials in pure demo mode
-      if (!import.meta.env.VITE_N8N_WEBHOOK_URL) {
+      // No backend configured and no demo match — allow any credentials in pure demo mode
+      if (!import.meta.env.VITE_API_URL) {
         const demoUser: User = {
           id: "demo-1",
           email,

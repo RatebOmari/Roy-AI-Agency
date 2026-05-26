@@ -14,7 +14,7 @@ export function useSettings() {
     queryKey: ["settings"],
     queryFn: async () => {
       try {
-        return await api.get<ToneSettingsMap>("/socialpilot/settings");
+        return await api.get<ToneSettingsMap>("/settings");
       } catch {
         return DEFAULT_SETTINGS;
       }
@@ -27,7 +27,7 @@ export function useSaveSettings() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (settings: ToneSettingsMap) =>
-      api.post<void>("/socialpilot/settings", settings),
+      api.post<void>("/settings", settings),
     onSuccess: (_data, variables) => {
       queryClient.setQueryData(["settings"], variables);
     },

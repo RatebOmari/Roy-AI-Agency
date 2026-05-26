@@ -12,7 +12,7 @@ import platformsRoutes    from "./routes/platforms.js";
 
 const app = new Hono();
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173").split(",").map(s => s.trim());
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5174,http://localhost:5173").split(",").map(s => s.trim());
 
 app.use("*", cors({
   origin: (origin) => allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
@@ -26,17 +26,16 @@ app.use("*", logger());
 // Health check
 app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
 
-// All routes under /webhook/socialpilot/* to match the n8n path the frontend uses
 const api = new Hono();
 
-api.route("/auth",          authRoutes);
-api.route("/settings",      settingsRoutes);
-api.route("/clients",       clientsRoutes);
-api.route("/dashboard",     dashboardRoutes);
+api.route("/auth",           authRoutes);
+api.route("/settings",       settingsRoutes);
+api.route("/clients",        clientsRoutes);
+api.route("/dashboard",      dashboardRoutes);
 api.route("/conversations",  conversationsRoutes);
-api.route("/platforms",     platformsRoutes);
+api.route("/platforms",      platformsRoutes);
 
-app.route("/webhook/socialpilot", api);
+app.route("/api", api);
 
 const port = Number(process.env.PORT ?? 3001);
 console.log(`🚀 SocialPilot backend running on port ${port}`);

@@ -64,7 +64,7 @@ export function useComments(filter: CommentsFilter = {}) {
         if (filter.platform && filter.platform !== "all") params.set("platform", filter.platform);
         if (filter.status && filter.status !== "all") params.set("status", filter.status);
         const query = params.toString();
-        return await api.get<Comment[]>(`/socialpilot/comments${query ? `?${query}` : ""}`);
+        return await api.get<Comment[]>(`/comments${query ? `?${query}` : ""}`);
       } catch {
         return MOCK_COMMENTS;
       }
@@ -77,7 +77,7 @@ export function useApproveComment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      api.post<void>("/socialpilot/comments/action", { action: "approve", id }),
+      api.post<void>("/comments/action", { action: "approve", id }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["comments"] }),
   });
 }
@@ -86,7 +86,7 @@ export function useRejectComment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      api.post<void>("/socialpilot/comments/action", { action: "reject", id }),
+      api.post<void>("/comments/action", { action: "reject", id }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["comments"] }),
   });
 }
@@ -95,7 +95,7 @@ export function useEditComment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, aiReply }: { id: string; aiReply: string }) =>
-      api.post<void>("/socialpilot/comments/action", { action: "edit", id, aiReply }),
+      api.post<void>("/comments/action", { action: "edit", id, aiReply }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["comments"] }),
   });
 }

@@ -15,7 +15,7 @@ export function useClients() {
     queryKey: ["clients"],
     queryFn: async () => {
       try {
-        const result = await api.get<AgencyClient[]>("/socialpilot/clients");
+        const result = await api.get<AgencyClient[]>("/clients");
         return Array.isArray(result) ? result : MOCK_CLIENTS;
       } catch {
         return MOCK_CLIENTS;
@@ -29,7 +29,7 @@ export function useUpdateClientStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: ClientStatus }) =>
-      api.post<void>("/socialpilot/clients/action", { action: "updateStatus", id, status }),
+      api.post<void>("/clients/action", { action: "updateStatus", id, status }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["clients"] }),
   });
 }

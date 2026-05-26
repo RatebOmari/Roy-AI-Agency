@@ -1,7 +1,7 @@
 import { authStorage } from "./auth";
 import type { ApiError } from "@/types";
 
-const BASE_URL = import.meta.env.VITE_N8N_WEBHOOK_URL ?? "";
+const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 // Called by AuthContext to enable clean React-state logout on 401
 let _onUnauthorized: (() => void) | null = null;
@@ -41,7 +41,6 @@ class ApiClient {
         const currentToken = authStorage.getToken();
         if (!currentToken?.startsWith("demo_token_")) {
           authStorage.clear();
-          // Notify React context to update state (no hard reload)
           _onUnauthorized?.();
         }
       }

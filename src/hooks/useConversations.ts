@@ -132,7 +132,7 @@ export function useConversations(filter?: { status?: ConversationStatus | "all";
     queryKey: ["conversations", filter],
     queryFn: async () => {
       try {
-        const result = await api.get<Conversation[]>("/socialpilot/conversations");
+        const result = await api.get<Conversation[]>("/conversations");
         if (!Array.isArray(result)) throw new Error("unexpected response");
         return result;
       } catch {
@@ -155,7 +155,7 @@ export function useReplyToConversation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ conversationId, content, action }: { conversationId: string; content: string; action: "approve" | "reject" | "edit" }) =>
-      api.post<void>("/socialpilot/conversations/action", { conversationId, content, action }),
+      api.post<void>("/conversations/action", { conversationId, content, action }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
   });
 }
@@ -164,7 +164,7 @@ export function useUpdateConversationStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: ConversationStatus }) =>
-      api.post<void>("/socialpilot/conversations/action", { action: "updateStatus", id, status }),
+      api.post<void>("/conversations/action", { action: "updateStatus", id, status }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
   });
 }

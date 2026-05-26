@@ -3,12 +3,14 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import authRoutes         from "./routes/auth.js";
-import settingsRoutes     from "./routes/settings.js";
-import clientsRoutes      from "./routes/clients.js";
-import dashboardRoutes    from "./routes/dashboard.js";
+import authRoutes          from "./routes/auth.js";
+import settingsRoutes      from "./routes/settings.js";
+import clientsRoutes       from "./routes/clients.js";
+import dashboardRoutes     from "./routes/dashboard.js";
 import conversationsRoutes from "./routes/conversations.js";
-import platformsRoutes    from "./routes/platforms.js";
+import platformsRoutes     from "./routes/platforms.js";
+import contentRoutes       from "./routes/content.js";
+import resourcesRoutes     from "./routes/resources.js";
 
 const app = new Hono();
 
@@ -34,6 +36,8 @@ api.route("/clients",        clientsRoutes);
 api.route("/dashboard",      dashboardRoutes);
 api.route("/conversations",  conversationsRoutes);
 api.route("/platforms",      platformsRoutes);
+api.route("/content",        contentRoutes);
+api.route("/resources",      resourcesRoutes);
 
 app.route("/api", api);
 

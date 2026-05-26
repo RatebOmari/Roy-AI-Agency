@@ -1,4 +1,5 @@
 import { pgTable, text, integer, boolean, timestamp, uuid, pgEnum } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const roleEnum       = pgEnum("role",        ["client", "agency"]);
 export const clientStatusEnum = pgEnum("client_status", ["active", "paused", "setup"]);
@@ -100,4 +101,36 @@ export const messages = pgTable("messages", {
   sentBy:       sentByEnum("sent_by"),
   mediaUrl:     text("media_url"),
   timestamp:    timestamp("timestamp").notNull().defaultNow(),
+});
+
+// ── Content Scheduler ─────────────────────────────────────────────────────────
+
+export const postStatusEnum = pgEnum("post_status", ["draft", "scheduled", "published", "failed"]);
+
+export const scheduledPosts = pgTable("scheduled_posts", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  userId:      uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  platforms:   text("platforms").array().notNull().default(sql`'{}'::text[]`),
+  content:     text("content").notNull().default(""),
+  mediaUrl:    text("media_url"),
+  scheduledAt: timestamp("scheduled_at"),
+  status:      postStatusEnum("status").notNull().default("draft"),
+  aiGenerated: boolean("ai_generated").notNull().default(false),
+  createdAt:   timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Resources / Knowledge Base ────────────────────────────────────────────────
+
+export const resourceTypeEnum = pgEnum("resource_type", ["info", "hours", "menu_item", "offer", "document"]);
+
+export const resources = pgTable("resources", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  userId:    uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type:      resourceTypeEnum("type").notNull(),
+  title:     text("title").notNull().default(""),
+  content:   text("content").notNull().default("{}"),
+  fileUrl:   text("file_url"),
+  active:    boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

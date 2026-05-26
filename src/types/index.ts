@@ -167,3 +167,60 @@ export interface ChannelBreakdown {
   count: number;
   percentage: number;
 }
+
+// ── Content Scheduler ─────────────────────────────────────────────────────────
+
+export type PostStatus = "draft" | "scheduled" | "published" | "failed";
+
+export interface ScheduledPost {
+  id: string;
+  platforms: Platform[];
+  content: string;
+  mediaUrl?: string;
+  scheduledAt?: string;
+  status: PostStatus;
+  aiGenerated: boolean;
+  createdAt: string;
+}
+
+// ── Resources / Knowledge Base ────────────────────────────────────────────────
+
+export type ResourceType = "info" | "hours" | "menu_item" | "offer" | "document";
+
+export interface Resource {
+  id: string;
+  type: ResourceType;
+  title: string;
+  content: string;
+  fileUrl?: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BusinessInfo {
+  name: string;
+  description: string;
+  address: string;
+  phone: string;
+  email: string;
+}
+
+export interface WorkingHoursEntry {
+  day: string;
+  open: boolean;
+  from: string;
+  to: string;
+}
+
+export interface MenuItem {
+  name: string;
+  description: string;
+  price: string;
+}
+
+export interface OfferItem {
+  title: string;
+  description: string;
+  expiresAt?: string;
+}

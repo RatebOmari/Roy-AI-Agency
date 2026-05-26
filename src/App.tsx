@@ -9,6 +9,8 @@ import ToneSettings from "./pages/client/ToneSettings";
 import Analytics from "./pages/client/Analytics";
 import Automation from "./pages/client/Automation";
 import Contacts from "./pages/client/Contacts";
+import Content from "./pages/client/Content";
+import Resources from "./pages/client/Resources";
 import AgencyDashboard from "./pages/agency/Dashboard";
 import AgencyClients from "./pages/agency/Clients";
 import AgencyAnalytics from "./pages/agency/Analytics";
@@ -76,6 +78,8 @@ export default function App() {
             <Route path="/contacts"            element={<ProtectedRoute requiredRole="client"><Contacts /></ProtectedRoute>} />
             <Route path="/analytics"           element={<ProtectedRoute requiredRole="client"><Analytics /></ProtectedRoute>} />
             <Route path="/automation"          element={<ProtectedRoute requiredRole="client"><Automation /></ProtectedRoute>} />
+            <Route path="/content"             element={<ProtectedRoute requiredRole="client"><Content /></ProtectedRoute>} />
+            <Route path="/resources"           element={<ProtectedRoute requiredRole="client"><Resources /></ProtectedRoute>} />
             <Route path="/settings"            element={<ProtectedRoute requiredRole="client"><ToneSettings /></ProtectedRoute>} />
 
             {/* Agency */}

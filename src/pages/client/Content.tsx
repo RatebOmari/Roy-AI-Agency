@@ -1227,14 +1227,22 @@ function CalendarTab({ posts, onNew, onEdit, businessName }: {
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
-        {!isCurrentMonth && (
+        <div className="flex items-center gap-2">
+          {!isCurrentMonth && (
+            <button
+              onClick={goToday}
+              className="text-xs font-medium text-primary hover:bg-primary/10 px-2.5 py-1 rounded-lg transition-colors"
+            >
+              Today
+            </button>
+          )}
           <button
-            onClick={goToday}
-            className="text-xs font-medium text-primary hover:bg-primary/10 px-2.5 py-1 rounded-lg transition-colors"
+            onClick={() => onNew()}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-xl hover:bg-primary/90 transition-colors"
           >
-            Today
+            <Plus className="w-3.5 h-3.5" /> New Post
           </button>
-        )}
+        </div>
       </div>
 
       {/* Grid */}
@@ -1670,17 +1678,9 @@ export default function Content() {
     <AppLayout role="client" businessName={businessName}>
       <div className="space-y-6">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Content</h1>
-            <p className="text-sm text-muted-foreground mt-1">Schedule and generate posts for your social channels</p>
-          </div>
-          <button
-            onClick={() => openNew()}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> New Post
-          </button>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 className="text-2xl font-bold text-foreground">Content</h1>
+          <p className="text-sm text-muted-foreground mt-1">Schedule and generate posts for your social channels</p>
         </motion.div>
 
         {/* Tabs */}

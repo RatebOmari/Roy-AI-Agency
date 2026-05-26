@@ -16,11 +16,11 @@ const PLATFORM_FILTERS: { id: Platform | "all"; label: string; activeClass: stri
   { id: "whatsapp",  label: "WhatsApp",  activeClass: "bg-green-500 text-white" },
 ];
 
-const STATUS_FILTERS: { id: ReplyStatus | "all"; label: string }[] = [
-  { id: "all",      label: "All"      },
-  { id: "pending",  label: "Pending"  },
-  { id: "approved", label: "Approved" },
-  { id: "rejected", label: "Rejected" },
+const STATUS_FILTERS: { id: ReplyStatus | "all"; label: string; countKey?: "pending" | "sent" | "autoSent" }[] = [
+  { id: "all",       label: "All"       },
+  { id: "pending",   label: "Review",   countKey: "pending"  },
+  { id: "approved",  label: "Sent",     countKey: "sent"     },
+  { id: "auto_sent", label: "Auto-Sent",countKey: "autoSent" },
 ];
 
 export default function Comments() {
@@ -39,7 +39,9 @@ export default function Comments() {
   const filtered = localComments
     .filter(c => {
       const matchPlatform = pFilter === "all" || c.platform === pFilter;
-      const matchStatus   = sFilter === "all" || c.status   === sFilter;
+      const matchStatus = sFilter === "all"
+        || c.status === sFilter
+        || (sFilter === "approved" && (c.status === "approved" || c.status === "edited"));
       const matchSearch   = !search
         || c.text.toLowerCase().includes(search.toLowerCase())
         || c.username.toLowerCase().includes(search.toLowerCase());
@@ -73,16 +75,11 @@ export default function Comments() {
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Comments</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Review and manage AI replies to comments</p>
-            </div>
-            {counts.pending > 0 && (
-              <span className="flex-shrink-0 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-sm font-semibold px-3 py-1.5 rounded-xl">
-                {counts.pending} pending
-              </span>
-            )}
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Comments</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              AI replies automatically — approve when review is needed
+            </p>
           </div>
 
           {/* Stats row */}
@@ -135,27 +132,26 @@ export default function Comments() {
 
           {/* Status chips */}
           <div className="flex gap-1.5 flex-wrap">
-            {STATUS_FILTERS.map(f => (
-              <button
-                key={f.id}
-                onClick={() => setSFilter(f.id)}
-                className={cn(
-                  "px-2.5 py-1 rounded-full text-xs font-medium transition-colors border",
-                  sFilter === f.id
-                    ? "bg-foreground text-background border-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-                )}
-              >
-                {f.label}
-                {f.id !== "all" && (
-                  <span className="ml-1 opacity-60">
-                    {f.id === "pending"  ? counts.pending  :
-                     f.id === "approved" ? counts.approved :
-                     f.id === "rejected" ? counts.rejected : ""}
-                  </span>
-                )}
-              </button>
-            ))}
+            {STATUS_FILTERS.map(f => {
+              const count = f.countKey ? counts[f.countKey] : null;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setSFilter(f.id)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-medium transition-colors border",
+                    sFilter === f.id
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+                  )}
+                >
+                  {f.label}
+                  {count !== null && (
+                    <span className="ml-1 opacity-60">{count}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </motion.div>
 

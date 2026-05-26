@@ -41,6 +41,7 @@ export interface Comment {
   username: string;
   text: string;
   aiReply: string;
+  aiConfidence?: number;
   status: ReplyStatus;
   timestamp: string;
   clientId?: string;

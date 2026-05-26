@@ -6,7 +6,7 @@ import type { Comment, ReplyStatus, Platform } from "@/types";
 import { Search, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useComments, useApproveComment, useRejectComment, useEditComment } from "@/hooks/useComments";
+import { useComments, useApproveComment, useEditComment } from "@/hooks/useComments";
 
 const PLATFORM_FILTERS: { id: Platform | "all"; label: string; activeClass: string }[] = [
   { id: "all",       label: "All",       activeClass: "bg-primary text-white" },
@@ -26,13 +26,12 @@ const STATUS_FILTERS: { id: ReplyStatus | "all"; label: string }[] = [
 export default function Comments() {
   const { user } = useAuth();
   const [pFilter, setPFilter] = useState<Platform | "all">("all");
-  const [sFilter, setSFilter] = useState<ReplyStatus | "all">("all");
+  const [sFilter, setSFilter] = useState<ReplyStatus | "all">("pending");
   const [search,  setSearch]  = useState("");
   const [localComments, setLocalComments] = useState<Comment[]>([]);
 
   const { data, isLoading } = useComments({ platform: pFilter, status: sFilter });
   const approveMutation = useApproveComment();
-  const rejectMutation  = useRejectComment();
   const editMutation    = useEditComment();
 
   useEffect(() => { if (data) setLocalComments(data); }, [data]);
@@ -54,18 +53,14 @@ export default function Comments() {
     });
 
   const counts = {
-    pending:  localComments.filter(c => c.status === "pending").length,
-    approved: localComments.filter(c => c.status === "approved" || c.status === "auto_sent" || c.status === "edited").length,
-    rejected: localComments.filter(c => c.status === "rejected").length,
+    pending:   localComments.filter(c => c.status === "pending").length,
+    sent:      localComments.filter(c => c.status === "approved" || c.status === "auto_sent" || c.status === "edited").length,
+    autoSent:  localComments.filter(c => c.status === "auto_sent").length,
   };
 
   const approve = (id: string) => {
     setLocalComments(p => p.map(c => c.id === id ? { ...c, status: "approved" as ReplyStatus } : c));
     approveMutation.mutate(id);
-  };
-  const reject = (id: string) => {
-    setLocalComments(p => p.map(c => c.id === id ? { ...c, status: "rejected" as ReplyStatus } : c));
-    rejectMutation.mutate(id);
   };
   const edit = (id: string, aiReply: string) => {
     setLocalComments(p => p.map(c => c.id === id ? { ...c, aiReply, status: "edited" as ReplyStatus } : c));
@@ -92,11 +87,11 @@ export default function Comments() {
 
           {/* Stats row */}
           {localComments.length > 0 && (
-            <div className="flex gap-3 mt-4">
+            <div className="flex gap-3 mt-4 flex-wrap">
               {[
-                { label: "Pending",  count: counts.pending,  color: "text-yellow-600 dark:text-yellow-400" },
-                { label: "Sent",     count: counts.approved, color: "text-green-600 dark:text-green-400"  },
-                { label: "Rejected", count: counts.rejected, color: "text-red-500 dark:text-red-400"      },
+                { label: "Needs Review", count: counts.pending,  color: "text-yellow-600 dark:text-yellow-400" },
+                { label: "Sent",         count: counts.sent,     color: "text-green-600 dark:text-green-400"  },
+                { label: "Auto-Sent",    count: counts.autoSent, color: "text-primary"                        },
               ].map(s => (
                 <div key={s.label} className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-xl">
                   <span className={cn("text-sm font-bold", s.color)}>{s.count}</span>
@@ -184,7 +179,7 @@ export default function Comments() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
               >
-                <CommentCard comment={c} onApprove={approve} onReject={reject} onEdit={edit} />
+                <CommentCard comment={c} onApprove={approve} onEdit={edit} />
               </motion.div>
             ))}
           </div>

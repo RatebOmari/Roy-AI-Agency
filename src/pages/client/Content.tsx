@@ -81,65 +81,146 @@ interface SeasonalTemplate {
 }
 
 const SEASONAL_TEMPLATES: SeasonalTemplate[] = [
+  // ── American Holidays ──────────────────────────────────────────────────────
   {
-    id: "st1", category: "Ramadan", emoji: "🌙",
-    title: "Iftar Special",
+    id: "ah1", category: "American Holidays", emoji: "🦃",
+    title: "Thanksgiving",
+    prompt: "It's Thanksgiving week! Express gratitude to our loyal customers, share what we're thankful for this year, and promote our Thanksgiving family meal special. Warm and heartfelt tone.",
+    platform: "facebook", tone: "friendly",
+    color: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/40",
+  },
+  {
+    id: "ah2", category: "American Holidays", emoji: "🎄",
+    title: "Christmas Special",
+    prompt: "Merry Christmas! Spread holiday cheer, announce our festive holiday menu, and remind customers we're the perfect spot for Christmas family gatherings and holiday celebrations.",
+    platform: "instagram", tone: "friendly",
+    color: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40",
+  },
+  {
+    id: "ah3", category: "American Holidays", emoji: "🎆",
+    title: "New Year's Eve",
+    prompt: "Ring in the New Year with us! Promote our New Year's Eve special dinner, countdown event, or limited reservation slots. Build excitement and urgency.",
+    platform: "instagram", tone: "fun",
+    color: "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800/40",
+  },
+  {
+    id: "ah4", category: "American Holidays", emoji: "💝",
+    title: "Valentine's Day",
+    prompt: "Valentine's Day is here! Promote our romantic dining experience, couples special menu, or sweet treats for loved ones. Make it feel special and intimate.",
+    platform: "instagram", tone: "friendly",
+    color: "bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800/40",
+  },
+  {
+    id: "ah5", category: "American Holidays", emoji: "💐",
+    title: "Mother's Day",
+    prompt: "Honor the amazing moms in our community! Promote our Mother's Day brunch or dinner special and make it easy for families to book a memorable celebration.",
+    platform: "facebook", tone: "friendly",
+    color: "bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800/40",
+  },
+  {
+    id: "ah6", category: "American Holidays", emoji: "🇺🇸",
+    title: "4th of July",
+    prompt: "Happy Independence Day! Celebrate American freedom with patriotic energy. Promote our summer BBQ-style specials and create a fun, festive vibe for the holiday.",
+    platform: "instagram", tone: "fun",
+    color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
+  },
+  // ── Religious & Cultural ───────────────────────────────────────────────────
+  {
+    id: "rc1", category: "Religious & Cultural", emoji: "🌙",
+    title: "Ramadan Iftar Special",
     prompt: "We're offering a special Ramadan iftar platter for families. Highlight the festive atmosphere, the warmth of sharing a meal together, and our exclusive Ramadan discount.",
     platform: "instagram", tone: "friendly",
     color: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
   },
   {
-    id: "st2", category: "Ramadan", emoji: "🌙",
-    title: "Ramadan Kareem Greeting",
+    id: "rc2", category: "Religious & Cultural", emoji: "🌙",
+    title: "Ramadan Kareem",
     prompt: "Wishing our customers Ramadan Kareem! Share warm wishes for the holy month and let them know about our special Ramadan hours and menu.",
     platform: "facebook", tone: "friendly",
     color: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
   },
   {
-    id: "st3", category: "Eid", emoji: "🎊",
-    title: "Eid Mubarak Celebration",
-    prompt: "Eid Mubarak to all our customers! Announce our special Eid celebration offer — 20% off all orders today. Warm festive message in both Arabic and English.",
+    id: "rc3", category: "Religious & Cultural", emoji: "🎊",
+    title: "Eid Mubarak",
+    prompt: "Eid Mubarak to all our customers! Announce our special Eid celebration offer. Warm festive message that resonates with both Arabic and English speaking communities.",
     platform: "whatsapp", tone: "fun",
     color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
   },
   {
-    id: "st4", category: "Eid", emoji: "🎊",
-    title: "Eid Family Gathering",
-    prompt: "Eid is about family gatherings. Promote our large family platters and group reservations for Eid celebrations. Festive and warm tone.",
+    id: "rc4", category: "Religious & Cultural", emoji: "✝️",
+    title: "Easter Sunday",
+    prompt: "Happy Easter! Promote our Easter brunch special or family Sunday meal. Warm, celebratory message welcoming families to spend their Easter Sunday with us.",
+    platform: "facebook", tone: "friendly",
+    color: "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/40",
+  },
+  {
+    id: "rc5", category: "Religious & Cultural", emoji: "🕎",
+    title: "Hanukkah",
+    prompt: "Happy Hanukkah! Celebrate the Festival of Lights with a warm message to our community and share our holiday dining options for festive gatherings.",
     platform: "instagram", tone: "friendly",
-    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+    color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
   },
+  // ── Promotions ─────────────────────────────────────────────────────────────
   {
-    id: "st5", category: "National Day", emoji: "🇸🇦",
-    title: "Saudi National Day",
-    prompt: "Happy Saudi National Day! Celebrate with a special promotion and express pride in the occasion. Post in both Arabic and English with patriotic energy.",
-    platform: "instagram", tone: "fun",
-    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
-  },
-  {
-    id: "st6", category: "Weekend", emoji: "🔥",
-    title: "Weekend Vibes",
-    prompt: "It's the weekend! Promote our weekend special menu and create excitement. Perfect for a Friday or Saturday post to drive traffic.",
+    id: "pr1", category: "Promotions", emoji: "🔥",
+    title: "Weekend Special",
+    prompt: "It's the weekend! Promote our weekend special menu and create excitement. Perfect for a Friday or Saturday post to drive foot traffic and takeout orders.",
     platform: "tiktok", tone: "fun",
     color: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/40",
   },
   {
-    id: "st7", category: "New Menu", emoji: "✨",
+    id: "pr2", category: "Promotions", emoji: "🏷️",
+    title: "Black Friday Deal",
+    prompt: "Black Friday isn't just for retail! Announce our biggest food deal of the year — limited time offer, creates urgency and excitement. Perfect for driving same-day traffic.",
+    platform: "instagram", tone: "fun",
+    color: "bg-zinc-50 dark:bg-zinc-900/20 border-zinc-200 dark:border-zinc-800/40",
+  },
+  {
+    id: "pr3", category: "Promotions", emoji: "🍹",
+    title: "Happy Hour",
+    prompt: "It's happy hour! Promote our daily happy hour deals — discounted drinks, appetizer specials, or combo offers. Create urgency with timing and make it feel like a can't-miss moment.",
+    platform: "instagram", tone: "fun",
+    color: "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/40",
+  },
+  {
+    id: "pr4", category: "Promotions", emoji: "🎁",
+    title: "Buy One Get One",
+    prompt: "BOGO time! We're running a buy-one-get-one deal on our most popular item. Make the offer clear, create excitement, and push customers to bring a friend.",
+    platform: "facebook", tone: "fun",
+    color: "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800/40",
+  },
+  // ── Business ───────────────────────────────────────────────────────────────
+  {
+    id: "bz1", category: "Business", emoji: "✨",
     title: "New Item Launch",
     prompt: "We just added a new dish to our menu! Build excitement and curiosity, tease the flavors and ingredients, and encourage followers to come try it this week.",
     platform: "instagram", tone: "fun",
     color: "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800/40",
   },
   {
-    id: "st8", category: "Review Request", emoji: "⭐",
+    id: "bz2", category: "Business", emoji: "⭐",
     title: "Ask for a Review",
-    prompt: "Kindly ask happy customers to leave us a review. Warm, appreciative tone. Mention that reviews help small businesses grow and we read every single one.",
+    prompt: "Kindly ask happy customers to leave us a Google or Yelp review. Warm, appreciative tone. Mention that reviews help small businesses grow and that we personally read every single one.",
     platform: "whatsapp", tone: "friendly",
     color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
   },
+  {
+    id: "bz3", category: "Business", emoji: "🎉",
+    title: "Grand Opening / Anniversary",
+    prompt: "We're celebrating a milestone — our grand opening or anniversary! Express gratitude to our community, share the story behind the business, and announce a special celebration offer.",
+    platform: "instagram", tone: "friendly",
+    color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+  },
+  {
+    id: "bz4", category: "Business", emoji: "📸",
+    title: "Behind the Scenes",
+    prompt: "Take followers behind the scenes of our kitchen or prep process. Build trust and authenticity by showing the care and passion that goes into every dish we make.",
+    platform: "tiktok", tone: "informative",
+    color: "bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/40",
+  },
 ];
 
-const SEASONAL_CATEGORIES = ["All", "Ramadan", "Eid", "National Day", "Weekend", "New Menu", "Review Request"];
+const SEASONAL_CATEGORIES = ["All", "American Holidays", "Religious & Cultural", "Promotions", "Business"];
 
 function formatDate(iso?: string) {
   if (!iso) return "—";

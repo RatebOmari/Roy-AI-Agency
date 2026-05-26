@@ -783,6 +783,53 @@ function PostDialog({ initial, onSave, onClose, saving }: PostDialogProps) {
   );
 }
 
+// ── Queue Tab helpers ─────────────────────────────────────────────────────────
+
+const PLATFORM_BADGE: Record<Platform, { label: string; className: string }> = {
+  instagram: { label: "IG", className: "bg-gradient-to-r from-purple-500 to-pink-500 text-white" },
+  tiktok:    { label: "TT", className: "bg-zinc-900 text-white dark:bg-zinc-700" },
+  facebook:  { label: "FB", className: "bg-blue-600 text-white" },
+  whatsapp:  { label: "WA", className: "bg-green-500 text-white" },
+};
+
+const STATUS_BORDER: Record<PostStatus, string> = {
+  draft:     "border-l-zinc-300 dark:border-l-zinc-600",
+  scheduled: "border-l-blue-500",
+  published: "border-l-green-500",
+  failed:    "border-l-red-500",
+};
+
+const DATE_GROUPS = ["Today", "Tomorrow", "This Week", "Upcoming", "Drafts", "Past"] as const;
+type DateGroup = typeof DATE_GROUPS[number];
+
+function getPostGroup(post: ScheduledPost): DateGroup {
+  if (!post.scheduledAt || post.status === "draft") return "Drafts";
+  const d = new Date(post.scheduledAt);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.floor((d.getTime() - todayStart.getTime()) / 86_400_000);
+  if (d < now && post.status !== "scheduled") return "Past";
+  if (diffDays < 0) return "Past";
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays < 7) return "This Week";
+  return "Upcoming";
+}
+
+function relativeTime(iso?: string): string {
+  if (!iso) return "Unscheduled";
+  const d = new Date(iso);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.floor((d.getTime() - todayStart.getTime()) / 86_400_000);
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (diffDays === 0) return `Today · ${time}`;
+  if (diffDays === 1) return `Tomorrow · ${time}`;
+  if (diffDays < 0) return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (diffDays < 7) return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${time}`;
+  return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} · ${time}`;
+}
+
 // ── Queue Tab ─────────────────────────────────────────────────────────────────
 
 function QueueTab({ posts, onEdit, onDelete, onNew, businessName }: {
@@ -798,12 +845,24 @@ function QueueTab({ posts, onEdit, onDelete, onNew, businessName }: {
     () => sessionStorage.getItem("sp-queue-banner") === "1"
   );
 
+  // Only show platform filter chips for platforms that actually have posts
+  const usedPlatforms = PLATFORMS.filter(p => posts.some(post => post.platforms.includes(p.key)));
+
   const filtered = platformFilter === "all"
     ? posts
     : posts.filter(p => p.platforms.includes(platformFilter));
+
   const sorted = [...filtered].sort((a, b) =>
     (a.scheduledAt ?? "zzz").localeCompare(b.scheduledAt ?? "zzz")
   );
+
+  // Group by date band
+  const groups = DATE_GROUPS.reduce<Record<DateGroup, ScheduledPost[]>>((acc, g) => {
+    acc[g] = sorted.filter(p => getPostGroup(p) === g);
+    return acc;
+  }, { Today: [], Tomorrow: [], "This Week": [], Upcoming: [], Drafts: [], Past: [] });
+
+  const activeGroups = DATE_GROUPS.filter(g => groups[g].length > 0);
 
   const dismissBanner = () => {
     sessionStorage.setItem("sp-queue-banner", "1");
@@ -812,137 +871,170 @@ function QueueTab({ posts, onEdit, onDelete, onNew, businessName }: {
 
   return (
     <div className="space-y-4">
-      {/* Filter chips + view toggle row */}
+      {/* Header row: filters + view toggle + New Post */}
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex gap-2 flex-wrap flex-1">
+        <div className="flex gap-1.5 flex-wrap flex-1 min-w-0">
           <button
             onClick={() => setPlatformFilter("all")}
-            className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+            className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex-shrink-0",
               platformFilter === "all" ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"
             )}
           >
-            All
+            All ({posts.length})
           </button>
-          {PLATFORMS.map(p => (
+          {usedPlatforms.map(p => (
             <button
               key={p.key}
               onClick={() => setPlatformFilter(p.key)}
-              className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+              className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex-shrink-0",
                 platformFilter === p.key ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"
               )}
             >
-              {p.label}
+              {p.label} ({posts.filter(post => post.platforms.includes(p.key)).length})
             </button>
           ))}
         </div>
 
-        {/* View toggle */}
-        <div className="flex bg-muted rounded-lg p-0.5 gap-0.5">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex bg-muted rounded-lg p-0.5 gap-0.5">
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn("p-1.5 rounded-md transition-colors", viewMode === "list" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+              title="List view"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode("preview")}
+              className={cn("p-1.5 rounded-md transition-colors", viewMode === "preview" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+              title="Preview"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+          </div>
           <button
-            onClick={() => setViewMode("list")}
-            className={cn("p-1.5 rounded-md transition-colors", viewMode === "list" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
-            title="List view"
+            onClick={onNew}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-xl hover:bg-primary/90 transition-colors"
           >
-            <List className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setViewMode("preview")}
-            className={cn("p-1.5 rounded-md transition-colors", viewMode === "preview" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
-            title="Platform preview"
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5" /> New Post
           </button>
         </div>
       </div>
 
-      {/* Info banner */}
+      {/* Compact info banner */}
       {!bannerDismissed && (
-        <div className="flex items-start gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-700 dark:text-blue-300">
-          <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <p className="flex-1">
-            Posts are saved and scheduled locally. Auto-publishing to Instagram, TikTok, Facebook and WhatsApp will be available once you connect your accounts — <span className="font-semibold">coming soon</span>.
-          </p>
-          <button onClick={dismissBanner} className="text-blue-500 hover:text-blue-700 flex-shrink-0">
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-700 dark:text-blue-300">
+          <Info className="w-3.5 h-3.5 flex-shrink-0" />
+          <p className="flex-1">Auto-publishing to social platforms coming soon — posts are saved and ready.</p>
+          <button onClick={dismissBanner} className="text-blue-400 hover:text-blue-600 flex-shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
+      {/* Empty state */}
       {sorted.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-20" />
-          <p className="text-sm font-medium">No posts yet</p>
-          <p className="text-xs mt-1 opacity-70">Schedule your first post to get started</p>
-          <button
-            onClick={onNew}
-            className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl mx-auto hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> Create Post
-          </button>
+          <p className="text-sm font-medium">{platformFilter === "all" ? "No posts yet" : `No ${platformFilter} posts`}</p>
+          <p className="text-xs mt-1 opacity-70">Create your first post to get started</p>
         </div>
-      ) : viewMode === "list" ? (
-        sorted.map((post, i) => (
-          <motion.div
-            key={post.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-            className="bg-card rounded-2xl border border-border p-4 flex items-start gap-3"
-          >
-            {/* Platform dots */}
-            <div className="flex flex-col gap-1 mt-0.5 flex-shrink-0">
-              {post.platforms.map(p => (
-                <div key={p} className={cn("w-2.5 h-2.5 rounded-full", PLATFORM_COLOR[p])} title={p} />
-              ))}
-            </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", STATUS_STYLE[post.status])}>
-                  {post.status}
+      ) : viewMode === "list" ? (
+        /* ── List view ── */
+        <div className="space-y-6">
+          {activeGroups.map(group => (
+            <div key={group}>
+              {/* Date group header */}
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                  {group}
                 </span>
-                {post.aiGenerated && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-1">
-                    <Sparkles className="w-2.5 h-2.5" /> AI
-                  </span>
-                )}
-                <span className="text-[11px] text-muted-foreground ml-auto">{formatDate(post.scheduledAt)}</span>
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {groups[group].length} post{groups[group].length !== 1 ? "s" : ""}
+                </span>
               </div>
-              <p className="text-sm text-foreground leading-relaxed line-clamp-2">{post.content}</p>
-              <div className="flex items-center gap-1 mt-2 flex-wrap">
-                {post.platforms.map(p => (
-                  <span key={p} className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                    {PLATFORMS.find(pl => pl.key === p)?.label ?? p}
-                  </span>
+
+              {/* Cards in group */}
+              <div className="space-y-2">
+                {groups[group].map((post, i) => (
+                  <motion.div
+                    key={post.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className={cn(
+                      "bg-card rounded-2xl border border-border border-l-4 hover:shadow-sm transition-shadow",
+                      STATUS_BORDER[post.status]
+                    )}
+                  >
+                    <div className="p-4 flex items-start gap-3">
+                      {/* Main content */}
+                      <div className="flex-1 min-w-0 space-y-2">
+                        {/* Row 1: time + platform badges + status */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-foreground tabular-nums">
+                            {relativeTime(post.scheduledAt)}
+                          </span>
+                          <div className="flex gap-1">
+                            {post.platforms.map(p => (
+                              <span
+                                key={p}
+                                className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md", PLATFORM_BADGE[p].className)}
+                              >
+                                {PLATFORM_BADGE[p].label}
+                              </span>
+                            ))}
+                          </div>
+                          {post.aiGenerated && (
+                            <span className="flex items-center gap-0.5 text-[10px] text-primary/70 font-medium">
+                              <Sparkles className="w-2.5 h-2.5" /> AI
+                            </span>
+                          )}
+                          <span className={cn("ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full", STATUS_STYLE[post.status])}>
+                            {post.status}
+                          </span>
+                        </div>
+
+                        {/* Caption */}
+                        <p className="text-sm text-foreground leading-relaxed line-clamp-2">{post.content}</p>
+                      </div>
+
+                      {/* Right: thumbnail + actions stacked */}
+                      <div className="flex flex-col items-end justify-between gap-3 flex-shrink-0 self-stretch">
+                        {post.mediaUrl && (
+                          <div className="w-14 h-14 rounded-xl overflow-hidden border border-border flex-shrink-0">
+                            <img src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="flex items-center gap-0.5 mt-auto">
+                          <button
+                            onClick={() => onEdit(post)}
+                            title="Edit"
+                            className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onDelete(post.id)}
+                            title="Delete"
+                            className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
+          ))}
+        </div>
 
-            {/* Thumbnail */}
-            {post.mediaUrl && (
-              <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-border">
-                <img src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
-              </div>
-            )}
-
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={() => onEdit(post)}
-                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => onDelete(post.id)}
-                className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </motion.div>
-        ))
       ) : (
-        /* Preview mode — expand posts to one card per platform */
+        /* ── Preview / grid view ── */
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {sorted.flatMap(post =>
             post.platforms.map(platform => (
@@ -957,14 +1049,14 @@ function QueueTab({ posts, onEdit, onDelete, onNew, businessName }: {
                   <div className="flex items-center gap-1.5">
                     <div className={cn("w-2 h-2 rounded-full", PLATFORM_COLOR[platform])} />
                     <span className="text-xs text-muted-foreground capitalize">{platform}</span>
-                    <span className="text-[10px] text-muted-foreground">· {formatDate(post.scheduledAt)}</span>
+                    <span className="text-[10px] text-muted-foreground">· {relativeTime(post.scheduledAt)}</span>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => onEdit(post)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                      <Pencil className="w-3 h-3" />
+                    <button onClick={() => onEdit(post)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                      <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => onDelete(post.id)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors">
-                      <Trash2 className="w-3 h-3" />
+                    <button onClick={() => onDelete(post.id)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>

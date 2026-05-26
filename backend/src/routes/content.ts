@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { scheduledPosts } from "../db/schema.js";
+import { scheduledPosts, postMetrics } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 
 const app = new Hono();
@@ -169,6 +169,28 @@ app.post("/generate-image", zValidator("json", generateImageSchema), async (c) =
   }
 
   return c.json({ url: DEMO_IMAGES[Math.floor(Math.random() * DEMO_IMAGES.length)] });
+});
+
+// GET /metrics — post performance (postMetrics joined with scheduledPosts)
+app.get("/metrics", async (c) => {
+  const user = c.get("user");
+  const rows = await db
+    .select({
+      postId:       postMetrics.postId,
+      likes:        postMetrics.likes,
+      comments:     postMetrics.comments,
+      reach:        postMetrics.reach,
+      shares:       postMetrics.shares,
+      recordedAt:   postMetrics.recordedAt,
+      postContent:  scheduledPosts.content,
+      postPlatforms: scheduledPosts.platforms,
+    })
+    .from(postMetrics)
+    .innerJoin(scheduledPosts, eq(postMetrics.postId, scheduledPosts.id))
+    .where(eq(scheduledPosts.userId, user.sub))
+    .orderBy(desc(postMetrics.recordedAt))
+    .limit(10);
+  return c.json(rows);
 });
 
 export default app;

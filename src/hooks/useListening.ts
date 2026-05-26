@@ -192,7 +192,14 @@ export function useDeleteKeyword() {
 export function useMentions() {
   return useQuery({
     queryKey: ["mentions"],
-    queryFn: async () => MOCK_MENTIONS,
+    queryFn: async () => {
+      try {
+        const result = await api.get<Mention[]>("/listening/mentions");
+        return Array.isArray(result) ? result : MOCK_MENTIONS;
+      } catch {
+        return MOCK_MENTIONS;
+      }
+    },
     staleTime: 30_000,
   });
 }

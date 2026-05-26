@@ -4,7 +4,16 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { TrendingUp, MessageCircle, Zap, Clock, Users } from "lucide-react";
+import { TrendingUp, MessageCircle, Zap, Clock, Users, Heart, Eye, Share2, BarChart2 } from "lucide-react";
+import { usePostMetrics } from "@/hooks/useContent";
+import { cn } from "@/lib/utils";
+
+const PLATFORM_COLOR: Record<string, string> = {
+  instagram: "bg-gradient-to-br from-purple-500 to-pink-500",
+  tiktok:    "bg-zinc-900",
+  facebook:  "bg-blue-600",
+  whatsapp:  "bg-green-500",
+};
 
 const DAILY_DATA = [
   { date: "Mon", total: 42, autoSent: 31, manual: 8, escalated: 3 },
@@ -33,6 +42,7 @@ const STATS = [
 
 export default function Analytics() {
   const { user } = useAuth();
+  const { data: metrics = [] } = usePostMetrics();
 
   return (
     <AppLayout role="client" businessName={user?.businessName}>
@@ -125,6 +135,52 @@ export default function Analytics() {
             </div>
           </div>
         </div>
+
+        {/* Post Performance */}
+        {metrics.length > 0 && (
+          <div className="bg-card rounded-2xl border border-border p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <BarChart2 className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold text-foreground">Post Performance</h3>
+              <span className="text-xs text-muted-foreground ml-1">last {metrics.length} posts</span>
+            </div>
+            <div className="space-y-3">
+              {metrics.map((m, i) => (
+                <div key={m.postId + i} className="flex items-start gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors">
+                  {/* Platform dots */}
+                  <div className="flex flex-col gap-1 mt-0.5 flex-shrink-0">
+                    {(m.postPlatforms ?? []).slice(0, 3).map(p => (
+                      <div key={p} className={cn("w-2 h-2 rounded-full", PLATFORM_COLOR[p] ?? "bg-muted-foreground")} title={p} />
+                    ))}
+                  </div>
+
+                  {/* Caption */}
+                  <p className="flex-1 text-xs text-foreground line-clamp-2 min-w-0">{m.postContent}</p>
+
+                  {/* Metrics */}
+                  <div className="flex items-center gap-3 flex-shrink-0 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Heart className="w-3 h-3 text-red-400" />
+                      {m.likes.toLocaleString()}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MessageCircle className="w-3 h-3 text-blue-400" />
+                      {m.comments.toLocaleString()}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-3 h-3 text-purple-400" />
+                      {m.reach.toLocaleString()}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Share2 className="w-3 h-3 text-green-400" />
+                      {m.shares.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );

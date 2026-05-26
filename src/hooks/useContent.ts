@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { ScheduledPost, Platform, ToneType } from "@/types";
+import type { ScheduledPost, Platform, ToneType, PostMetrics } from "@/types";
 
 const now = new Date();
 const future = (days: number, hour = 10) => {
@@ -133,5 +133,35 @@ export function useGenerateImage() {
   return useMutation({
     mutationFn: (params: { prompt: string; caption?: string; platform?: Platform }) =>
       api.post<{ url: string }>("/content/generate-image", params),
+  });
+}
+
+interface PostMetricsWithContent extends PostMetrics {
+  postContent: string;
+  postPlatforms: string[];
+}
+
+const past = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
+
+const MOCK_METRICS: PostMetricsWithContent[] = [
+  { postId: "p5", postContent: "✨ Our team just got certified in advanced pastry arts! Expect even more amazing desserts coming your way 🎉", postPlatforms: ["instagram", "tiktok"], likes: 342, comments: 28, reach: 5200, shares: 47, recordedAt: past(1) },
+  { postId: "p3", postContent: "🌙 Ramadan Special Menu is here! Enjoy our exclusive iftar platters — available for dine-in and delivery.", postPlatforms: ["instagram"], likes: 218, comments: 41, reach: 3800, shares: 35, recordedAt: past(2) },
+  { postId: "p1", postContent: "🎂 Custom birthday cakes available! Order yours today and make every celebration unforgettable.", postPlatforms: ["instagram", "facebook"], likes: 187, comments: 19, reach: 2900, shares: 22, recordedAt: past(3) },
+  { postId: "p2", postContent: "Behind the scenes: watch how we craft our signature dishes fresh every morning 🍳", postPlatforms: ["tiktok"], likes: 503, comments: 64, reach: 9100, shares: 112, recordedAt: past(4) },
+  { postId: "p4", postContent: "New weekend hours: We're now open until 11 PM on Fridays and Saturdays! Come enjoy a late dinner with us 🌟", postPlatforms: ["whatsapp", "facebook"], likes: 94, comments: 11, reach: 1400, shares: 18, recordedAt: past(5) },
+];
+
+export function usePostMetrics() {
+  return useQuery({
+    queryKey: ["postMetrics"],
+    queryFn: async () => {
+      try {
+        const result = await api.get<PostMetricsWithContent[]>("/content/metrics");
+        return Array.isArray(result) && result.length > 0 ? result : MOCK_METRICS;
+      } catch {
+        return MOCK_METRICS;
+      }
+    },
+    staleTime: 60_000,
   });
 }

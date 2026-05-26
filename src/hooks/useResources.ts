@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { authStorage } from "@/lib/auth";
 import type { Resource } from "@/types";
 
 const MOCK_RESOURCES: Resource[] = [
@@ -141,8 +142,9 @@ export function useUploadDocument() {
       try {
         const formData = new FormData();
         formData.append("file", file);
-        const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/resources/upload`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/resources/upload`, {
           method: "POST",
+          headers: { Authorization: `Bearer ${authStorage.getToken() ?? ""}` },
           body: formData,
         });
         if (!res.ok) throw new Error("Upload failed");

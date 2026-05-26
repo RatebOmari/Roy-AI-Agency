@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
   CalendarDays, List, Sparkles, Plus, Pencil, Trash2,
-  Loader2, ChevronLeft, ChevronRight, X, CheckCircle2,
+  Loader2, ChevronLeft, ChevronRight, ChevronDown, X, CheckCircle2,
   Heart, MessageCircle, Send, Bookmark, Share2, MoreHorizontal,
   Globe, ThumbsUp, Music, CheckCheck, Image, Upload, Info,
   LayoutGrid, Clock, Star,
@@ -887,199 +887,230 @@ function CalendarTab({ posts, onNew }: { posts: ScheduledPost[]; onNew: (date?: 
 function GenerateTab({ onAddToQueue }: {
   onAddToQueue: (content: string, platform: Platform, mediaUrl?: string) => void;
 }) {
-  const [prompt, setPrompt]     = useState("");
-  const [platform, setPlatform] = useState<Platform>("instagram");
-  const [tone, setTone]         = useState<ToneType>("friendly");
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [prompt, setPrompt]         = useState("");
+  const [platform, setPlatform]     = useState<Platform>("instagram");
+  const [tone, setTone]             = useState<ToneType>("friendly");
+  const [captionResult, setCaptionResult] = useState<{ caption: string; hashtags: string[] } | null>(null);
+  const [imageResult, setImageResult]     = useState<string | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [seasonalCategory, setSeasonalCategory] = useState("All");
 
   const generateCaption = useGeneratePost();
   const generateImage   = useGenerateImage();
 
+  const isGenerating = generateCaption.isPending || generateImage.isPending;
+  const hasResult    = captionResult !== null || generateCaption.isPending;
+
   const handleGenerate = () => {
     if (!prompt.trim()) return;
-    setGeneratedImage(null);
-    generateCaption.mutate({ prompt: prompt.trim(), platform, tone });
-  };
-
-  const handleGenerateImage = () => {
-    if (!generateCaption.data) return;
+    setCaptionResult(null);
+    setImageResult(null);
+    generateCaption.mutate(
+      { prompt: prompt.trim(), platform, tone },
+      { onSuccess: (data) => setCaptionResult(data) }
+    );
     generateImage.mutate(
-      { prompt: prompt.trim(), caption: generateCaption.data.caption, platform },
-      { onSuccess: (data) => setGeneratedImage(data.url) }
+      { prompt: prompt.trim(), platform },
+      { onSuccess: (data) => setImageResult(data.url) }
     );
   };
 
-  const result = generateCaption.data;
+  const handleReset = () => {
+    setCaptionResult(null);
+    setImageResult(null);
+    generateCaption.reset();
+    generateImage.reset();
+  };
 
   return (
-    <div className="max-w-2xl space-y-5">
-      <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 text-sm text-foreground">
-        <p className="font-medium flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" /> AI Content Generator
-        </p>
-        <p className="text-muted-foreground text-xs mt-1">
-          Describe what you want to post about and the AI will write a caption and generate an image optimized for your platform.
-          In production, the AI also reads your Resources (menu, offers, hours) for context.
-        </p>
-      </div>
+    <div className="max-w-2xl space-y-4">
 
-      {/* Seasonal Templates Picker */}
+      {/* Quick-start templates — collapsed by default */}
       <div>
-        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-          <Star className="w-3.5 h-3.5 text-amber-500" /> Quick-Start Templates
-        </p>
-        <div className="flex gap-2 flex-wrap mb-3">
-          {SEASONAL_CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSeasonalCategory(cat)}
-              className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
-                seasonalCategory === cat ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
+        <button
+          onClick={() => setTemplatesOpen(o => !o)}
+          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Star className="w-3.5 h-3.5 text-amber-500" />
+          Quick-start templates
+          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", templatesOpen && "rotate-180")} />
+        </button>
+
+        <AnimatePresence>
+          {templatesOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
             >
-              {cat}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {SEASONAL_TEMPLATES
-            .filter(t => seasonalCategory === "All" || t.category === seasonalCategory)
-            .map(t => (
-              <button
-                key={t.id}
-                onClick={() => { setPrompt(t.prompt); setPlatform(t.platform); setTone(t.tone); }}
-                className={cn(
-                  "text-left p-3 rounded-xl border text-xs transition-all hover:shadow-sm",
-                  t.color
-                )}
-              >
-                <span className="text-base leading-none">{t.emoji}</span>
-                <p className="font-semibold text-foreground mt-1">{t.title}</p>
-                <p className="text-muted-foreground mt-0.5 line-clamp-2 text-[11px]">{t.prompt}</p>
-              </button>
-            ))
-          }
-        </div>
+              <div className="pt-3 space-y-3">
+                <div className="flex gap-2 flex-wrap">
+                  {SEASONAL_CATEGORIES.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSeasonalCategory(cat)}
+                      className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                        seasonalCategory === cat ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {SEASONAL_TEMPLATES
+                    .filter(t => seasonalCategory === "All" || t.category === seasonalCategory)
+                    .map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setPrompt(t.prompt);
+                          setPlatform(t.platform);
+                          setTone(t.tone);
+                          setTemplatesOpen(false);
+                        }}
+                        className={cn("text-left p-3 rounded-xl border text-xs transition-all hover:shadow-sm", t.color)}
+                      >
+                        <span className="text-base leading-none">{t.emoji}</span>
+                        <p className="font-semibold text-foreground mt-1">{t.title}</p>
+                        <p className="text-muted-foreground mt-0.5 line-clamp-2 text-[11px]">{t.prompt}</p>
+                      </button>
+                    ))
+                  }
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Prompt */}
-      <div>
-        <label className="text-xs font-medium text-muted-foreground block mb-2">What do you want to post about?</label>
-        <textarea
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          rows={3}
-          placeholder="e.g. Our new weekend brunch menu launching this Saturday…"
-          className="w-full px-4 py-3 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-        />
-      </div>
+      <textarea
+        value={prompt}
+        onChange={e => setPrompt(e.target.value)}
+        rows={4}
+        placeholder={"Describe what you want to post about…\ne.g. Our new weekend brunch menu launching this Saturday"}
+        className="w-full px-4 py-3 text-sm rounded-2xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+        onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && prompt.trim() && !isGenerating) handleGenerate(); }}
+      />
 
-      {/* Platform + Tone */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs font-medium text-muted-foreground block mb-2">Platform</label>
-          <div className="flex flex-wrap gap-2">
-            {PLATFORMS.map(p => (
-              <button
-                key={p.key}
-                onClick={() => setPlatform(p.key)}
-                className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors",
-                  platform === p.key ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary/50"
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+      {/* Platform + Tone — compact inline row */}
+      <div className="flex flex-wrap gap-x-5 gap-y-2 items-center">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium">Platform:</span>
+          {PLATFORMS.map(p => (
+            <button
+              key={p.key}
+              onClick={() => setPlatform(p.key)}
+              className={cn("px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                platform === p.key ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary/50"
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
-        <div>
-          <label className="text-xs font-medium text-muted-foreground block mb-2">Tone</label>
-          <div className="flex flex-wrap gap-2">
-            {(["friendly","professional","fun","informative"] as ToneType[]).map(t => (
-              <button
-                key={t}
-                onClick={() => setTone(t)}
-                className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors capitalize",
-                  tone === t ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary/50"
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium">Tone:</span>
+          {(["friendly","professional","fun","informative"] as ToneType[]).map(t => (
+            <button
+              key={t}
+              onClick={() => setTone(t)}
+              className={cn("px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors capitalize",
+                tone === t ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary/50"
+              )}
+            >
+              {t}
+            </button>
+          ))}
         </div>
       </div>
 
+      {/* Single Generate Post button */}
       <button
         onClick={handleGenerate}
-        disabled={!prompt.trim() || generateCaption.isPending}
-        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
+        disabled={!prompt.trim() || isGenerating}
+        className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
       >
-        {generateCaption.isPending
-          ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
-          : <><Sparkles className="w-4 h-4" /> Generate Caption</>
+        {isGenerating
+          ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating post…</>
+          : <><Sparkles className="w-4 h-4" /> Generate Post</>
         }
       </button>
 
-      {/* Result */}
+      {/* Result card — caption + image side by side */}
       <AnimatePresence>
-        {result && (
+        {hasResult && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-2xl border border-border p-5 space-y-4"
+            exit={{ opacity: 0, y: 10 }}
+            className="bg-card rounded-2xl border border-border overflow-hidden"
           >
-            {/* Caption */}
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Generated Caption</p>
-              <p className="text-sm text-foreground leading-relaxed">{result.caption}</p>
-              {result.hashtags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {result.hashtags.map(tag => (
-                    <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tag}</span>
-                  ))}
-                </div>
-              )}
-            </div>
+            <div className="flex flex-col sm:flex-row">
 
-            {/* Generated image */}
-            {generatedImage && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">Generated Image</p>
-                <img
-                  src={generatedImage}
-                  alt="AI Generated"
-                  className="w-full aspect-square object-cover rounded-xl border border-border"
-                />
-              </motion.div>
-            )}
-
-            {/* Actions */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {/* Generate Image button */}
-              <button
-                onClick={handleGenerateImage}
-                disabled={generateImage.isPending}
-                className="flex items-center gap-1.5 px-4 py-2 bg-muted text-foreground text-sm font-medium rounded-xl hover:bg-muted/80 disabled:opacity-50 transition-colors border border-border"
-              >
-                {generateImage.isPending
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating image…</>
-                  : <><Image className="w-3.5 h-3.5" /> Generate Image</>
-                }
-              </button>
-
-              {/* Add to Queue */}
-              <button
-                onClick={() => onAddToQueue(
-                  result.caption + "\n\n" + result.hashtags.join(" "),
-                  platform,
-                  generatedImage ?? undefined
+              {/* Image pane */}
+              <div className="sm:w-52 aspect-square sm:aspect-auto bg-muted flex items-center justify-center flex-shrink-0">
+                {generateImage.isPending ? (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground p-6">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <span className="text-xs">Creating image…</span>
+                  </div>
+                ) : imageResult ? (
+                  <img src={imageResult} alt="AI Generated" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground p-6">
+                    <Image className="w-10 h-10 opacity-20" />
+                    <span className="text-xs">No image</span>
+                  </div>
                 )}
-                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add to Queue
-              </button>
+              </div>
+
+              {/* Caption pane */}
+              <div className="flex-1 p-5 flex flex-col gap-3 min-w-0">
+                {generateCaption.isPending ? (
+                  <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Writing caption…</span>
+                    </div>
+                  </div>
+                ) : captionResult ? (
+                  <>
+                    <p className="text-sm text-foreground leading-relaxed flex-1">{captionResult.caption}</p>
+                    {captionResult.hashtags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {captionResult.hashtags.map(tag => (
+                          <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : null}
+
+                <div className="flex gap-2 pt-2 border-t border-border mt-auto">
+                  <button
+                    onClick={() => captionResult && onAddToQueue(
+                      captionResult.caption + "\n\n" + captionResult.hashtags.join(" "),
+                      platform,
+                      imageResult ?? undefined
+                    )}
+                    disabled={!captionResult}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-40 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add to Queue
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    title="Clear result"
+                    className="p-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
             </div>
           </motion.div>
         )}

@@ -19,6 +19,7 @@ export function LanguageSwitcher({ expanded }: LanguageSwitcherProps) {
     i18n.changeLanguage(code);
     localStorage.setItem("sp-lang", code);
     document.documentElement.lang = code;
+    document.documentElement.dir  = langs.find(l => l.code === code)?.dir ?? "ltr";
   };
 
   if (expanded) {

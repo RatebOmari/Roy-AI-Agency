@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -7,7 +7,7 @@ import type { Comment, ReplyStatus, Platform } from "@/types";
 import { Search, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useComments, useApproveComment, useEditComment } from "@/hooks/useComments";
+import { useComments, useApproveComment, useEditComment, useGenerateCommentReply } from "@/hooks/useComments";
 
 const PLATFORM_FILTER_IDS: { id: Platform | "all"; activeClass: string }[] = [
   { id: "all",       activeClass: "bg-primary text-white" },
@@ -39,9 +39,31 @@ export default function Comments() {
   const [search,  setSearch]  = useState("");
   const [localComments, setLocalComments] = useState<Comment[]>([]);
 
+  // Fetch all comments (unfiltered) to detect new ones needing AI generation
+  const { data: allData } = useComments({});
   const { data, isLoading } = useComments({ platform: pFilter, status: sFilter });
-  const approveMutation = useApproveComment();
-  const editMutation    = useEditComment();
+  const approveMutation    = useApproveComment();
+  const editMutation       = useEditComment();
+  const generateMutation   = useGenerateCommentReply();
+  // Track which comment IDs we've already submitted for generation (prevent duplicates)
+  const pendingGenerationRef = useRef(new Set<string>());
+
+  // Auto-generate AI replies for any comment that arrived without one.
+  // 3-tier routing happens in the backend:
+  //   ≥85% → auto_sent (removed from review queue, no human needed)
+  //   50–84% → pending  (stays in review queue)
+  //   <50%  → escalated (flagged for human handling)
+  useEffect(() => {
+    if (!allData) return;
+    const unprocessed = allData.filter(
+      c => !c.aiReply && !pendingGenerationRef.current.has(c.id)
+    );
+    if (unprocessed.length === 0) return;
+    unprocessed.forEach(c => {
+      pendingGenerationRef.current.add(c.id);
+      generateMutation.mutate(c.id);
+    });
+  }, [allData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (data) setLocalComments(data); }, [data]);
 

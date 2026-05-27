@@ -152,8 +152,8 @@ function RuleDialog({
       : [...form.channels, ch]
     );
 
-  const valid = form.name.trim() && form.channels.length > 0
-    && (form.trigger !== "contains_word" || form.triggerValue.trim());
+  const valid = !!form.name.trim() && form.channels.length > 0
+    && (form.trigger !== "contains_word" || !!form.triggerValue.trim());
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -664,7 +664,7 @@ export default function ToneSettings() {
                 <div className="divide-y divide-border">
                   {rules.map(rule => (
                     <div key={rule.id} className="flex items-start gap-3 px-5 py-4">
-                      {/* Toggle */}
+                      {/* Toggle — always full opacity so it stays clickable */}
                       <button
                         onClick={() => toggleRule(rule.id)}
                         className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-primary transition-colors"
@@ -675,12 +675,12 @@ export default function ToneSettings() {
                         }
                       </button>
 
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <p className={cn(
-                          "text-sm font-medium mb-1.5",
-                          rule.active ? "text-foreground" : "text-muted-foreground"
-                        )}>
+                      {/* Content — dims when rule is off */}
+                      <div className={cn(
+                        "flex-1 min-w-0 transition-opacity",
+                        !rule.active && "opacity-40"
+                      )}>
+                        <p className="text-sm font-medium text-foreground mb-1.5">
                           {rule.name}
                         </p>
                         <div className="flex flex-wrap items-center gap-1.5 mb-2">

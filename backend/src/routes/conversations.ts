@@ -199,9 +199,9 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
 
   // Apply 3-tier confidence system
   const replyStatus =
-    confidence >= 85 ? "auto_sent" as const :
-    confidence >= 50 ? "pending"   as const :
-                       "pending"   as const; // <50 stays pending but shown as escalation in UI
+    confidence >= 85 ? "auto_sent"  as const :
+    confidence >= 50 ? "pending"    as const :
+                       "escalated"  as const;
 
   // Create outbound message with the AI reply
   const [newMsg] = await db

@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 
 export const roleEnum       = pgEnum("role",        ["client", "agency"]);
 export const clientStatusEnum = pgEnum("client_status", ["active", "paused", "setup"]);
-export const replyStatusEnum  = pgEnum("reply_status",  ["pending", "approved", "rejected", "edited", "auto_sent"]);
+export const replyStatusEnum  = pgEnum("reply_status",  ["pending", "approved", "rejected", "edited", "auto_sent", "escalated"]);
 export const convStatusEnum   = pgEnum("conv_status",   ["open", "pending", "resolved", "closed"]);
 export const priorityEnum     = pgEnum("priority",      ["urgent", "normal", "low"]);
 export const directionEnum    = pgEnum("direction",     ["inbound", "outbound"]);

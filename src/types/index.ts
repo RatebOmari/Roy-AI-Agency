@@ -6,7 +6,7 @@ export type Channel =
   | "instagram_comment" | "instagram_dm"
   | "facebook_comment" | "facebook_messenger"
   | "whatsapp_business" | "sms" | "phone_call";
-export type ReplyStatus = "pending" | "approved" | "rejected" | "edited" | "auto_sent";
+export type ReplyStatus = "pending" | "approved" | "rejected" | "edited" | "auto_sent" | "escalated";
 export type ClientStatus = "active" | "paused" | "setup";
 export type ToneType = "friendly" | "professional" | "fun" | "informative";
 export type LanguageType = "ar" | "en" | "ar_en";

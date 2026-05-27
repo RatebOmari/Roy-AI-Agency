@@ -7,7 +7,6 @@ import Inbox from "./pages/client/Inbox";
 import Comments from "./pages/client/Comments";
 import ToneSettings from "./pages/client/ToneSettings";
 import Analytics from "./pages/client/Analytics";
-import Automation from "./pages/client/Automation";
 import Contacts from "./pages/client/Contacts";
 import Content from "./pages/client/Content";
 import Resources from "./pages/client/Resources";
@@ -82,7 +81,7 @@ export default function App() {
             <Route path="/comments"            element={<ProtectedRoute requiredRole="client"><Comments /></ProtectedRoute>} />
             <Route path="/contacts"            element={<ProtectedRoute requiredRole="client"><Contacts /></ProtectedRoute>} />
             <Route path="/analytics"           element={<ProtectedRoute requiredRole="client"><Analytics /></ProtectedRoute>} />
-            <Route path="/automation"          element={<ProtectedRoute requiredRole="client"><Automation /></ProtectedRoute>} />
+            <Route path="/automation"          element={<Navigate to="/settings" replace />} />
             <Route path="/content"             element={<ProtectedRoute requiredRole="client"><Content /></ProtectedRoute>} />
             <Route path="/resources"           element={<ProtectedRoute requiredRole="client"><Resources /></ProtectedRoute>} />
             <Route path="/templates"           element={<ProtectedRoute requiredRole="client"><Templates /></ProtectedRoute>} />

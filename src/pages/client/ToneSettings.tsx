@@ -187,7 +187,14 @@ function RuleDialog({
           <label className="text-xs font-medium text-muted-foreground block mb-1.5">When</label>
           <select
             value={form.trigger}
-            onChange={e => set("trigger", e.target.value as AutomationRule["trigger"])}
+            onChange={e => {
+              const trigger = e.target.value as AutomationRule["trigger"];
+              setForm(p => ({
+                ...p,
+                trigger,
+                triggerValue: trigger === "contains_word" ? p.triggerValue : "",
+              }));
+            }}
             className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
             {TRIGGER_OPTIONS.map(t => (
@@ -331,15 +338,34 @@ export default function ToneSettings() {
   // ── Automation state ─────────────────────────────────────────────────────────
   const [autoSendPct,   setAutoSendPct]   = useState(85);
   const [escalatePct,   setEscalatePct]   = useState(50);
+  const [threshDirty,   setThreshDirty]   = useState(false);
   const [threshSaved,   setThreshSaved]   = useState(false);
   const [rules,         setRules]         = useState<AutomationRule[]>(MOCK_RULES);
   const [ruleDialog,    setRuleDialog]    = useState<{ open: boolean; editing?: AutomationRule }>({ open: false });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+  // Clear pending delete confirm whenever user switches away from automation tab
+  useEffect(() => { if (tab !== "automation") setDeleteConfirm(null); }, [tab]);
+
   const reviewLow  = escalatePct;
   const reviewHigh = autoSendPct - 1;
 
+  const setAutoSend = (raw: string) => {
+    const val = parseInt(raw, 10);
+    if (isNaN(val)) return;
+    setAutoSendPct(Math.max(escalatePct + 2, Math.min(100, val)));
+    setThreshDirty(true);
+  };
+
+  const setEscalate = (raw: string) => {
+    const val = parseInt(raw, 10);
+    if (isNaN(val)) return;
+    setEscalatePct(Math.max(1, Math.min(autoSendPct - 2, val)));
+    setThreshDirty(true);
+  };
+
   const saveThresholds = () => {
+    setThreshDirty(false);
     setThreshSaved(true);
     setTimeout(() => setThreshSaved(false), 2000);
   };
@@ -543,7 +569,7 @@ export default function ToneSettings() {
                       min={escalatePct + 2}
                       max={100}
                       value={autoSendPct}
-                      onChange={e => setAutoSendPct(Math.max(escalatePct + 2, Math.min(100, +e.target.value)))}
+                      onChange={e => setAutoSend(e.target.value)}
                       className="w-14 text-center px-2 py-1 text-sm font-bold text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-lg bg-white dark:bg-green-900/20 focus:outline-none focus:ring-2 focus:ring-green-400/30"
                     />
                     <span className="text-sm font-bold text-green-700 dark:text-green-400">%</span>
@@ -584,7 +610,7 @@ export default function ToneSettings() {
                       min={1}
                       max={autoSendPct - 2}
                       value={escalatePct}
-                      onChange={e => setEscalatePct(Math.max(1, Math.min(autoSendPct - 2, +e.target.value)))}
+                      onChange={e => setEscalate(e.target.value)}
                       className="w-14 text-center px-2 py-1 text-sm font-bold text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg bg-white dark:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-400/30"
                     />
                     <span className="text-sm font-bold text-red-700 dark:text-red-400">%</span>
@@ -592,20 +618,22 @@ export default function ToneSettings() {
                 </div>
               </div>
 
-              <div className="px-5 py-3 border-t border-border">
-                {threshSaved ? (
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Thresholds saved
-                  </div>
-                ) : (
-                  <button
-                    onClick={saveThresholds}
-                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                  >
-                    Save threshold changes
-                  </button>
-                )}
-              </div>
+              {(threshDirty || threshSaved) && (
+                <div className="px-5 py-3 border-t border-border">
+                  {threshSaved ? (
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Thresholds saved
+                    </div>
+                  ) : (
+                    <button
+                      onClick={saveThresholds}
+                      className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Save threshold changes
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Automation Rules */}

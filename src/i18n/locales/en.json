@@ -4,6 +4,14 @@
     "tagline": "AI-powered replies for your social media",
     "poweredBy": "Powered by Claude AI from Anthropic"
   },
+  "common": {
+    "all": "All",
+    "add": "Add",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "saved": "Saved!"
+  },
   "login": {
     "businessOwner": "Business",
     "agency": "Agency",
@@ -46,9 +54,15 @@
   "comments": {
     "title": "Comment Review",
     "subtitle": "Review and approve AI-generated replies",
+    "pageSubtitle": "AI replies automatically — approve when review is needed",
     "pending": "pending",
-    "searchPlaceholder": "Search comments...",
+    "searchPlaceholder": "Search by username or comment…",
     "all": "All",
+    "needsReview": "Needs Review",
+    "filterReview": "Review",
+    "autoSent": "Auto-Sent",
+    "tryFilters": "Try adjusting your filters",
+    "noComments": "No comments found",
     "approve": "Approve & Send",
     "reject": "Reject",
     "save": "Save & Send",
@@ -61,6 +75,191 @@
       "approved": "Sent",
       "rejected": "Rejected",
       "edited": "Edited"
+    }
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "subtitle": "Send broadcast messages to your WhatsApp contacts",
+    "newCampaign": "New Campaign",
+    "editCampaign": "Edit Campaign",
+    "createCampaign": "Create Campaign",
+    "send": "Send",
+    "demoBanner": "Connect your WhatsApp Business account to start sending real campaigns. Currently showing demo data.",
+    "audienceLabel": "Audience",
+    "audienceAll": "All Contacts",
+    "scheduledFor": "Scheduled for",
+    "statuses": {
+      "draft": "Draft",
+      "scheduled": "Scheduled",
+      "sending": "Sending",
+      "sent": "Sent",
+      "failed": "Failed"
+    },
+    "stats": {
+      "total": "Total Campaigns",
+      "totalSent": "Total Sent",
+      "avgReadRate": "Avg Read Rate",
+      "avgReplyRate": "Avg Reply Rate",
+      "sent": "Sent:",
+      "read": "Read:",
+      "replies": "Replies:"
+    },
+    "empty": {
+      "title": "No campaigns yet",
+      "hint": "Create your first campaign to broadcast to your contacts",
+      "filtered": "No {{status}} campaigns"
+    },
+    "confirm": {
+      "sendAll": "Send to all contacts?",
+      "sendTag": "Send to #{{tag}} contacts?",
+      "sendPlatform": "Send to {{platform}} contacts?",
+      "yesSend": "Yes, Send",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "dialog": {
+      "nameLabel": "Campaign Name",
+      "namePlaceholder": "e.g. Ramadan Special Offer",
+      "platformNote": "— only platform currently supported",
+      "audienceLabel": "Audience",
+      "byTag": "By Tag",
+      "byPlatform": "By Platform",
+      "reachAll": "warm contacts will receive this message",
+      "reachTag": "contacts tagged #{{tag}} will receive this message",
+      "reachPlatform": "{{platform}} contacts will receive this message",
+      "reachSelect": "— select a filter above to see estimated reach",
+      "messageLabel": "Message",
+      "messagePlaceholder": "Write your broadcast message…",
+      "messageBubblePlaceholder": "Your message will appear here…",
+      "charCount": "{{count}} / {{max}} chars",
+      "scheduleLabel": "Schedule Date & Time",
+      "scheduleHint": "(optional — leave blank to send immediately)",
+      "preview": "Preview",
+      "saveDraft": "Save as Draft",
+      "schedule": "Schedule",
+      "queue": "Queue"
+    }
+  },
+  "contacts": {
+    "title": "Contacts",
+    "total": "{{count}} total",
+    "searchPlaceholder": "Search contacts…",
+    "allTags": "All tags",
+    "noResults": "No contacts found",
+    "selectContact": "Select a contact",
+    "selectContactHint": "View profile, edit tags, add notes",
+    "time": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago"
+    },
+    "profile": {
+      "channels": "Channels",
+      "tags": "Tags",
+      "notes": "Notes",
+      "notesPlaceholder": "Add notes about this contact…",
+      "saveNotes": "Save Notes",
+      "saved": "Saved",
+      "recentActivity": "Recent Activity",
+      "conversations_one": "{{count}} conversation",
+      "conversations_other": "{{count}} conversations",
+      "broadcastHint": "Broadcast to all #{{tag}} contacts — or choose audience in Campaigns",
+      "sendCampaign": "Send Campaign"
+    }
+  },
+  "resources": {
+    "title": "Knowledge Base",
+    "subtitle": "Everything here becomes part of the AI's knowledge — the more you fill in, the better it responds to customers.",
+    "toggle": {
+      "active": "Active"
+    },
+    "completeness": {
+      "title": "Knowledge Coverage",
+      "sections": "{{configured}}/{{total}} sections",
+      "complete": "Knowledge base complete",
+      "good": "Good coverage — keep filling in sections",
+      "poor": "Add more sections to improve AI replies"
+    },
+    "snapshot": {
+      "title": "What AI knows right now",
+      "empty": "No active resources yet — fill in sections below to power AI replies.",
+      "activeCount_one": "{{count}} active resource in context",
+      "activeCount_other": "{{count}} active resources in context",
+      "fullPreview": "Full preview"
+    },
+    "section": {
+      "empty": "Empty",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items"
+    },
+    "info": {
+      "title": "Business Info",
+      "description": "AI uses this when answering general questions about your business",
+      "fieldName": "Name",
+      "fieldPhone": "Phone",
+      "fieldEmail": "Email",
+      "fieldAddress": "Address",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Briefly describe what your business does, who it serves, and what makes it unique…"
+    },
+    "hours": {
+      "title": "Working Hours",
+      "description": "AI includes these hours when customers ask about availability",
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "days": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "products": {
+      "title": "Products & Services",
+      "description": "AI references these when customers ask what you offer — works for any business (products, services, packages, courses, etc.)",
+      "empty": "No items yet. Add your products, services, or packages.",
+      "addItem": "Add Item"
+    },
+    "offers": {
+      "title": "Offers & Promotions",
+      "description": "AI mentions active promotions when customers ask about deals, discounts, or current specials",
+      "empty": "No offers yet. Add seasonal deals, discounts, or bundles.",
+      "titleLabel": "Title",
+      "detailsLabel": "Details",
+      "expiresLabel": "Expires",
+      "expiresOptional": "Expires (optional)",
+      "addOffer": "Add Offer"
+    },
+    "table": {
+      "name": "Name",
+      "description": "Description",
+      "price": "Price",
+      "priceOptional": "Price (optional)"
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "description": "AI gives consistent, accurate answers to your most common customer questions",
+      "empty": "No FAQs yet.",
+      "questionLabel": "Question",
+      "answerLabel": "Answer",
+      "addFaq": "Add FAQ"
+    },
+    "documents": {
+      "title": "Documents",
+      "description": "Upload any document the AI should reference — price lists, catalogs, policies, FAQs, manuals, etc.",
+      "dropHint": "Drop files here or click to upload",
+      "fileTypes": "PDF, DOCX, TXT — up to 10 MB each",
+      "uploading": "Uploading…"
+    },
+    "preview": {
+      "title": "AI Context Preview",
+      "subtitle": "Exactly what the AI reads before generating a reply",
+      "activeCount_one": "{{count}} active resource in context",
+      "activeCount_other": "{{count}} active resources in context"
     }
   },
   "settings": {

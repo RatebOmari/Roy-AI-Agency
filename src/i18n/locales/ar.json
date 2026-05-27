@@ -4,6 +4,14 @@
     "tagline": "الرد الذكي لعملك على السوشيال ميديا",
     "poweredBy": "مدعوم بـ Claude AI من Anthropic"
   },
+  "common": {
+    "all": "الكل",
+    "add": "إضافة",
+    "cancel": "إلغاء",
+    "close": "إغلاق",
+    "save": "حفظ",
+    "saved": "تم الحفظ!"
+  },
   "login": {
     "businessOwner": "صاحب عمل",
     "agency": "وكالة",
@@ -46,9 +54,15 @@
   "comments": {
     "title": "مراجعة التعليقات",
     "subtitle": "راجع وقبل ردود الذكاء الاصطناعي",
+    "pageSubtitle": "يرد الذكاء الاصطناعي تلقائياً — وافق عند الحاجة للمراجعة",
     "pending": "معلق",
-    "searchPlaceholder": "ابحث في التعليقات...",
+    "searchPlaceholder": "ابحث باسم المستخدم أو التعليق...",
     "all": "الكل",
+    "needsReview": "تحتاج مراجعة",
+    "filterReview": "مراجعة",
+    "autoSent": "أُرسل تلقائياً",
+    "tryFilters": "جرّب تعديل الفلاتر",
+    "noComments": "لا توجد تعليقات",
     "approve": "قبول وإرسال",
     "reject": "رفض",
     "save": "حفظ وإرسال",
@@ -61,6 +75,191 @@
       "approved": "مُرسَل",
       "rejected": "مرفوض",
       "edited": "معدّل"
+    }
+  },
+  "campaigns": {
+    "title": "الحملات",
+    "subtitle": "أرسل رسائل جماعية لجهات اتصالك على واتساب",
+    "newCampaign": "حملة جديدة",
+    "editCampaign": "تعديل الحملة",
+    "createCampaign": "إنشاء حملة",
+    "send": "إرسال",
+    "demoBanner": "اربط حساب واتساب للأعمال لتبدأ إرسال حملات حقيقية. تعرض الآن بيانات تجريبية.",
+    "audienceLabel": "الجمهور",
+    "audienceAll": "جميع جهات الاتصال",
+    "scheduledFor": "مجدولة في",
+    "statuses": {
+      "draft": "مسودة",
+      "scheduled": "مجدولة",
+      "sending": "جارٍ الإرسال",
+      "sent": "مُرسَلة",
+      "failed": "فشلت"
+    },
+    "stats": {
+      "total": "إجمالي الحملات",
+      "totalSent": "إجمالي المُرسَل",
+      "avgReadRate": "متوسط معدل القراءة",
+      "avgReplyRate": "متوسط معدل الرد",
+      "sent": "مُرسَل:",
+      "read": "مقروء:",
+      "replies": "ردود:"
+    },
+    "empty": {
+      "title": "لا توجد حملات بعد",
+      "hint": "أنشئ أول حملة لبث الرسائل لجهات اتصالك",
+      "filtered": "لا توجد حملات {{status}}"
+    },
+    "confirm": {
+      "sendAll": "إرسال لجميع جهات الاتصال؟",
+      "sendTag": "إرسال لجهات اتصال #{{tag}}؟",
+      "sendPlatform": "إرسال لجهات اتصال {{platform}}؟",
+      "yesSend": "نعم، أرسل",
+      "yes": "نعم",
+      "no": "لا"
+    },
+    "dialog": {
+      "nameLabel": "اسم الحملة",
+      "namePlaceholder": "مثال: عرض رمضان الخاص",
+      "platformNote": "— المنصة الوحيدة المدعومة حالياً",
+      "audienceLabel": "الجمهور",
+      "byTag": "حسب التصنيف",
+      "byPlatform": "حسب المنصة",
+      "reachAll": "جهة اتصال دافئة ستستقبل هذه الرسالة",
+      "reachTag": "جهة اتصال بتصنيف #{{tag}} ستستقبل الرسالة",
+      "reachPlatform": "جهات اتصال {{platform}} ستستقبل هذه الرسالة",
+      "reachSelect": "— اختر فلتراً أعلاه لرؤية العدد المتوقع",
+      "messageLabel": "الرسالة",
+      "messagePlaceholder": "اكتب رسالتك الجماعية هنا...",
+      "messageBubblePlaceholder": "ستظهر رسالتك هنا...",
+      "charCount": "{{count}} / {{max}} حرف",
+      "scheduleLabel": "تاريخ ووقت الجدولة",
+      "scheduleHint": "(اختياري — اتركه فارغاً للإرسال فوراً)",
+      "preview": "معاينة",
+      "saveDraft": "حفظ كمسودة",
+      "schedule": "جدولة",
+      "queue": "وضع في الطابور"
+    }
+  },
+  "contacts": {
+    "title": "جهات الاتصال",
+    "total": "{{count}} إجمالاً",
+    "searchPlaceholder": "ابحث في جهات الاتصال...",
+    "allTags": "كل التصنيفات",
+    "noResults": "لا توجد جهات اتصال",
+    "selectContact": "اختر جهة اتصال",
+    "selectContactHint": "عرض الملف الشخصي وتعديل التصنيفات وإضافة ملاحظات",
+    "time": {
+      "justNow": "الآن",
+      "minutesAgo": "منذ {{count}} د",
+      "hoursAgo": "منذ {{count}} س",
+      "daysAgo": "منذ {{count}} ي"
+    },
+    "profile": {
+      "channels": "القنوات",
+      "tags": "التصنيفات",
+      "notes": "ملاحظات",
+      "notesPlaceholder": "أضف ملاحظات عن جهة الاتصال هذه...",
+      "saveNotes": "حفظ الملاحظات",
+      "saved": "تم الحفظ",
+      "recentActivity": "النشاط الأخير",
+      "conversations_one": "{{count}} محادثة",
+      "conversations_other": "{{count}} محادثات",
+      "broadcastHint": "بث لجميع جهات الاتصال #{{tag}} — أو اختر الجمهور في الحملات",
+      "sendCampaign": "إرسال حملة"
+    }
+  },
+  "resources": {
+    "title": "قاعدة المعرفة",
+    "subtitle": "كل ما تضيفه هنا يصبح جزءاً من معرفة الذكاء الاصطناعي — كلما أضفت أكثر، كانت ردوده أفضل.",
+    "toggle": {
+      "active": "نشط"
+    },
+    "completeness": {
+      "title": "تغطية المعرفة",
+      "sections": "{{configured}}/{{total}} أقسام",
+      "complete": "قاعدة المعرفة مكتملة",
+      "good": "تغطية جيدة — استمر في تعبئة الأقسام",
+      "poor": "أضف المزيد من الأقسام لتحسين ردود الذكاء الاصطناعي"
+    },
+    "snapshot": {
+      "title": "ما يعرفه الذكاء الاصطناعي الآن",
+      "empty": "لا توجد موارد نشطة بعد — أضف معلومات أدناه لتشغيل ردود الذكاء الاصطناعي.",
+      "activeCount_one": "{{count}} مورد نشط في السياق",
+      "activeCount_other": "{{count}} موارد نشطة في السياق",
+      "fullPreview": "معاينة كاملة"
+    },
+    "section": {
+      "empty": "فارغ",
+      "items_one": "{{count}} عنصر",
+      "items_other": "{{count}} عناصر"
+    },
+    "info": {
+      "title": "معلومات النشاط التجاري",
+      "description": "يستخدمها الذكاء الاصطناعي للرد على الأسئلة العامة حول نشاطك",
+      "fieldName": "الاسم",
+      "fieldPhone": "الهاتف",
+      "fieldEmail": "البريد الإلكتروني",
+      "fieldAddress": "العنوان",
+      "descriptionLabel": "الوصف",
+      "descriptionPlaceholder": "اوصف نشاطك التجاري بإيجاز، من تخدم، وما يميزك..."
+    },
+    "hours": {
+      "title": "ساعات العمل",
+      "description": "يستخدمها الذكاء الاصطناعي للرد على أسئلة المتاحية والمواعيد",
+      "open": "مفتوح",
+      "closed": "مغلق"
+    },
+    "days": {
+      "monday": "الاثنين",
+      "tuesday": "الثلاثاء",
+      "wednesday": "الأربعاء",
+      "thursday": "الخميس",
+      "friday": "الجمعة",
+      "saturday": "السبت",
+      "sunday": "الأحد"
+    },
+    "products": {
+      "title": "المنتجات والخدمات",
+      "description": "يستعين بها الذكاء الاصطناعي للرد على الاستفسارات عن ما تقدمه",
+      "empty": "لا توجد عناصر بعد. أضف منتجاتك أو خدماتك أو باقاتك.",
+      "addItem": "إضافة عنصر"
+    },
+    "offers": {
+      "title": "العروض والتخفيضات",
+      "description": "يذكر الذكاء الاصطناعي العروض النشطة عند سؤال العملاء عن الصفقات والخصومات",
+      "empty": "لا توجد عروض بعد. أضف العروض الموسمية أو الخصومات.",
+      "titleLabel": "العنوان",
+      "detailsLabel": "التفاصيل",
+      "expiresLabel": "تاريخ الانتهاء",
+      "expiresOptional": "تاريخ الانتهاء (اختياري)",
+      "addOffer": "إضافة عرض"
+    },
+    "table": {
+      "name": "الاسم",
+      "description": "الوصف",
+      "price": "السعر",
+      "priceOptional": "السعر (اختياري)"
+    },
+    "faq": {
+      "title": "الأسئلة الشائعة",
+      "description": "يعطي الذكاء الاصطناعي إجابات متسقة ودقيقة على أكثر أسئلة عملائك شيوعاً",
+      "empty": "لا توجد أسئلة شائعة بعد.",
+      "questionLabel": "السؤال",
+      "answerLabel": "الجواب",
+      "addFaq": "إضافة سؤال"
+    },
+    "documents": {
+      "title": "الوثائق",
+      "description": "ارفع أي وثيقة يجب أن يرجع إليها الذكاء الاصطناعي — قوائم الأسعار، الكتالوجات، السياسات...",
+      "dropHint": "أفلت الملفات هنا أو انقر للرفع",
+      "fileTypes": "PDF، DOCX، TXT — حتى 10 ميغابايت لكل ملف",
+      "uploading": "جارٍ الرفع..."
+    },
+    "preview": {
+      "title": "معاينة سياق الذكاء الاصطناعي",
+      "subtitle": "ما يقرأه الذكاء الاصطناعي قبل توليد الرد",
+      "activeCount_one": "{{count}} مورد نشط في السياق",
+      "activeCount_other": "{{count}} موارد نشطة في السياق"
     }
   },
   "settings": {

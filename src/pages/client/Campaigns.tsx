@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -27,24 +28,8 @@ const STATUS_STYLE: Record<CampaignStatus, string> = {
   failed:    "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
 };
 
-const STATUS_LABELS: Record<CampaignStatus, string> = {
-  draft:     "Draft",
-  scheduled: "Scheduled",
-  sending:   "Sending",
-  sent:      "Sent",
-  failed:    "Failed",
-};
-
-
 type StatusFilter = CampaignStatus | "all";
-
-const STATUS_TABS: { key: StatusFilter; label: string }[] = [
-  { key: "all",       label: "All" },
-  { key: "draft",     label: "Draft" },
-  { key: "scheduled", label: "Scheduled" },
-  { key: "sent",      label: "Sent" },
-  { key: "failed",    label: "Failed" },
-];
+const STATUS_TAB_KEYS: StatusFilter[] = ["all", "draft", "scheduled", "sent", "failed"];
 
 function formatDate(iso?: string) {
   if (!iso) return "—";
@@ -89,12 +74,13 @@ const ALL_TAGS = Object.keys(TAG_REACH);
 // ── WhatsApp Bubble Preview ───────────────────────────────────────────────────
 
 function WhatsAppBubble({ message }: { message: string }) {
+  const { t } = useTranslation();
   return (
     <div className="w-full bg-[#0b141a] rounded-xl p-4 min-h-[80px]">
       <div className="flex justify-end">
         <div className="max-w-[85%] bg-[#005c4b] rounded-2xl rounded-tr-sm px-3 py-2 space-y-1 shadow">
           <p className="text-white text-xs leading-relaxed whitespace-pre-wrap break-words">
-            {message || <span className="opacity-40 italic">Your message will appear here…</span>}
+            {message || <span className="opacity-40 italic">{t("campaigns.dialog.messageBubblePlaceholder")}</span>}
           </p>
           <div className="flex items-center justify-end gap-1">
             <span className="text-[10px] text-white/60">
@@ -118,6 +104,7 @@ interface CampaignDialogProps {
 }
 
 function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProps) {
+  const { t } = useTranslation();
   const [name, setName]               = useState(initial?.name ?? "");
   const [message, setMessage]         = useState(initial?.message ?? "");
   const [scheduledAt, setScheduledAt] = useState(
@@ -162,7 +149,7 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-foreground">
-            {initial?.id ? "Edit Campaign" : "New Campaign"}
+            {initial?.id ? t("campaigns.editCampaign") : t("campaigns.newCampaign")}
           </h2>
           <button
             onClick={onClose}
@@ -175,12 +162,12 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
         {/* Campaign name */}
         <div>
           <label className="text-xs font-medium text-muted-foreground block mb-2">
-            Campaign Name
+            {t("campaigns.dialog.nameLabel")}
           </label>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="e.g. Ramadan Special Offer"
+            placeholder={t("campaigns.dialog.namePlaceholder")}
             className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
@@ -189,27 +176,27 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
         <div className="flex items-center gap-2 px-3 py-2.5 bg-green-50 dark:bg-green-900/20 rounded-xl">
           <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
           <span className="text-xs font-medium text-green-700 dark:text-green-400">WhatsApp Business</span>
-          <span className="text-xs text-muted-foreground ml-1">— only platform currently supported</span>
+          <span className="text-xs text-muted-foreground ml-1">{t("campaigns.dialog.platformNote")}</span>
         </div>
 
         {/* Audience */}
         <div className="space-y-2.5">
-          <label className="text-xs font-medium text-muted-foreground block">Audience</label>
+          <label className="text-xs font-medium text-muted-foreground block">{t("campaigns.dialog.audienceLabel")}</label>
 
           {/* Type chips */}
           <div className="flex gap-2">
-            {(["all", "tag", "platform"] as CampaignAudienceType[]).map(t => (
+            {(["all", "tag", "platform"] as CampaignAudienceType[]).map(atype => (
               <button
-                key={t}
-                onClick={() => { setAudienceType(t); setAudienceValue(""); }}
+                key={atype}
+                onClick={() => { setAudienceType(atype); setAudienceValue(""); }}
                 className={cn(
                   "px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors",
-                  audienceType === t
+                  audienceType === atype
                     ? "bg-foreground text-background border-foreground"
                     : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
                 )}
               >
-                {t === "all" ? "All Contacts" : t === "tag" ? "By Tag" : "By Platform"}
+                {atype === "all" ? t("campaigns.audienceAll") : atype === "tag" ? t("campaigns.dialog.byTag") : t("campaigns.dialog.byPlatform")}
               </button>
             ))}
           </div>
@@ -264,12 +251,12 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
             <span className="font-bold text-sm">{estimatedReach}</span>
             <span>
               {audienceType === "all"
-                ? "warm contacts will receive this message"
+                ? t("campaigns.dialog.reachAll")
                 : audienceType === "tag" && audienceValue
-                  ? `contacts tagged #${audienceValue} will receive this message`
+                  ? t("campaigns.dialog.reachTag", { tag: audienceValue })
                   : audienceType === "platform" && audienceValue
-                    ? `${PLATFORM_REACH[audienceValue]?.label} contacts will receive this message`
-                    : "— select a filter above to see estimated reach"}
+                    ? t("campaigns.dialog.reachPlatform", { platform: PLATFORM_REACH[audienceValue]?.label ?? audienceValue })
+                    : t("campaigns.dialog.reachSelect")}
             </span>
           </div>
         </div>
@@ -277,27 +264,28 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
         {/* Message */}
         <div>
           <label className="text-xs font-medium text-muted-foreground block mb-2">
-            Message
+            {t("campaigns.dialog.messageLabel")}
           </label>
           <textarea
             value={message}
             onChange={e => setMessage(e.target.value.slice(0, MAX_CHARS))}
             rows={5}
-            placeholder="Write your broadcast message…"
+            placeholder={t("campaigns.dialog.messagePlaceholder")}
             className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
           />
           <p className={cn(
             "text-[11px] mt-1 text-right",
             remaining < 100 ? "text-amber-500" : "text-muted-foreground",
           )}>
-            {message.length} / {MAX_CHARS} chars
+            {t("campaigns.dialog.charCount", { count: message.length, max: MAX_CHARS })}
           </p>
         </div>
 
         {/* Schedule */}
         <div>
           <label className="text-xs font-medium text-muted-foreground block mb-2">
-            Schedule Date & Time <span className="text-muted-foreground/60">(optional — leave blank to send immediately)</span>
+            {t("campaigns.dialog.scheduleLabel")}{" "}
+            <span className="text-muted-foreground/60">{t("campaigns.dialog.scheduleHint")}</span>
           </label>
           <input
             type="datetime-local"
@@ -310,7 +298,7 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
         {/* WhatsApp preview */}
         {message && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">Preview</p>
+            <p className="text-xs font-medium text-muted-foreground mb-2">{t("campaigns.dialog.preview")}</p>
             <WhatsAppBubble message={message} />
           </div>
         )}
@@ -326,7 +314,7 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
               : <CheckCircle2 className="w-3.5 h-3.5" />
             }
-            Save as Draft
+            {t("campaigns.dialog.saveDraft")}
           </button>
           <button
             onClick={() => handleSave("scheduled")}
@@ -337,13 +325,13 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
               : <Send className="w-3.5 h-3.5" />
             }
-            {scheduledAt ? "Schedule" : "Queue"}
+            {scheduledAt ? t("campaigns.dialog.schedule") : t("campaigns.dialog.queue")}
           </button>
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       </motion.div>
@@ -354,6 +342,7 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Campaigns() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { data: campaigns = [], isLoading } = useCampaigns();
   const createCampaign = useCreateCampaign();
@@ -426,9 +415,9 @@ export default function Campaigns() {
           className="flex items-start justify-between"
         >
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Campaigns</h1>
+            <h1 className="text-2xl font-bold text-foreground">{t("campaigns.title")}</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Send broadcast messages to your WhatsApp contacts
+              {t("campaigns.subtitle")}
             </p>
           </div>
           <button
@@ -436,26 +425,23 @@ export default function Campaigns() {
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            New Campaign
+            {t("campaigns.newCampaign")}
           </button>
         </motion.div>
 
         {/* Info banner */}
         <div className="flex items-start gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-700 dark:text-blue-300">
           <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <p>
-            Connect your WhatsApp Business account to start sending real campaigns.
-            Currently showing demo data.
-          </p>
+          <p>{t("campaigns.demoBanner")}</p>
         </div>
 
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Total Campaigns", value: campaigns.length.toString() },
-            { label: "Total Sent",      value: totalSent.toLocaleString() },
-            { label: "Avg Read Rate",   value: totalSent ? `${avgReadRate}%` : "—" },
-            { label: "Avg Reply Rate",  value: totalSent ? `${avgReplyRate}%` : "—" },
+            { label: t("campaigns.stats.total"),       value: campaigns.length.toString() },
+            { label: t("campaigns.stats.totalSent"),   value: totalSent.toLocaleString() },
+            { label: t("campaigns.stats.avgReadRate"), value: totalSent ? `${avgReadRate}%` : "—" },
+            { label: t("campaigns.stats.avgReplyRate"),value: totalSent ? `${avgReplyRate}%` : "—" },
           ].map(stat => (
             <div
               key={stat.label}
@@ -469,18 +455,18 @@ export default function Campaigns() {
 
         {/* Status filter tabs */}
         <div className="flex bg-muted p-1 rounded-xl w-fit gap-1 flex-wrap">
-          {STATUS_TABS.map(tab => (
+          {STATUS_TAB_KEYS.map(key => (
             <button
-              key={tab.key}
-              onClick={() => setStatusFilter(tab.key)}
+              key={key}
+              onClick={() => setStatusFilter(key)}
               className={cn(
                 "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                statusFilter === tab.key
+                statusFilter === key
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {tab.label}
+              {key === "all" ? t("common.all") : t(`campaigns.statuses.${key}`)}
             </button>
           ))}
         </div>
@@ -493,18 +479,18 @@ export default function Campaigns() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground">
             <Megaphone className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p className="text-sm font-medium">No campaigns yet</p>
+            <p className="text-sm font-medium">{t("campaigns.empty.title")}</p>
             <p className="text-xs mt-1 opacity-70">
               {statusFilter === "all"
-                ? "Create your first campaign to broadcast to your contacts"
-                : `No ${statusFilter} campaigns`}
+                ? t("campaigns.empty.hint")
+                : t("campaigns.empty.filtered", { status: t(`campaigns.statuses.${statusFilter}`) })}
             </p>
             {statusFilter === "all" && (
               <button
                 onClick={openNew}
                 className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl mx-auto hover:bg-primary/90 transition-colors"
               >
-                <Plus className="w-3.5 h-3.5" /> Create Campaign
+                <Plus className="w-3.5 h-3.5" /> {t("campaigns.createCampaign")}
               </button>
             )}
           </div>
@@ -538,7 +524,7 @@ export default function Campaigns() {
                         STATUS_STYLE[campaign.status],
                       )}
                     >
-                      {STATUS_LABELS[campaign.status]}
+                      {t(`campaigns.statuses.${campaign.status}`)}
                     </span>
                   </div>
 
@@ -550,10 +536,10 @@ export default function Campaigns() {
                         <div className="flex items-center gap-1">
                           <span className="text-[11px] text-muted-foreground mr-1">
                             {campaign.audienceType === "tag" && campaign.audienceValue
-                              ? `Send to #${campaign.audienceValue} contacts?`
+                              ? t("campaigns.confirm.sendTag", { tag: campaign.audienceValue })
                               : campaign.audienceType === "platform" && campaign.audienceValue
-                                ? `Send to ${PLATFORM_REACH[campaign.audienceValue]?.label ?? campaign.audienceValue} contacts?`
-                                : "Send to all contacts?"}
+                                ? t("campaigns.confirm.sendPlatform", { platform: PLATFORM_REACH[campaign.audienceValue]?.label ?? campaign.audienceValue })
+                                : t("campaigns.confirm.sendAll")}
                           </span>
                           <button
                             onClick={() => handleSend(campaign.id)}
@@ -562,24 +548,24 @@ export default function Campaigns() {
                           >
                             {sendCampaign.isPending
                               ? <Loader2 className="w-3 h-3 animate-spin" />
-                              : "Yes, Send"
+                              : t("campaigns.confirm.yesSend")
                             }
                           </button>
                           <button
                             onClick={() => setSendConfirmId(null)}
                             className="text-[11px] px-2 py-1 bg-muted text-muted-foreground rounded-lg hover:text-foreground transition-colors"
                           >
-                            Cancel
+                            {t("common.cancel")}
                           </button>
                         </div>
                       ) : (
                         <button
                           onClick={() => setSendConfirmId(campaign.id)}
-                          title="Send campaign"
+                          title={t("campaigns.send")}
                           className="flex items-center gap-1 text-[11px] px-2.5 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                         >
                           <Rocket className="w-3 h-3" />
-                          Send
+                          {t("campaigns.send")}
                         </button>
                       )
                     )}
@@ -589,7 +575,7 @@ export default function Campaigns() {
                       <button
                         onClick={() => openEdit(campaign)}
                         className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                        title="Edit campaign"
+                        title={t("campaigns.editCampaign")}
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -602,20 +588,19 @@ export default function Campaigns() {
                           onClick={() => handleDelete(campaign.id)}
                           className="text-[11px] px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                         >
-                          Yes
+                          {t("campaigns.confirm.yes")}
                         </button>
                         <button
                           onClick={() => setDeleteConfirmId(null)}
                           className="text-[11px] px-2 py-1 bg-muted text-muted-foreground rounded-lg hover:text-foreground transition-colors"
                         >
-                          No
+                          {t("campaigns.confirm.no")}
                         </button>
                       </div>
                     ) : (
                       <button
                         onClick={() => setDeleteConfirmId(campaign.id)}
                         className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 transition-colors"
-                        title="Delete campaign"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -631,7 +616,7 @@ export default function Campaigns() {
                 {/* Audience pill */}
                 {campaign.audienceType && (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-medium text-muted-foreground">Audience:</span>
+                    <span className="text-[10px] font-medium text-muted-foreground">{t("campaigns.audienceLabel")}:</span>
                     <span className={cn(
                       "text-[10px] font-semibold px-2 py-0.5 rounded-full",
                       campaign.audienceType === "all"
@@ -639,7 +624,7 @@ export default function Campaigns() {
                         : "bg-primary/10 text-primary"
                     )}>
                       {campaign.audienceType === "all"
-                        ? "All Contacts"
+                        ? t("campaigns.audienceAll")
                         : campaign.audienceType === "tag"
                           ? `#${campaign.audienceValue}`
                           : campaign.audienceValue
@@ -653,10 +638,10 @@ export default function Campaigns() {
                 {campaign.status === "sent" && (
                   <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-border">
                     <span>
-                      Sent: <span className="text-foreground font-medium">{campaign.sentCount.toLocaleString()}</span>
+                      {t("campaigns.stats.sent")} <span className="text-foreground font-medium">{campaign.sentCount.toLocaleString()}</span>
                     </span>
                     <span>
-                      Read:{" "}
+                      {t("campaigns.stats.read")}{" "}
                       <span className="text-foreground font-medium">
                         {campaign.readCount.toLocaleString()}
                       </span>
@@ -665,7 +650,7 @@ export default function Campaigns() {
                       </span>
                     </span>
                     <span>
-                      Replies: <span className="text-foreground font-medium">{campaign.replyCount.toLocaleString()}</span>
+                      {t("campaigns.stats.replies")} <span className="text-foreground font-medium">{campaign.replyCount.toLocaleString()}</span>
                     </span>
                   </div>
                 )}
@@ -673,7 +658,7 @@ export default function Campaigns() {
                 {/* Scheduled date */}
                 {campaign.status === "scheduled" && campaign.scheduledAt && (
                   <p className="text-xs text-blue-600 dark:text-blue-400">
-                    Scheduled for {formatDate(campaign.scheduledAt)}
+                    {t("campaigns.scheduledFor")} {formatDate(campaign.scheduledAt)}
                   </p>
                 )}
               </motion.div>

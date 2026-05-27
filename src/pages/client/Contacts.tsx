@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Contact, Channel } from "@/types";
@@ -40,13 +41,13 @@ function channelPlatform(ch: string) {
   return "other";
 }
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, t: (key: string, opts?: { count: number }) => string): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (mins < 1)  return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1)  return t("contacts.time.justNow");
+  if (mins < 60) return t("contacts.time.minutesAgo", { count: mins });
   const h = Math.floor(mins / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return t("contacts.time.hoursAgo", { count: h });
+  return t("contacts.time.daysAgo", { count: Math.floor(h / 24) });
 }
 
 function initials(name: string) {
@@ -139,6 +140,7 @@ function ContactProfile({
   onUpdate: (c: Partial<Contact>) => void;
   onBack?: () => void;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [notes,      setNotes]      = useState(contact.notes);
   const [notesDirty, setNotesDirty] = useState(false);
@@ -153,12 +155,12 @@ function ContactProfile({
   };
 
   const removeTag = (tag: string) =>
-    onUpdate({ tags: contact.tags.filter(t => t !== tag) });
+    onUpdate({ tags: contact.tags.filter(tg => tg !== tag) });
 
   const addTag = () => {
-    const t = newTag.trim().toLowerCase();
-    if (!t || contact.tags.includes(t)) return;
-    onUpdate({ tags: [...contact.tags, t] });
+    const tg = newTag.trim().toLowerCase();
+    if (!tg || contact.tags.includes(tg)) return;
+    onUpdate({ tags: [...contact.tags, tg] });
     setNewTag("");
   };
 
@@ -179,7 +181,7 @@ function ContactProfile({
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm text-foreground truncate">{contact.name}</p>
           <p className="text-xs text-muted-foreground">
-            {contact.totalConversations} conversation{contact.totalConversations !== 1 ? "s" : ""} · {timeAgo(contact.lastSeenAt)}
+            {t("contacts.profile.conversations", { count: contact.totalConversations })} · {timeAgo(contact.lastSeenAt, t)}
           </p>
         </div>
       </div>
@@ -189,10 +191,10 @@ function ContactProfile({
 
         {/* Channels */}
         <section className="space-y-2">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Channels</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t("contacts.profile.channels")}</p>
           <div className="flex flex-wrap gap-2">
             {contact.handles.map(h => {
-              const cfg = CHANNEL_CFG[h.channel] ?? { label: h.channel, icon: MessageSquare, chipClass: "bg-muted text-foreground", dotClass: "" };
+              const cfg = CHANNEL_CFG[h.channel] ?? { label: h.channel, icon: Users, chipClass: "bg-muted text-foreground", dotClass: "" };
               const Icon = cfg.icon;
               return (
                 <span key={h.channel + h.username} className={cn("inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium", cfg.chipClass)}>
@@ -206,7 +208,7 @@ function ContactProfile({
 
         {/* Tags */}
         <section className="space-y-2">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tags</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t("contacts.profile.tags")}</p>
           <div className="flex flex-wrap gap-1.5 items-center">
             {contact.tags.map(tag => (
               <span key={tag} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-muted text-foreground font-medium">
@@ -235,17 +237,17 @@ function ContactProfile({
 
         {/* Notes */}
         <section className="space-y-2">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Notes</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t("contacts.profile.notes")}</p>
           <textarea
             value={notes}
             onChange={e => { setNotes(e.target.value); setNotesDirty(true); setSaved(false); }}
             rows={3}
-            placeholder="Add notes about this contact…"
+            placeholder={t("contacts.profile.notesPlaceholder")}
             className="w-full px-3 py-2.5 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
           />
           {saved ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 w-fit">
-              <CheckCircle2 className="w-3 h-3" /> Saved
+              <CheckCircle2 className="w-3 h-3" /> {t("contacts.profile.saved")}
             </div>
           ) : (
             <button
@@ -253,7 +255,7 @@ function ContactProfile({
               disabled={!notesDirty}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-40 transition-colors w-fit"
             >
-              Save Notes
+              {t("contacts.profile.saveNotes")}
             </button>
           )}
         </section>
@@ -262,11 +264,11 @@ function ContactProfile({
         {recentActivity.length > 0 && (
           <section className="space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-              Recent Activity
+              {t("contacts.profile.recentActivity")}
             </p>
             <div className="space-y-2">
               {recentActivity.map((item, i) => {
-                const cfg = CHANNEL_CFG[item.channel] ?? { label: item.channel, icon: MessageSquare, chipClass: "", dotClass: "bg-muted" };
+                const cfg = CHANNEL_CFG[item.channel] ?? { label: item.channel, icon: Users, chipClass: "", dotClass: "bg-muted" };
                 return (
                   <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-muted/40 text-xs">
                     <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1", cfg.dotClass)} />
@@ -287,9 +289,7 @@ function ContactProfile({
       <div className="border-t border-border px-4 py-3 bg-card space-y-2">
         {contact.tags.length > 0 && (
           <p className="text-[11px] text-muted-foreground text-center">
-            Broadcast to all{" "}
-            <span className="font-semibold text-foreground">#{contact.tags[0]}</span>
-            {" "}contacts — or choose audience in Campaigns
+            {t("contacts.profile.broadcastHint", { tag: contact.tags[0] })}
           </p>
         )}
         <button
@@ -297,7 +297,7 @@ function ContactProfile({
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors"
         >
           <Megaphone className="w-4 h-4" />
-          Send Campaign
+          {t("contacts.profile.sendCampaign")}
         </button>
       </div>
     </div>
@@ -307,6 +307,7 @@ function ContactProfile({
 // ── Main page ──────────────────────────────────────────────────────────────
 
 export default function Contacts() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [search,          setSearch]          = useState("");
   const [platformFilter,  setPlatformFilter]  = useState("all");
@@ -318,10 +319,9 @@ export default function Contacts() {
 
   const allTags = Array.from(new Set(contacts.flatMap(c => c.tags))).sort();
 
-  // Canonical platform order — only show platforms that actually exist in contacts
   const PLATFORM_ORDER = ["instagram", "tiktok", "facebook", "whatsapp", "sms"];
   const contactPlatforms = new Set(contacts.flatMap(c => c.handles.map(h => channelPlatform(h.channel))));
-  const allPlatforms = PLATFORM_ORDER.filter(p => contactPlatforms.has(p));
+  const allPlatforms = PLATFORM_ORDER.filter(pl => contactPlatforms.has(pl));
 
   const filtered = contacts.filter(c => {
     const matchSearch   = !search || c.name.toLowerCase().includes(search.toLowerCase())
@@ -337,7 +337,7 @@ export default function Contacts() {
   const showList    = !selectedId;
   const showProfile = !!selectedId;
 
-  const PLATFORM_LABELS: Record<string, string> = {
+  const PLATFORM_BRAND_LABELS: Record<string, string> = {
     instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook",
     whatsapp: "WhatsApp", sms: "SMS",
   };
@@ -361,31 +361,31 @@ export default function Contacts() {
           {/* Header */}
           <div className="px-4 pt-4 pb-3 border-b border-border space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-foreground text-base">Contacts</h2>
-              <span className="text-xs text-muted-foreground">{contacts.length} total</span>
+              <h2 className="font-bold text-foreground text-base">{t("contacts.title")}</h2>
+              <span className="text-xs text-muted-foreground">{t("contacts.total", { count: contacts.length })}</span>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search contacts…"
+                placeholder={t("contacts.searchPlaceholder")}
                 className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted border-0 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
 
             {/* Platform filter */}
             <div className="flex gap-1.5 flex-wrap">
-              {["all", ...allPlatforms].map(p => (
-                <button key={p} onClick={() => setPlatformFilter(p)}
+              {["all", ...allPlatforms].map(pl => (
+                <button key={pl} onClick={() => setPlatformFilter(pl)}
                   className={cn(
                     "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-                    platformFilter === p
-                      ? (PLATFORM_ACTIVE[p] ?? "bg-primary text-white")
+                    platformFilter === pl
+                      ? (PLATFORM_ACTIVE[pl] ?? "bg-primary text-white")
                       : "bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {p === "all" ? "All" : PLATFORM_LABELS[p] ?? p}
+                  {pl === "all" ? t("common.all") : PLATFORM_BRAND_LABELS[pl] ?? pl}
                 </button>
               ))}
             </div>
@@ -402,7 +402,7 @@ export default function Contacts() {
                         : "border-border text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    {tag === "all" ? "All tags" : tag}
+                    {tag === "all" ? t("contacts.allTags") : tag}
                   </button>
                 ))}
               </div>
@@ -414,7 +414,7 @@ export default function Contacts() {
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm gap-2">
                 <Users className="w-6 h-6 opacity-30" />
-                No contacts found
+                {t("contacts.noResults")}
               </div>
             ) : filtered.map(contact => {
               const isSelected = contact.id === selectedId;
@@ -436,7 +436,7 @@ export default function Contacts() {
                     {/* Row 1: name + time */}
                     <div className="flex items-center gap-1 mb-0.5">
                       <span className="text-sm font-medium text-foreground flex-1 truncate">{contact.name}</span>
-                      <span className="text-[11px] text-muted-foreground flex-shrink-0">{timeAgo(contact.lastSeenAt)}</span>
+                      <span className="text-[11px] text-muted-foreground flex-shrink-0">{timeAgo(contact.lastSeenAt, t)}</span>
                     </div>
 
                     {/* Row 2: platform dots */}
@@ -480,8 +480,8 @@ export default function Contacts() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground h-full gap-2">
               <Users className="w-12 h-12 opacity-20" />
-              <p className="text-sm font-medium">Select a contact</p>
-              <p className="text-xs opacity-60">View profile, edit tags, add notes</p>
+              <p className="text-sm font-medium">{t("contacts.selectContact")}</p>
+              <p className="text-xs opacity-60">{t("contacts.selectContactHint")}</p>
             </div>
           )}
         </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { CommentCard } from "@/components/social/CommentCard";
 import type { Comment, ReplyStatus, Platform } from "@/types";
@@ -8,22 +9,30 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useComments, useApproveComment, useEditComment } from "@/hooks/useComments";
 
-const PLATFORM_FILTERS: { id: Platform | "all"; label: string; activeClass: string }[] = [
-  { id: "all",       label: "All",       activeClass: "bg-primary text-white" },
-  { id: "instagram", label: "Instagram", activeClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white" },
-  { id: "tiktok",    label: "TikTok",    activeClass: "bg-zinc-900 text-white dark:bg-zinc-700" },
-  { id: "facebook",  label: "Facebook",  activeClass: "bg-blue-600 text-white" },
-  { id: "whatsapp",  label: "WhatsApp",  activeClass: "bg-green-500 text-white" },
+const PLATFORM_FILTER_IDS: { id: Platform | "all"; activeClass: string }[] = [
+  { id: "all",       activeClass: "bg-primary text-white" },
+  { id: "instagram", activeClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white" },
+  { id: "tiktok",    activeClass: "bg-zinc-900 text-white dark:bg-zinc-700" },
+  { id: "facebook",  activeClass: "bg-blue-600 text-white" },
+  { id: "whatsapp",  activeClass: "bg-green-500 text-white" },
 ];
 
-const STATUS_FILTERS: { id: ReplyStatus | "all"; label: string; countKey?: "pending" | "sent" | "autoSent" }[] = [
-  { id: "all",       label: "All"       },
-  { id: "pending",   label: "Review",   countKey: "pending"  },
-  { id: "approved",  label: "Sent",     countKey: "sent"     },
-  { id: "auto_sent", label: "Auto-Sent",countKey: "autoSent" },
+const PLATFORM_BRAND_LABELS: Record<string, string> = {
+  instagram: "Instagram",
+  tiktok:    "TikTok",
+  facebook:  "Facebook",
+  whatsapp:  "WhatsApp",
+};
+
+const STATUS_FILTER_IDS: { id: ReplyStatus | "all"; countKey?: "pending" | "sent" | "autoSent" }[] = [
+  { id: "all" },
+  { id: "pending",   countKey: "pending"  },
+  { id: "approved",  countKey: "sent"     },
+  { id: "auto_sent", countKey: "autoSent" },
 ];
 
 export default function Comments() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [pFilter, setPFilter] = useState<Platform | "all">("all");
   const [sFilter, setSFilter] = useState<ReplyStatus | "all">("pending");
@@ -60,6 +69,13 @@ export default function Comments() {
     autoSent:  localComments.filter(c => c.status === "auto_sent").length,
   };
 
+  const STATUS_FILTER_LABELS: Record<string, string> = {
+    all:       t("common.all"),
+    pending:   t("comments.filterReview"),
+    approved:  t("comments.status.approved"),
+    auto_sent: t("comments.autoSent"),
+  };
+
   const approve = (id: string) => {
     setLocalComments(p => p.map(c => c.id === id ? { ...c, status: "approved" as ReplyStatus } : c));
     approveMutation.mutate(id);
@@ -76,9 +92,9 @@ export default function Comments() {
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Comments</h1>
+            <h1 className="text-2xl font-bold text-foreground">{t("nav.comments")}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              AI replies automatically — approve when review is needed
+              {t("comments.pageSubtitle")}
             </p>
           </div>
 
@@ -86,9 +102,9 @@ export default function Comments() {
           {localComments.length > 0 && (
             <div className="flex gap-3 mt-4 flex-wrap">
               {[
-                { label: "Needs Review", count: counts.pending,  color: "text-yellow-600 dark:text-yellow-400" },
-                { label: "Sent",         count: counts.sent,     color: "text-green-600 dark:text-green-400"  },
-                { label: "Auto-Sent",    count: counts.autoSent, color: "text-primary"                        },
+                { label: t("comments.needsReview"), count: counts.pending,  color: "text-yellow-600 dark:text-yellow-400" },
+                { label: t("comments.status.approved"), count: counts.sent, color: "text-green-600 dark:text-green-400"  },
+                { label: t("comments.autoSent"),    count: counts.autoSent, color: "text-primary"                        },
               ].map(s => (
                 <div key={s.label} className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-xl">
                   <span className={cn("text-sm font-bold", s.color)}>{s.count}</span>
@@ -109,14 +125,14 @@ export default function Comments() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by username or comment…"
+              placeholder={t("comments.searchPlaceholder")}
               className="w-full h-9 pl-9 pr-4 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
           {/* Platform chips */}
           <div className="flex gap-1.5 flex-wrap">
-            {PLATFORM_FILTERS.map(f => (
+            {PLATFORM_FILTER_IDS.map(f => (
               <button
                 key={f.id}
                 onClick={() => setPFilter(f.id)}
@@ -125,14 +141,14 @@ export default function Comments() {
                   pFilter === f.id ? f.activeClass : "bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
-                {f.label}
+                {f.id === "all" ? t("common.all") : PLATFORM_BRAND_LABELS[f.id] ?? f.id}
               </button>
             ))}
           </div>
 
           {/* Status chips */}
           <div className="flex gap-1.5 flex-wrap">
-            {STATUS_FILTERS.map(f => {
+            {STATUS_FILTER_IDS.map(f => {
               const count = f.countKey ? counts[f.countKey] : null;
               return (
                 <button
@@ -145,7 +161,7 @@ export default function Comments() {
                       : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
                   )}
                 >
-                  {f.label}
+                  {STATUS_FILTER_LABELS[f.id]}
                   {count !== null && (
                     <span className="ml-1 opacity-60">{count}</span>
                   )}
@@ -163,8 +179,8 @@ export default function Comments() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <MessageSquare className="w-10 h-10 mb-3 opacity-20" />
-            <p className="text-sm font-medium">No comments found</p>
-            <p className="text-xs mt-1 opacity-60">Try adjusting your filters</p>
+            <p className="text-sm font-medium">{t("comments.noComments")}</p>
+            <p className="text-xs mt-1 opacity-60">{t("comments.tryFilters")}</p>
           </div>
         ) : (
           <div className="space-y-3">

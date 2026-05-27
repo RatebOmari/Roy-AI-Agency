@@ -1,8 +1,8 @@
-# SocialPilot — AI-Powered Social Media Auto-Reply
+# SocialPilot — AI-Powered Social Media Management
 
 <div dir="rtl">
 
-منصة SaaS تردّ تلقائياً على تعليقات وسائل التواصل الاجتماعي بالذكاء الاصطناعي (Claude AI)، مع لوحة تحكم لمراجعة الردود وإدارة العملاء.
+منصة SaaS تردّ تلقائياً على تعليقات ورسائل وسائل التواصل الاجتماعي بالذكاء الاصطناعي، مع لوحة تحكم لمراجعة الردود وإدارة العملاء.
 
 </div>
 
@@ -10,24 +10,24 @@
 
 ## ✨ Features
 
-- **AI Auto-Reply** — Claude AI generates contextual replies for TikTok, Instagram, Facebook & WhatsApp comments
-- **Human-in-the-Loop** — Review, approve, reject, or edit every AI reply before it's sent
-- **Per-Platform Tone** — Customize reply tone (friendly / professional / fun / informative) and language (AR / EN / AR+EN) per platform
+- **AI Auto-Reply** — Claude AI generates contextual replies for TikTok, Instagram, Facebook & WhatsApp
+- **3-Tier Confidence System** — ≥85% auto-sends, 50–84% queues for approval, <50% escalates to human
+- **Inbox & Comments** — Unified inbox for DMs + comment review with approve / edit workflows
+- **Content Scheduler** — Draft, schedule, and publish posts across platforms with AI caption generation
+- **Contacts CRM** — Warm contacts (people who messaged/commented) with tags, notes, and campaign targeting
+- **Campaigns** — WhatsApp broadcast messages with audience targeting (all / by tag / by platform origin)
+- **Knowledge Base** — Business info, menu items, offers, and documents that power AI replies
+- **Reply Templates** — Reusable reply templates per platform and language
+- **Chatbot Flows** — Visual keyword-triggered conversation flows
+- **Social Listening** — Monitor brand mentions and keywords across platforms
+- **Team Management** — Invite agents, assign conversations, internal notes
+- **Automation Rules** — Trigger-based rules that override AI confidence thresholds
 - **Multi-tenant Agency** — Manage multiple business clients from a single agency dashboard
-- **Multilingual UI** — Full support for English, Arabic (RTL), and Spanish
-- **n8n Backend** — All API logic runs as n8n webhook workflows — no separate server needed
+- **Multilingual UI** — English, Arabic (RTL), and Spanish
 
 ---
 
-## 🖥️ Live Preview
-
-| Page | URL |
-|------|-----|
-| Login | `/login` |
-| Client Dashboard | `/dashboard` |
-| Comment Review | `/comments` |
-| Tone Settings | `/settings` |
-| Agency Clients | `/agency/clients` |
+## 🖥️ Demo
 
 **Demo credentials:**
 
@@ -36,63 +36,109 @@
 | Business Owner | `client@demo.com` | `demo123` |
 | Agency | `agency@demo.com` | `demo123` |
 
+> **Demo mode:** Leave `VITE_API_URL` empty in `.env.local` — the app runs fully on mock data, no backend needed.
+
 ---
 
 ## 🏗️ Tech Stack
 
 ### Frontend
+
 | Layer | Technology |
 |-------|-----------|
 | Framework | React 18 + TypeScript |
 | Build | Vite 5 |
-| Styling | Tailwind CSS + shadcn/ui (Radix UI) |
+| Styling | Tailwind CSS |
 | Data Fetching | TanStack React Query v5 |
 | Routing | React Router v6 |
 | Animations | Framer Motion |
 | i18n | i18next (EN / AR / ES) |
 
-### Backend (n8n Workflows)
-| Workflow | Endpoint(s) |
-|----------|------------|
-| Auth API | `POST /webhook/socialpilot/auth/login` |
-| Comments API | `GET /webhook/socialpilot/comments` · `POST /webhook/socialpilot/comments/action` |
-| Dashboard API | `GET /webhook/socialpilot/dashboard` |
-| Settings API | `GET/POST /webhook/socialpilot/settings` |
-| Clients API | `GET /webhook/socialpilot/clients` · `POST /webhook/socialpilot/clients/action` |
-| Platforms API | `POST /webhook/socialpilot/platforms/connect` · `POST /webhook/socialpilot/platforms/disconnect` |
+### Backend
 
-### AI
-- **Claude AI** (Anthropic) via n8n "Generate AI Reply" workflow
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js 20 |
+| Framework | Hono (lightweight, edge-ready) |
+| Database | PostgreSQL |
+| ORM | Drizzle ORM |
+| Auth | JWT (jsonwebtoken) |
+| AI | Claude AI (Anthropic SDK) |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-src/
-├── contexts/
-│   └── AuthContext.tsx        # Auth state (login / logout / role)
-├── hooks/
-│   ├── useComments.ts         # Comments CRUD + optimistic updates
-│   ├── useDashboard.ts        # Dashboard stats
-│   ├── useSettings.ts         # Tone settings per platform
-│   ├── useClients.ts          # Agency client list
-│   └── usePlatforms.ts        # Platform connect / disconnect
-├── lib/
-│   ├── api.ts                 # Fetch wrapper (auth headers, 401 handler)
-│   └── auth.ts                # Token storage in localStorage
-├── pages/
-│   ├── Login.tsx
-│   ├── client/
-│   │   ├── Dashboard.tsx
-│   │   ├── Comments.tsx
-│   │   └── ToneSettings.tsx
-│   └── agency/
-│       └── Clients.tsx
-├── types/
-│   └── index.ts               # Shared TypeScript types
-└── i18n/
-    └── locales/               # en.json · ar.json · es.json
+Roy-AI-Agency/
+├── src/                          # React frontend
+│   ├── contexts/
+│   │   └── AuthContext.tsx       # Auth state (login / logout / role)
+│   ├── hooks/                    # TanStack Query hooks per feature
+│   │   ├── useComments.ts
+│   │   ├── useConversations.ts
+│   │   ├── useContent.ts
+│   │   ├── useCampaigns.ts
+│   │   ├── useResources.ts
+│   │   ├── useTemplates.ts
+│   │   ├── useFlows.ts
+│   │   ├── useTeam.ts
+│   │   ├── useListening.ts
+│   │   ├── useSettings.ts
+│   │   └── useClients.ts
+│   ├── lib/
+│   │   ├── api.ts                # Fetch wrapper (auth headers, 401 handler)
+│   │   └── auth.ts               # Token storage (localStorage)
+│   ├── pages/
+│   │   ├── Login.tsx
+│   │   ├── client/               # Business owner views
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── Inbox.tsx
+│   │   │   ├── Comments.tsx
+│   │   │   ├── Content.tsx
+│   │   │   ├── Contacts.tsx
+│   │   │   ├── Campaigns.tsx
+│   │   │   ├── Analytics.tsx
+│   │   │   ├── Resources.tsx
+│   │   │   ├── Templates.tsx
+│   │   │   ├── Flows.tsx
+│   │   │   ├── Team.tsx
+│   │   │   ├── Listening.tsx
+│   │   │   └── ToneSettings.tsx  # Settings (AI Reply / Automation / Brand / Appearance)
+│   │   └── agency/               # Agency views
+│   │       ├── Dashboard.tsx
+│   │       ├── Clients.tsx
+│   │       ├── Analytics.tsx
+│   │       └── Settings.tsx
+│   ├── types/
+│   │   └── index.ts              # Shared TypeScript types
+│   └── i18n/
+│       └── locales/              # en.json · ar.json · es.json
+│
+└── backend/                      # Hono REST API
+    └── src/
+        ├── db/
+        │   ├── index.ts          # Drizzle + postgres-js connection
+        │   ├── schema.ts         # Database schema
+        │   └── seed.ts           # Demo seed data
+        ├── middleware/
+        │   └── auth.ts           # JWT verification middleware
+        ├── routes/               # One file per feature
+        │   ├── auth.ts           # POST /api/auth/login
+        │   ├── settings.ts       # GET/POST /api/settings
+        │   ├── conversations.ts  # GET/POST /api/conversations
+        │   ├── content.ts        # GET/POST/PUT/DELETE /api/content
+        │   ├── resources.ts      # GET/POST/PUT/DELETE /api/resources
+        │   ├── templates.ts      # GET/POST/PUT/DELETE /api/templates
+        │   ├── campaigns.ts      # GET/POST/PUT/DELETE /api/campaigns
+        │   ├── flows.ts          # GET/POST/PUT/DELETE /api/flows
+        │   ├── team.ts           # GET/POST/PUT/DELETE /api/team
+        │   ├── listening.ts      # GET/POST/PUT/DELETE /api/listening
+        │   ├── clients.ts        # GET/POST /api/clients
+        │   ├── platforms.ts      # POST /api/platforms/connect
+        │   ├── dashboard.ts      # GET /api/dashboard
+        │   └── brand.ts          # GET/POST /api/brand
+        └── server.ts             # Entry point
 ```
 
 ---
@@ -100,119 +146,108 @@ src/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- An n8n instance (self-hosted or cloud)
+
+- Node.js 20+
+- PostgreSQL database (local or [Supabase](https://supabase.com) / [Railway](https://railway.app))
 
 ### 1. Clone & Install
 
 ```bash
 git clone https://github.com/RatebOmari/Roy-AI-Agency.git
 cd Roy-AI-Agency
+
+# Install frontend deps
 npm install
+
+# Install backend deps
+cd backend && npm install && cd ..
 ```
 
-### 2. Configure Environment
+### 2. Configure Frontend
 
 ```bash
 cp .env.example .env.local
 ```
 
-Edit `.env.local`:
-
 ```env
-# Your n8n instance webhook base URL (no trailing slash)
-VITE_N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook
+# Point to your backend (or leave empty for demo mode)
+VITE_API_URL=http://localhost:3001/api
 ```
 
-> **Tip:** Leave `VITE_N8N_WEBHOOK_URL` empty to run in **demo mode** — all data uses mock fallback and login works with any credentials.
-
-### 3. Run
+### 3. Configure Backend
 
 ```bash
+cd backend
+cp .env.example .env
+```
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/socialpilot
+JWT_SECRET=your-secret-here
+PORT=3001
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
+```
+
+### 4. Set Up Database
+
+```bash
+cd backend
+
+# Push schema to database
+npx drizzle-kit push
+
+# Seed demo data (optional)
+npx tsx src/db/seed.ts
+```
+
+### 5. Run
+
+```bash
+# Terminal 1 — backend
+cd backend && npm run dev
+
+# Terminal 2 — frontend
 npm run dev
 # → http://localhost:5174
 ```
-
-### 4. Build for Production
-
-```bash
-npm run build
-# Output: dist/
-```
-
----
-
-## ⚙️ n8n Setup
-
-### Active Workflows
-
-The 6 API workflows are already created and activated:
-
-| Workflow | n8n ID |
-|----------|--------|
-| SocialPilot: Auth API | `oGpUqkypxO46dUm6` |
-| SocialPilot: Comments API | `oCtA5gtnXEqgGNUa` |
-| SocialPilot: Dashboard API | `6LtxQKKq09CTlRjK` |
-| SocialPilot: Settings API | `k2mDiOnrfomwZBOz` |
-| SocialPilot: Clients API | `59IPOGSYjqEGvY3R` |
-| SocialPilot: Platforms API | `mocUGXvKWySaznoc` |
-
-### Replace Demo Users
-
-In the **Auth API** workflow → **Validate Credentials** Code node, replace the hardcoded `USERS` array with a real database lookup (PostgreSQL, Supabase, etc.).
-
----
-
-## 🔗 Connecting Social Platforms
-
-### Facebook & Instagram (Meta)
-
-1. Create a [Meta for Developers](https://developers.facebook.com) app
-2. Add products: **Facebook Login** + **Instagram Graph API**
-3. Set OAuth redirect URI to your n8n callback webhook
-4. In **Platforms API** workflow, replace `YOUR_FB_APP_ID` with your real App ID
-5. In **Social Auto-Reply: Facebook & Instagram** workflow, add your **Page Access Token** credential
-
-### TikTok
-
-1. Register at [TikTok for Developers](https://developers.tiktok.com)
-2. Create an app and enable **Login Kit** + **Comment API**
-3. In **Platforms API** workflow, replace `YOUR_TIKTOK_KEY` with your Client Key
-4. In **Social Auto-Reply: TikTok** workflow, configure your access token
-
-### WhatsApp (Meta Business)
-
-1. Set up a [WhatsApp Business API](https://developers.facebook.com/docs/whatsapp) account
-2. Get your Phone Number ID and Business Account ID
-3. In **Social Auto-Reply: WhatsApp** workflow, add your WhatsApp credentials
 
 ---
 
 ## 🗺️ Architecture
 
 ```
-Browser (React)
-    │  HTTPS + Bearer Token
+Browser (React SPA)
+    │  HTTPS + Bearer JWT
     ▼
-n8n Webhook Workflows  ←──── Social Platforms (webhooks)
-    │                              TikTok / Instagram
-    ├── Auth API                   Facebook / WhatsApp
-    ├── Comments API
-    ├── Dashboard API      ──────► Claude AI (Anthropic)
-    ├── Settings API               (Generate AI Reply)
-    ├── Clients API
-    └── Platforms API  ─────────► OAuth flows
+Hono REST API  (/api/*)
+    ├── /api/auth              → Login, JWT issuance
+    ├── /api/dashboard         → Stats aggregation
+    ├── /api/conversations     → Inbox messages & AI replies
+    ├── /api/content           → Scheduled posts + AI caption/image gen
+    ├── /api/resources         → Knowledge base (business info, menus, docs)
+    ├── /api/templates         → Reply templates
+    ├── /api/campaigns         → WhatsApp broadcast campaigns
+    ├── /api/flows             → Chatbot conversation flows
+    ├── /api/team              → Team members & internal notes
+    ├── /api/listening         → Brand monitoring keywords & mentions
+    ├── /api/settings          → AI tone & language config per platform
+    ├── /api/clients           → Agency → client relationships
+    ├── /api/platforms         → Platform OAuth connection stubs
+    └── /api/brand             → Brand image style guide
+         │
+         ├── PostgreSQL (via Drizzle ORM)
+         └── Claude AI (Anthropic) — reply generation & content creation
 ```
 
 ---
 
-## 🔒 Authentication Flow
+## 🔒 Authentication
 
-1. User submits email + password → `POST /socialpilot/auth/login`
-2. n8n validates credentials and returns `{ token, user }`
+1. User submits email + password → `POST /api/auth/login`
+2. Backend validates against `users` table and returns `{ token, user }`
 3. Token stored in `localStorage` via `authStorage`
 4. Every API request sends `Authorization: Bearer <token>`
-5. On 401, app auto-redirects to `/login` and clears storage
+5. On 401, the app auto-redirects to `/login` and clears storage
 
 ---
 
@@ -232,13 +267,12 @@ Add translations in `src/i18n/locales/`.
 
 ## 📋 Roadmap
 
-- [ ] Real database integration (Supabase / PostgreSQL)
-- [ ] Persistent platform OAuth token storage
-- [ ] Scheduled comment sync (n8n cron workflows)
-- [ ] AI reply triggered by incoming platform webhooks
-- [ ] Analytics dashboard with Recharts
+- [ ] Real social platform OAuth (Meta, TikTok)
+- [ ] Live webhook ingestion for incoming comments & DMs
+- [ ] Claude AI reply generation wired to real incoming messages
+- [ ] Analytics dashboard with Recharts charts
 - [ ] Client onboarding flow
-- [ ] Email notifications for pending reviews
+- [ ] Email/push notifications for pending reviews
 - [ ] White-label agency branding
 
 ---
@@ -248,8 +282,9 @@ Add translations in `src/i18n/locales/`.
 - [React](https://react.dev) + [TypeScript](https://www.typescriptlang.org)
 - [Vite](https://vitejs.dev)
 - [Tailwind CSS](https://tailwindcss.com)
-- [n8n](https://n8n.io) — workflow automation
-- [Claude AI](https://anthropic.com) — AI reply generation
+- [Hono](https://hono.dev) — lightweight Node.js framework
+- [Drizzle ORM](https://orm.drizzle.team)
+- [Claude AI](https://anthropic.com) — AI reply and content generation
 - [TanStack Query](https://tanstack.com/query)
 - [Framer Motion](https://www.framer.com/motion)
 

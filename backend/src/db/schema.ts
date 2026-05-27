@@ -121,7 +121,7 @@ export const scheduledPosts = pgTable("scheduled_posts", {
 
 // ── Resources / Knowledge Base ────────────────────────────────────────────────
 
-export const resourceTypeEnum = pgEnum("resource_type", ["info", "hours", "menu_item", "offer", "document"]);
+export const resourceTypeEnum = pgEnum("resource_type", ["info", "hours", "menu_item", "offer", "document", "faq"]);
 
 export const resources = pgTable("resources", {
   id:        uuid("id").primaryKey().defaultRandom(),

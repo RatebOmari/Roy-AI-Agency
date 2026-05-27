@@ -7,16 +7,18 @@ import {
   CheckCheck, X, Edit3, Send,
   Tag, Flag, AlertTriangle, CheckCircle2,
   AtSign, Smartphone, MessageCircle, MessageSquare, Phone,
-  ArrowLeft,
+  ArrowLeft, Sparkles, Loader2,
 } from "lucide-react";
 
 interface ConversationPaneProps {
-  conversation: Conversation | null;
-  onApprove:  (convId: string, messageId: string, content: string) => void;
-  onReject:   (convId: string, messageId: string) => void;
-  onEdit:     (convId: string, messageId: string, content: string) => void;
-  onResolve:  (convId: string) => void;
-  onBack?:    () => void;
+  conversation:     Conversation | null;
+  onApprove:        (convId: string, messageId: string, content: string) => void;
+  onReject:         (convId: string, messageId: string) => void;
+  onEdit:           (convId: string, messageId: string, content: string) => void;
+  onResolve:        (convId: string) => void;
+  onGenerateReply?: (convId: string) => void;
+  isGenerating?:    boolean;
+  onBack?:          () => void;
 }
 
 // ── Channel badge ──────────────────────────────────────────────────────────
@@ -97,7 +99,7 @@ function ConfidenceBanner({ confidence, status }: { confidence?: number; status?
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function ConversationPane({ conversation, onApprove, onReject, onEdit, onResolve, onBack }: ConversationPaneProps) {
+export function ConversationPane({ conversation, onApprove, onReject, onEdit, onResolve, onGenerateReply, isGenerating, onBack }: ConversationPaneProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -256,21 +258,45 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
             This conversation is resolved
           </div>
         </div>
-      ) : (
-        <div className="border-t border-border px-4 sm:px-5 py-3 bg-card flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-            All messages handled
+      ) : (() => {
+        // Check if last message is inbound with no pending reply → show Generate button
+        const lastMsg = [...conversation.messages].reverse().find(m => true);
+        const needsReply = lastMsg?.direction === "inbound";
+        return (
+          <div className="border-t border-border px-4 sm:px-5 py-3 bg-card flex items-center justify-between gap-3">
+            {needsReply ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                Ready to generate an AI reply
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                All messages handled
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              {needsReply && onGenerateReply && (
+                <button
+                  onClick={() => onGenerateReply(conversation.id)}
+                  disabled={isGenerating}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  {isGenerating ? "Generating…" : "Generate AI Reply"}
+                </button>
+              )}
+              <button
+                onClick={() => onResolve(conversation.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <CheckCheck className="w-3 h-3" />
+                Mark as Resolved
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => onResolve(conversation.id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <CheckCheck className="w-3 h-3" />
-            Mark as Resolved
-          </button>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

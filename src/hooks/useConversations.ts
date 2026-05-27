@@ -168,3 +168,15 @@ export function useUpdateConversationStatus() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
   });
 }
+
+export function useGenerateReply() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) =>
+      api.post<{ messageId: string; reply: string; confidence: number; replyStatus: string }>(
+        "/conversations/generate-reply",
+        { conversationId }
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+  });
+}

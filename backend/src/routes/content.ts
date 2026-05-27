@@ -2,9 +2,11 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, asc, desc } from "drizzle-orm";
+import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
 import { scheduledPosts, postMetrics } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { buildKnowledgeContext } from "../lib/knowledge.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -87,43 +89,58 @@ const generateSchema = z.object({
   tone:     z.enum(["friendly", "professional", "fun", "informative"]).optional(),
 });
 
-// POST /generate — AI caption generation (real OpenAI or mock)
+// POST /generate — AI caption generation using Claude + knowledge base
 app.post("/generate", zValidator("json", generateSchema), async (c) => {
+  const user = c.get("user");
   const { prompt, platform, tone } = c.req.valid("json");
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (apiKey) {
     try {
-      const systemMsg = `You are a social media copywriter. Write engaging posts optimized for ${platform ?? "social media"} in a ${tone ?? "friendly"} tone. Return JSON: { "caption": string, "hashtags": string[] }`;
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [{ role: "system", content: systemMsg }, { role: "user", content: prompt }],
-          response_format: { type: "json_object" },
-        }),
+      const knowledge = await buildKnowledgeContext(user.sub);
+
+      const systemParts = [
+        `You are a social media copywriter creating posts for a business on ${platform ?? "social media"}.`,
+        `Tone: ${tone ?? "friendly"}. Keep it engaging and platform-appropriate.`,
+      ];
+      if (knowledge) {
+        systemParts.push(`\nBUSINESS KNOWLEDGE BASE (use facts from here when relevant):\n${knowledge}`);
+      }
+      systemParts.push(
+        `\nReturn ONLY valid JSON: { "caption": "<post text>", "hashtags": ["tag1", "tag2"] }`,
+        `Hashtags without the # symbol. 3-5 hashtags. No other text outside the JSON.`
+      );
+
+      const anthropic = new Anthropic({ apiKey });
+      const response = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 512,
+        system: systemParts.join("\n"),
+        messages: [{ role: "user", content: prompt }],
       });
-      const data = await res.json() as { choices: { message: { content: string } }[] };
-      const parsed = JSON.parse(data.choices[0].message.content);
+
+      const raw = response.content[0].type === "text" ? response.content[0].text : "";
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("No JSON in response");
+      const parsed = JSON.parse(jsonMatch[0]) as { caption: string; hashtags: string[] };
       return c.json({ caption: parsed.caption, hashtags: parsed.hashtags ?? [] });
     } catch {
-      // fall through to mock
+      // fall through to demo
     }
   }
 
   // Demo mode — generate mock caption
   const toneMap: Record<string, string> = {
-    friendly: "✨ We're so excited to share this with you!",
+    friendly:     "✨ We're so excited to share this with you!",
     professional: "We are pleased to announce:",
-    fun: "🔥 You won't believe what we've got for you!",
-    informative: "Here's what you need to know:",
+    fun:          "🔥 You won't believe what we've got for you!",
+    informative:  "Here's what you need to know:",
   };
   const prefix = toneMap[tone ?? "friendly"];
-  const hashtags = ["#business", `#${(platform ?? "social").replace("_", "")}`, "#content"];
+  const hashtags = ["business", (platform ?? "social").replace("_", ""), "content"];
   return c.json({
-    caption: `${prefix} ${prompt}. Come visit us and experience the difference! 🌟`,
+    caption: `${prefix} ${prompt}. Come experience the difference! 🌟`,
     hashtags,
   });
 });

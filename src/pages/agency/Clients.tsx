@@ -5,9 +5,14 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import {
   Users, TrendingUp, CheckCircle, Search, Plus, MoreHorizontal,
   Eye, Settings, Pause, Play, MessageSquare, Loader2, X, MessageCircle, Inbox,
+  Link2, Link2Off, CheckCircle2,
 } from "lucide-react";
-import type { AgencyClient, ClientStatus, ExtendedPlatform } from "@/types";
-import { useClients, useUpdateClientStatus, useUpdateClientPermissions } from "@/hooks/useClients";
+import type { AgencyClient, ClientStatus, ExtendedPlatform, PlatformFeatureType } from "@/types";
+import {
+  useClients, useUpdateClientStatus, useUpdateClientPermissions,
+  useClientPlatforms, useSetClientPlatformCredential, useRevokeClientPlatformCredential,
+} from "@/hooks/useClients";
+import { cn } from "@/lib/utils";
 
 type PlatformPerms = Record<ExtendedPlatform, { comments: boolean; messages: boolean }>;
 
@@ -29,6 +34,22 @@ const PLATFORMS: { id: ExtendedPlatform; label: string }[] = [
   { id: "phone",     label: "Phone" },
 ];
 
+// Platform-feature pairs the agency can configure credentials for
+const CONNECTABLE: {
+  platform: ExtendedPlatform;
+  feature: PlatformFeatureType;
+  label: string;
+  dotClass: string;
+  hint: string;
+}[] = [
+  { platform: "instagram", feature: "comments", label: "Instagram — Comments",    dotClass: "bg-pink-500",   hint: "Meta Graph API token with instagram_manage_comments scope" },
+  { platform: "instagram", feature: "messages", label: "Instagram — Direct",      dotClass: "bg-pink-500",   hint: "Meta Graph API token with instagram_manage_messages scope" },
+  { platform: "facebook",  feature: "comments", label: "Facebook — Comments",     dotClass: "bg-blue-600",   hint: "Meta Graph API token with pages_manage_posts scope" },
+  { platform: "facebook",  feature: "messages", label: "Facebook — Messenger",    dotClass: "bg-blue-600",   hint: "Meta Graph API token with pages_messaging scope" },
+  { platform: "tiktok",    feature: "comments", label: "TikTok — Comments",       dotClass: "bg-zinc-800",   hint: "TikTok Developer Platform access token" },
+  { platform: "whatsapp",  feature: "messages", label: "WhatsApp Business",       dotClass: "bg-green-500",  hint: "WhatsApp Business API access token from Meta for Developers" },
+];
+
 const statusCls: Record<ClientStatus, string> = {
   active: "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400",
   paused: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400",
@@ -41,26 +62,46 @@ interface PermissionsPanelProps {
 }
 
 function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
+  const [tab, setTab]   = useState<"connections" | "permissions">("connections");
   const [perms, setPerms] = useState<PlatformPerms>({ ...DEFAULT_PERMS });
-  const [saved, setSaved] = useState(false);
-  const permsMutation = useUpdateClientPermissions();
+  const [permSaved, setPermSaved] = useState(false);
+  // token inputs: key = "platform:feature"
+  const [tokens, setTokens] = useState<Record<string, string>>({});
 
-  const toggle = (platform: ExtendedPlatform, feature: "comments" | "messages") => {
-    setPerms(p => ({
-      ...p,
-      [platform]: { ...p[platform], [feature]: !p[platform][feature] },
-    }));
+  const permsMutation   = useUpdateClientPermissions();
+  const credMutation    = useSetClientPlatformCredential();
+  const revokeMutation  = useRevokeClientPlatformCredential();
+  const { data: platformData = [], isLoading: platformsLoading } = useClientPlatforms(client.id);
+
+  const isConnected = (platform: string, feature: string) =>
+    platformData.some(p => p.platform === platform && p.feature === feature);
+
+  const connectedAt = (platform: string, feature: string) =>
+    platformData.find(p => p.platform === platform && p.feature === feature)?.connectedAt;
+
+  const tokenKey = (platform: string, feature: string) => `${platform}:${feature}`;
+
+  const handleSaveToken = (platform: ExtendedPlatform, feature: PlatformFeatureType) => {
+    const token = tokens[tokenKey(platform, feature)]?.trim();
+    if (!token) return;
+    credMutation.mutate(
+      { clientId: client.id, platform, feature, accessToken: token },
+      { onSuccess: () => setTokens(p => ({ ...p, [tokenKey(platform, feature)]: "" })) }
+    );
   };
 
-  const handleSave = () => {
+  const handleRevoke = (platform: ExtendedPlatform, feature: PlatformFeatureType) => {
+    revokeMutation.mutate({ clientId: client.id, platform, feature });
+  };
+
+  const togglePerm = (platform: ExtendedPlatform, feature: "comments" | "messages") => {
+    setPerms(p => ({ ...p, [platform]: { ...p[platform], [feature]: !p[platform][feature] } }));
+  };
+
+  const handleSavePerms = () => {
     permsMutation.mutate(
       { clientId: client.id, permissions: perms },
-      {
-        onSuccess: () => {
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2000);
-        },
-      }
+      { onSuccess: () => { setPermSaved(true); setTimeout(() => setPermSaved(false), 2000); } }
     );
   };
 
@@ -76,12 +117,13 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
         initial={{ scale: 0.95, y: 8 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 8 }}
-        className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-md"
+        className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
-            <p className="font-semibold text-foreground">Manage Permissions</p>
+            <p className="font-semibold text-foreground">Client Setup</p>
             <p className="text-xs text-muted-foreground">{client.name}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
@@ -89,66 +131,170 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
           </button>
         </div>
 
-        <div className="p-5 space-y-1">
-          {/* Column header */}
-          <div className="flex items-center gap-3 pb-2">
-            <span className="flex-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">Platform</span>
-            <div className="flex items-center gap-1 w-24 justify-center text-xs font-medium text-muted-foreground">
-              <MessageCircle className="w-3 h-3" /> Comments
-            </div>
-            <div className="flex items-center gap-1 w-24 justify-center text-xs font-medium text-muted-foreground">
-              <Inbox className="w-3 h-3" /> Messages
-            </div>
-          </div>
-
-          {PLATFORMS.map(({ id, label }) => {
-            const isPhone = id === "phone";
-            return (
-              <div key={id} className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
-                <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
-                {/* Comments toggle */}
-                <div className="w-24 flex justify-center">
-                  <button
-                    disabled={isPhone}
-                    onClick={() => toggle(id, "comments")}
-                    className={`w-10 h-6 rounded-full transition-colors relative ${
-                      perms[id].comments && !isPhone ? "bg-primary" : "bg-muted-foreground/30"
-                    } ${isPhone ? "opacity-40 cursor-not-allowed" : ""}`}
-                  >
-                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      perms[id].comments && !isPhone ? "left-5" : "left-1"
-                    }`} />
-                  </button>
-                </div>
-                {/* Messages toggle */}
-                <div className="w-24 flex justify-center">
-                  <button
-                    disabled={isPhone}
-                    onClick={() => toggle(id, "messages")}
-                    className={`w-10 h-6 rounded-full transition-colors relative ${
-                      perms[id].messages && !isPhone ? "bg-primary" : "bg-muted-foreground/30"
-                    } ${isPhone ? "opacity-40 cursor-not-allowed" : ""}`}
-                  >
-                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      perms[id].messages && !isPhone ? "left-5" : "left-1"
-                    }`} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        {/* Tabs */}
+        <div className="flex gap-1 px-5 pt-3 shrink-0">
+          {(["connections", "permissions"] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize",
+                tab === t
+                  ? "bg-primary text-white"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              {t === "connections" ? "Platform Connections" : "Feature Permissions"}
+            </button>
+          ))}
         </div>
 
-        <div className="px-5 pb-5 space-y-2">
-          <button
-            onClick={handleSave}
-            disabled={permsMutation.isPending}
-            className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            {permsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? "Saved!" : "Save Permissions"}
-          </button>
-          {permsMutation.isError && (
-            <p className="text-xs text-red-500 text-center">Failed to save permissions. Please try again.</p>
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+
+          {/* ── Connections tab ──────────────────────────────────────────── */}
+          {tab === "connections" && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Provide API access tokens for each platform. Tokens are stored securely and used by the AI to post replies on behalf of {client.name}.
+              </p>
+
+              {platformsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {CONNECTABLE.map(({ platform, feature, label, dotClass, hint }) => {
+                    const connected = isConnected(platform, feature);
+                    const connAt    = connectedAt(platform, feature);
+                    const key       = tokenKey(platform, feature);
+                    const isSaving  = credMutation.isPending;
+                    const isRevoking = revokeMutation.isPending;
+
+                    return (
+                      <div key={key} className="rounded-xl border border-border p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={cn("w-2 h-2 rounded-full shrink-0", dotClass)} />
+                            <span className="text-sm font-medium text-foreground">{label}</span>
+                          </div>
+                          {connected ? (
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Connected
+                              </span>
+                              <button
+                                onClick={() => handleRevoke(platform as ExtendedPlatform, feature as PlatformFeatureType)}
+                                disabled={isRevoking}
+                                className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                              >
+                                <Link2Off className="w-3 h-3" /> Revoke
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Not configured</span>
+                          )}
+                        </div>
+
+                        {connected && connAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Connected {new Date(connAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </p>
+                        )}
+
+                        {!connected && (
+                          <div className="space-y-1.5">
+                            <p className="text-xs text-muted-foreground">{hint}</p>
+                            <div className="flex gap-2">
+                              <input
+                                type="password"
+                                value={tokens[key] ?? ""}
+                                onChange={e => setTokens(p => ({ ...p, [key]: e.target.value }))}
+                                placeholder="Paste access token…"
+                                className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono"
+                              />
+                              <button
+                                onClick={() => handleSaveToken(platform as ExtendedPlatform, feature as PlatformFeatureType)}
+                                disabled={!tokens[key]?.trim() || isSaving}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                              >
+                                {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link2 className="w-3 h-3" />}
+                                Connect
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Permissions tab ──────────────────────────────────────────── */}
+          {tab === "permissions" && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Control which features the AI is allowed to use per platform for {client.name}.
+              </p>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-3 pb-2">
+                  <span className="flex-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">Platform</span>
+                  <div className="flex items-center gap-1 w-24 justify-center text-xs font-medium text-muted-foreground">
+                    <MessageCircle className="w-3 h-3" /> Comments
+                  </div>
+                  <div className="flex items-center gap-1 w-24 justify-center text-xs font-medium text-muted-foreground">
+                    <Inbox className="w-3 h-3" /> Messages
+                  </div>
+                </div>
+
+                {PLATFORMS.map(({ id, label }) => {
+                  const isPhone = id === "phone";
+                  return (
+                    <div key={id} className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
+                      <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
+                      {(["comments", "messages"] as const).map(feat => (
+                        <div key={feat} className="w-24 flex justify-center">
+                          <button
+                            disabled={isPhone}
+                            onClick={() => togglePerm(id, feat)}
+                            className={cn(
+                              "w-10 h-6 rounded-full transition-colors relative",
+                              perms[id][feat] && !isPhone ? "bg-primary" : "bg-muted-foreground/30",
+                              isPhone && "opacity-40 cursor-not-allowed"
+                            )}
+                          >
+                            <span className={cn(
+                              "absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform",
+                              perms[id][feat] && !isPhone ? "left-5" : "left-1"
+                            )} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={handleSavePerms}
+                disabled={permsMutation.isPending}
+                className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {permsMutation.isPending
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : permSaved
+                    ? <><CheckCircle2 className="w-4 h-4" /> Saved!</>
+                    : "Save Permissions"
+                }
+              </button>
+              {permsMutation.isError && (
+                <p className="text-xs text-red-500 text-center">Failed to save. Please try again.</p>
+              )}
+            </>
           )}
         </div>
       </motion.div>

@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { AgencyClient, ClientStatus } from "@/types";
+import type { AgencyClient, ClientStatus, ExtendedPlatform, PlatformFeatureType } from "@/types";
+
+export interface ClientPlatformCredential {
+  platform:    string;
+  feature:     string;
+  connected:   boolean;
+  connectedAt: string;
+}
 
 const MOCK_CLIENTS: AgencyClient[] = [
   { id: "1", name: "مطعم الأصيل",   owner: "فهد المطيري",  email: "fahad@alasel.com",     platforms: ["tiktok", "instagram", "whatsapp"], replies: 342, status: "active" },
@@ -40,5 +47,47 @@ export function useUpdateClientPermissions() {
     mutationFn: ({ clientId, permissions }: { clientId: string; permissions: Record<string, { comments: boolean; messages: boolean }> }) =>
       api.post<void>("/clients/action", { action: "updatePermissions", clientId, permissions }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+export function useClientPlatforms(clientId: string | null) {
+  return useQuery({
+    queryKey: ["clientPlatforms", clientId],
+    queryFn: async () => {
+      if (!clientId) return [] as ClientPlatformCredential[];
+      try {
+        return await api.get<ClientPlatformCredential[]>(`/clients/${clientId}/platforms`);
+      } catch {
+        return [] as ClientPlatformCredential[];
+      }
+    },
+    enabled: !!clientId,
+    staleTime: 30_000,
+  });
+}
+
+export function useSetClientPlatformCredential() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      clientId, platform, feature, accessToken,
+    }: { clientId: string; platform: ExtendedPlatform; feature: PlatformFeatureType; accessToken: string }) =>
+      api.post<void>("/clients/action", { action: "setPlatformCredential", clientId, platform, feature, accessToken }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["clientPlatforms", vars.clientId] });
+    },
+  });
+}
+
+export function useRevokeClientPlatformCredential() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      clientId, platform, feature,
+    }: { clientId: string; platform: ExtendedPlatform; feature: PlatformFeatureType }) =>
+      api.post<void>("/clients/action", { action: "revokeCredential", clientId, platform, feature }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["clientPlatforms", vars.clientId] });
+    },
   });
 }

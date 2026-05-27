@@ -186,7 +186,7 @@ export interface ScheduledPost {
 
 // ── Resources / Knowledge Base ────────────────────────────────────────────────
 
-export type ResourceType = "info" | "hours" | "menu_item" | "offer" | "document";
+export type ResourceType = "info" | "hours" | "menu_item" | "offer" | "document" | "faq";
 
 export interface Resource {
   id: string;
@@ -224,6 +224,11 @@ export interface OfferItem {
   title: string;
   description: string;
   expiresAt?: string;
+}
+
+export interface FaqEntry {
+  question: string;
+  answer: string;
 }
 
 // ── Reply Templates ───────────────────────────────────────────────────────────

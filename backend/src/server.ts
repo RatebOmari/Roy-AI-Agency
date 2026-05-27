@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { startScheduler } from "./lib/scheduler.js";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import authRoutes          from "./routes/auth.js";
@@ -59,3 +60,5 @@ const port = Number(process.env.PORT ?? 3001);
 console.log(`🚀 SocialPilot backend running on port ${port}`);
 
 serve({ fetch: app.fetch, port });
+
+startScheduler();

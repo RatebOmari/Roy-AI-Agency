@@ -1,24 +1,11 @@
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
 import { Bot, User, CheckCheck, Clock, AlertCircle } from "lucide-react";
+import { ConfidenceBanner } from "@/components/shared/ConfidenceBanner";
 
 interface MessageBubbleProps {
   message: Message;
 }
-
-const confidenceColor = (score?: number) => {
-  if (!score) return "";
-  if (score >= 0.85) return "text-green-600";
-  if (score >= 0.50) return "text-yellow-600";
-  return "text-red-600";
-};
-
-const confidenceLabel = (score?: number) => {
-  if (!score) return "";
-  if (score >= 0.85) return "Auto-send";
-  if (score >= 0.50) return "Review";
-  return "Escalate";
-};
 
 const statusIcon = (status?: string) => {
   if (status === "auto_sent" || status === "approved") return <CheckCheck className="w-3.5 h-3.5 text-green-500" />;
@@ -59,13 +46,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         {/* Meta row */}
         <div className={cn("flex items-center gap-2 px-1", isInbound ? "" : "flex-row-reverse")}>
           <span className="text-[11px] text-muted-foreground">{formatTime(message.timestamp)}</span>
-          {!isInbound && message.aiConfidence !== undefined && (
-            <span className={cn("text-[11px] font-medium", confidenceColor(message.aiConfidence))}>
-              {Math.round(message.aiConfidence * 100)}% · {confidenceLabel(message.aiConfidence)}
-            </span>
-          )}
           {!isInbound && statusIcon(message.replyStatus)}
         </div>
+        {!isInbound && message.aiConfidence !== undefined && (
+          <ConfidenceBanner confidence={message.aiConfidence} />
+        )}
       </div>
     </div>
   );

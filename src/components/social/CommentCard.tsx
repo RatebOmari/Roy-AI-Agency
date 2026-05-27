@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { CheckCheck, Edit3, Send, AtSign, MessageCircle, MessageSquare, Zap, Clock, AlertTriangle } from "lucide-react";
+import { CheckCheck, Edit3, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Comment, Platform, ReplyStatus } from "@/types";
+import type { Comment, ReplyStatus } from "@/types";
+import { PLATFORM_CONFIG } from "@/constants/platforms";
+import { ConfidenceBanner } from "@/components/shared/ConfidenceBanner";
 
 export type { ReplyStatus };
 
@@ -11,49 +13,14 @@ interface CommentCardProps {
   onEdit:    (id: string, reply: string) => void;
 }
 
-const PLATFORM_CONFIG: Record<Platform, {
-  label: string;
-  chipClass: string;
-  icon: React.ComponentType<{ className?: string }>;
-}> = {
-  tiktok:    { label: "TikTok",    chipClass: "bg-zinc-900 text-white dark:bg-zinc-700",                 icon: MessageCircle },
-  instagram: { label: "Instagram", chipClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white", icon: AtSign        },
-  facebook:  { label: "Facebook",  chipClass: "bg-blue-600 text-white",                                  icon: MessageSquare },
-  whatsapp:  { label: "WhatsApp",  chipClass: "bg-green-500 text-white",                                  icon: MessageSquare },
-};
-
 const STATUS_CONFIG: Record<ReplyStatus, { label: string; className: string }> = {
   pending:   { label: "Needs Review", className: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400" },
   approved:  { label: "Sent",         className: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"   },
   auto_sent: { label: "Auto-Sent",    className: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"   },
   edited:    { label: "Sent (Edited)",className: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"       },
   rejected:  { label: "Skipped",      className: "bg-muted text-muted-foreground"                                         },
+  escalated: { label: "Escalated",    className: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"           },
 };
-
-function ConfidenceBanner({ confidence }: { confidence: number }) {
-  if (confidence >= 0.85) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-lg text-xs text-green-700 dark:text-green-400">
-        <Zap className="w-3 h-3 flex-shrink-0" />
-        <span><strong>{Math.round(confidence * 100)}%</strong> — High confidence, reply ready to send</span>
-      </div>
-    );
-  }
-  if (confidence >= 0.50) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 rounded-lg text-xs text-yellow-700 dark:text-yellow-400">
-        <Clock className="w-3 h-3 flex-shrink-0" />
-        <span><strong>{Math.round(confidence * 100)}%</strong> — Review suggested before sending</span>
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg text-xs text-red-700 dark:text-red-400">
-      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-      <span><strong>{Math.round(confidence * 100)}%</strong> — Low confidence, please review carefully</span>
-    </div>
-  );
-}
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -90,7 +57,7 @@ export function CommentCard({ comment, onApprove, onEdit }: CommentCardProps) {
             <span className="text-sm font-semibold text-foreground">@{comment.username}</span>
             <span className={cn(
               "inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0",
-              platform.chipClass
+              platform.color
             )}>
               <PlatIcon className="w-2.5 h-2.5" />
               {platform.label}

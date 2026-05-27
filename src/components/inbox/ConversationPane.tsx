@@ -5,10 +5,11 @@ import type { Conversation, Message } from "@/types";
 import { MessageBubble } from "./MessageBubble";
 import {
   CheckCheck, X, Edit3, Send,
-  Tag, Flag, AlertTriangle, CheckCircle2,
+  Tag, AlertTriangle, CheckCircle2,
   AtSign, Smartphone, MessageCircle, MessageSquare, Phone,
   ArrowLeft, Sparkles, Loader2,
 } from "lucide-react";
+import { ConfidenceBanner } from "@/components/shared/ConfidenceBanner";
 
 interface ConversationPaneProps {
   conversation:     Conversation | null;
@@ -57,42 +58,6 @@ function ContactAvatar({ name }: { name: string }) {
   return (
     <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-foreground flex-shrink-0">
       {initials}
-    </div>
-  );
-}
-
-// ── Confidence banner ──────────────────────────────────────────────────────
-
-function ConfidenceBanner({ confidence, status }: { confidence?: number; status?: Message["replyStatus"] }) {
-  if (!confidence) return null;
-  if (status === "approved" || status === "auto_sent" || status === "rejected") return null;
-
-  if (confidence >= 0.85) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-lg text-xs text-green-700 dark:text-green-400">
-        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-        <span>
-          <strong>{Math.round(confidence * 100)}% confidence</strong> — AI reply queued for auto-send
-        </span>
-      </div>
-    );
-  }
-  if (confidence >= 0.50) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 rounded-lg text-xs text-yellow-700 dark:text-yellow-400">
-        <Flag className="w-3.5 h-3.5 flex-shrink-0" />
-        <span>
-          <strong>{Math.round(confidence * 100)}% confidence</strong> — Review before sending
-        </span>
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg text-xs text-red-700 dark:text-red-400">
-      <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-      <span>
-        <strong>{Math.round(confidence * 100)}% confidence</strong> — Human review required
-      </span>
     </div>
   );
 }
@@ -192,7 +157,7 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
             animate={{ opacity: 1, y: 0 }}
             className="border-t border-border px-4 sm:px-5 py-4 bg-card space-y-3"
           >
-            <ConfidenceBanner confidence={pendingReply.aiConfidence} status={pendingReply.replyStatus} />
+            <ConfidenceBanner confidence={pendingReply.aiConfidence} />
 
             {editingId === pendingReply.id ? (
               <div className="space-y-2">

@@ -13,8 +13,9 @@ import {
   useDeleteCampaign,
   useSendCampaign,
 } from "@/hooks/useCampaigns";
-import type { Campaign, CampaignAudienceType, CampaignStatus, Platform } from "@/types";
+import type { Campaign, CampaignAudienceType, CampaignStatus } from "@/types";
 import { cn } from "@/lib/utils";
+import { PLATFORM_CONFIG } from "@/constants/platforms";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -34,12 +35,6 @@ const STATUS_LABELS: Record<CampaignStatus, string> = {
   failed:    "Failed",
 };
 
-const PLATFORM_COLOR: Record<Platform, string> = {
-  instagram: "bg-gradient-to-br from-purple-500 to-pink-500",
-  tiktok:    "bg-black",
-  facebook:  "bg-blue-600",
-  whatsapp:  "bg-green-500",
-};
 
 type StatusFilter = CampaignStatus | "all";
 
@@ -530,7 +525,7 @@ export default function Campaigns() {
                     <div
                       className={cn(
                         "w-2.5 h-2.5 rounded-full flex-shrink-0",
-                        PLATFORM_COLOR[campaign.platform],
+                        PLATFORM_CONFIG[campaign.platform]?.dotColor ?? "bg-muted",
                       )}
                       title="WhatsApp"
                     />

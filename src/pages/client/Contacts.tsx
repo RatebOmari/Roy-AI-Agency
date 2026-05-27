@@ -5,28 +5,30 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Contact, Channel } from "@/types";
 import {
   Users, Search, ArrowLeft, X, Plus,
-  AtSign, Smartphone, MessageCircle, MessageSquare, Phone,
+  Smartphone, Phone,
   Megaphone, CheckCircle2, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PLATFORM_CONFIG } from "@/constants/platforms";
 
 // ── Channel config ─────────────────────────────────────────────────────────
 
+const p = PLATFORM_CONFIG;
 const CHANNEL_CFG: Record<string, {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   chipClass: string;
   dotClass: string;
 }> = {
-  instagram_dm:       { label: "Instagram DM", icon: AtSign,        chipClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white", dotClass: "bg-pink-500"   },
-  instagram_comment:  { label: "Instagram",    icon: AtSign,        chipClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white", dotClass: "bg-pink-500"   },
-  tiktok_comment:     { label: "TikTok",       icon: MessageCircle, chipClass: "bg-zinc-900 dark:bg-zinc-700 text-white",                  dotClass: "bg-zinc-700"   },
-  tiktok_dm:          { label: "TikTok DM",    icon: MessageCircle, chipClass: "bg-zinc-900 dark:bg-zinc-700 text-white",                  dotClass: "bg-zinc-700"   },
-  facebook_comment:   { label: "Facebook",     icon: MessageSquare, chipClass: "bg-blue-600 text-white",                                   dotClass: "bg-blue-600"   },
-  facebook_messenger: { label: "Messenger",    icon: MessageSquare, chipClass: "bg-blue-500 text-white",                                   dotClass: "bg-blue-500"   },
-  whatsapp_business:  { label: "WhatsApp",     icon: Phone,         chipClass: "bg-green-500 text-white",                                  dotClass: "bg-green-500"  },
-  sms:                { label: "SMS",          icon: Smartphone,    chipClass: "bg-slate-500 text-white",                                  dotClass: "bg-slate-500"  },
-  phone_call:         { label: "Call",         icon: Phone,         chipClass: "bg-slate-600 text-white",                                  dotClass: "bg-slate-600"  },
+  instagram_dm:       { label: "Instagram DM", icon: p.instagram.icon, chipClass: p.instagram.color, dotClass: p.instagram.dotColor },
+  instagram_comment:  { label: "Instagram",    icon: p.instagram.icon, chipClass: p.instagram.color, dotClass: p.instagram.dotColor },
+  tiktok_comment:     { label: "TikTok",       icon: p.tiktok.icon,    chipClass: p.tiktok.color,    dotClass: p.tiktok.dotColor    },
+  tiktok_dm:          { label: "TikTok DM",    icon: p.tiktok.icon,    chipClass: p.tiktok.color,    dotClass: p.tiktok.dotColor    },
+  facebook_comment:   { label: "Facebook",     icon: p.facebook.icon,  chipClass: p.facebook.color,  dotClass: p.facebook.dotColor  },
+  facebook_messenger: { label: "Messenger",    icon: p.facebook.icon,  chipClass: p.facebook.color,  dotClass: p.facebook.dotColor  },
+  whatsapp_business:  { label: "WhatsApp",     icon: p.whatsapp.icon,  chipClass: p.whatsapp.color,  dotClass: p.whatsapp.dotColor  },
+  sms:                { label: "SMS",  icon: Smartphone, chipClass: "bg-slate-500 text-white", dotClass: "bg-slate-500" },
+  phone_call:         { label: "Call", icon: Phone,      chipClass: "bg-slate-600 text-white", dotClass: "bg-slate-600" },
 };
 
 function channelPlatform(ch: string) {

@@ -21,11 +21,13 @@ app.get("/", async (c) => {
 });
 
 const campaignSchema = z.object({
-  name:        z.string().min(1),
-  message:     z.string().min(1),
-  platform:    z.string().min(1),
-  scheduledAt: z.string().nullable().optional(),
-  mediaUrl:    z.string().nullable().optional(),
+  name:          z.string().min(1),
+  message:       z.string().min(1),
+  platform:      z.string().min(1),
+  audienceType:  z.enum(["all", "tag", "platform"]).optional().default("all"),
+  audienceValue: z.string().nullable().optional(),
+  scheduledAt:   z.string().nullable().optional(),
+  mediaUrl:      z.string().nullable().optional(),
 });
 
 // POST / — create campaign
@@ -35,13 +37,15 @@ app.post("/", zValidator("json", campaignSchema), async (c) => {
   const [row] = await db
     .insert(campaigns)
     .values({
-      userId:      user.sub,
-      name:        body.name,
-      message:     body.message,
-      platform:    body.platform,
-      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
-      mediaUrl:    body.mediaUrl ?? null,
-      status:      "draft",
+      userId:        user.sub,
+      name:          body.name,
+      message:       body.message,
+      platform:      body.platform,
+      audienceType:  body.audienceType ?? "all",
+      audienceValue: body.audienceType !== "all" ? (body.audienceValue ?? null) : null,
+      scheduledAt:   body.scheduledAt ? new Date(body.scheduledAt) : null,
+      mediaUrl:      body.mediaUrl ?? null,
+      status:        "draft",
     })
     .returning();
   return c.json(row, 201);
@@ -56,11 +60,13 @@ app.put("/:id", zValidator("json", campaignSchema.partial()), async (c) => {
   const [row] = await db
     .update(campaigns)
     .set({
-      ...(body.name        !== undefined && { name:        body.name }),
-      ...(body.message     !== undefined && { message:     body.message }),
-      ...(body.platform    !== undefined && { platform:    body.platform }),
-      ...(body.scheduledAt !== undefined && { scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null }),
-      ...(body.mediaUrl    !== undefined && { mediaUrl:    body.mediaUrl ?? null }),
+      ...(body.name          !== undefined && { name:          body.name }),
+      ...(body.message       !== undefined && { message:       body.message }),
+      ...(body.platform      !== undefined && { platform:      body.platform }),
+      ...(body.audienceType  !== undefined && { audienceType:  body.audienceType }),
+      ...(body.audienceValue !== undefined && { audienceValue: body.audienceType !== "all" ? (body.audienceValue ?? null) : null }),
+      ...(body.scheduledAt   !== undefined && { scheduledAt:   body.scheduledAt ? new Date(body.scheduledAt) : null }),
+      ...(body.mediaUrl      !== undefined && { mediaUrl:      body.mediaUrl ?? null }),
     })
     .where(and(eq(campaigns.id, id), eq(campaigns.userId, user.sub)))
     .returning();
@@ -79,25 +85,33 @@ app.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// POST /:id/send — mock send campaign
+// POST /:id/send — send campaign (audience-aware mock until WhatsApp API is wired)
 app.post("/:id/send", async (c) => {
   const user = c.get("user");
   const id = c.req.param("id");
 
-  const sentCount  = Math.floor(Math.random() * 451) + 50; // 50–500
-  const readCount  = Math.floor(sentCount * (Math.random() * 0.6 + 0.2)); // 20–80% of sent
+  const [campaign] = await db
+    .select()
+    .from(campaigns)
+    .where(and(eq(campaigns.id, id), eq(campaigns.userId, user.sub)));
+
+  if (!campaign) return c.json({ message: "Not found" }, 404);
+
+  // Scale audience size by type so stats reflect the actual audience scope
+  const baseRange =
+    campaign.audienceType === "all"      ? { min: 200, max: 500 } :
+    campaign.audienceType === "platform" ? { min: 80,  max: 300 } :
+                                           { min: 20,  max: 120 }; // tag
+
+  const sentCount = Math.floor(Math.random() * (baseRange.max - baseRange.min + 1)) + baseRange.min;
+  const readCount = Math.floor(sentCount * (Math.random() * 0.4 + 0.4)); // 40–80%
 
   const [row] = await db
     .update(campaigns)
-    .set({
-      status:    "sent",
-      sentCount,
-      readCount,
-    })
+    .set({ status: "sent", sentCount, readCount })
     .where(and(eq(campaigns.id, id), eq(campaigns.userId, user.sub)))
     .returning();
 
-  if (!row) return c.json({ message: "Not found" }, 404);
   return c.json(row);
 });
 

@@ -150,21 +150,24 @@ export const replyTemplates = pgTable("reply_templates", {
 
 // ── Campaigns ─────────────────────────────────────────────────────────────────
 
-export const campaignStatusEnum = pgEnum("campaign_status", ["draft","scheduled","sending","sent","failed"]);
+export const campaignStatusEnum   = pgEnum("campaign_status",   ["draft","scheduled","sending","sent","failed"]);
+export const campaignAudienceEnum = pgEnum("campaign_audience", ["all","tag","platform"]);
 
 export const campaigns = pgTable("campaigns", {
-  id:          uuid("id").primaryKey().defaultRandom(),
-  userId:      uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name:        text("name").notNull(),
-  message:     text("message").notNull(),
-  mediaUrl:    text("media_url"),
-  platform:    text("platform").notNull().default("whatsapp"),
-  scheduledAt: timestamp("scheduled_at"),
-  status:      campaignStatusEnum("status").notNull().default("draft"),
-  sentCount:   integer("sent_count").notNull().default(0),
-  readCount:   integer("read_count").notNull().default(0),
-  replyCount:  integer("reply_count").notNull().default(0),
-  createdAt:   timestamp("created_at").notNull().defaultNow(),
+  id:            uuid("id").primaryKey().defaultRandom(),
+  userId:        uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:          text("name").notNull(),
+  message:       text("message").notNull(),
+  mediaUrl:      text("media_url"),
+  platform:      text("platform").notNull().default("whatsapp"),
+  audienceType:  campaignAudienceEnum("audience_type").notNull().default("all"),
+  audienceValue: text("audience_value"),
+  scheduledAt:   timestamp("scheduled_at"),
+  status:        campaignStatusEnum("status").notNull().default("draft"),
+  sentCount:     integer("sent_count").notNull().default(0),
+  readCount:     integer("read_count").notNull().default(0),
+  replyCount:    integer("reply_count").notNull().default(0),
+  createdAt:     timestamp("created_at").notNull().defaultNow(),
 });
 
 // ── Chatbot Flows ─────────────────────────────────────────────────────────────

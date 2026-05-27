@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Send,
   ChevronDown,
+  AlertTriangle,
 } from "lucide-react";
 
 // ── Platform config ────────────────────────────────────────────────────────────
@@ -228,7 +229,7 @@ export default function Listening() {
   const { user } = useAuth();
 
   const { data: keywords = [], isLoading: kwLoading } = useListeningKeywords();
-  const { data: allMentions = [] } = useMentions();
+  const { data: allMentions = [], isError: mentionsError, refetch: refetchMentions } = useMentions();
   const createKeyword = useCreateKeyword();
   const updateKeyword = useUpdateKeyword();
   const deleteKeyword = useDeleteKeyword();
@@ -546,7 +547,18 @@ export default function Listening() {
             </div>
 
             {/* Feed */}
-            {filteredMentions.length === 0 ? (
+            {mentionsError ? (
+              <div className="bg-card border border-red-200 dark:border-red-800/40 rounded-2xl p-12 text-center">
+                <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
+                <p className="font-medium text-foreground">Could not load mentions. Please try again.</p>
+                <button
+                  onClick={() => refetchMentions()}
+                  className="mt-4 px-4 py-2 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredMentions.length === 0 ? (
               <div className="bg-card border border-border rounded-2xl p-12 text-center">
                 <Radio className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="font-medium text-foreground">No mentions found</p>

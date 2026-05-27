@@ -7,8 +7,7 @@ import {
   Eye, Settings, Pause, Play, MessageSquare, Loader2, X, MessageCircle, Inbox,
 } from "lucide-react";
 import type { AgencyClient, ClientStatus, ExtendedPlatform } from "@/types";
-import { useClients, useUpdateClientStatus } from "@/hooks/useClients";
-import { api } from "@/lib/api";
+import { useClients, useUpdateClientStatus, useUpdateClientPermissions } from "@/hooks/useClients";
 
 type PlatformPerms = Record<ExtendedPlatform, { comments: boolean; messages: boolean }>;
 
@@ -43,8 +42,8 @@ interface PermissionsPanelProps {
 
 function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
   const [perms, setPerms] = useState<PlatformPerms>({ ...DEFAULT_PERMS });
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const permsMutation = useUpdateClientPermissions();
 
   const toggle = (platform: ExtendedPlatform, feature: "comments" | "messages") => {
     setPerms(p => ({
@@ -53,21 +52,16 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
     }));
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await api.post("/clients/action", {
-        action: "updatePermissions",
-        clientId: client.id,
-        permissions: perms,
-      });
-    } catch {
-      // demo mode: ignore error
-    } finally {
-      setSaving(false);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    }
+  const handleSave = () => {
+    permsMutation.mutate(
+      { clientId: client.id, permissions: perms },
+      {
+        onSuccess: () => {
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        },
+      }
+    );
   };
 
   return (
@@ -145,14 +139,17 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
           })}
         </div>
 
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 space-y-2">
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={permsMutation.isPending}
             className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? "Saved!" : "Save Permissions"}
+            {permsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? "Saved!" : "Save Permissions"}
           </button>
+          {permsMutation.isError && (
+            <p className="text-xs text-red-500 text-center">Failed to save permissions. Please try again.</p>
+          )}
         </div>
       </motion.div>
     </motion.div>

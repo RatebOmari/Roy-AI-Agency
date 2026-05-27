@@ -33,3 +33,12 @@ export function useUpdateClientStatus() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["clients"] }),
   });
 }
+
+export function useUpdateClientPermissions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ clientId, permissions }: { clientId: string; permissions: Record<string, { comments: boolean; messages: boolean }> }) =>
+      api.post<void>("/clients/action", { action: "updatePermissions", clientId, permissions }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}

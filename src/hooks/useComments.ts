@@ -108,3 +108,15 @@ export function useEditComment() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["comments"] }),
   });
 }
+
+export function useGenerateCommentReply() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (commentId: string) =>
+      api.post<{ commentId: string; reply: string; confidence: number; replyStatus: string }>(
+        "/comments/generate-reply",
+        { commentId }
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["comments"] }),
+  });
+}

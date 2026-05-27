@@ -240,3 +240,18 @@ export const postMetrics = pgTable("post_metrics", {
   shares:     integer("shares").notNull().default(0),
   recordedAt: timestamp("recorded_at").notNull().defaultNow(),
 });
+
+// ── Social Comments ───────────────────────────────────────────────────────────
+
+export const comments = pgTable("comments", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  platform:     platformEnum("platform").notNull(),
+  username:     text("username").notNull().default(""),
+  text:         text("text").notNull().default(""),
+  aiReply:      text("ai_reply").notNull().default(""),
+  aiConfidence: integer("ai_confidence"),
+  status:       replyStatusEnum("status").notNull().default("pending"),
+  timestamp:    timestamp("timestamp").notNull().defaultNow(),
+  createdAt:    timestamp("created_at").notNull().defaultNow(),
+});

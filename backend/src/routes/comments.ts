@@ -7,6 +7,15 @@ import { db } from "../db/index.js";
 import { comments, toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
+import { deliverReply, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
+
+function platformToCommentChannel(platform: string): DeliveryChannel {
+  if (platform === "instagram") return "instagram_comment";
+  if (platform === "facebook")  return "facebook_comment";
+  if (platform === "tiktok")    return "tiktok_comment";
+  if (platform === "whatsapp")  return "whatsapp_business";
+  return "instagram_comment"; // fallback
+}
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -62,7 +71,7 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
   const { action, id, aiReply } = c.req.valid("json");
 
   const [comment] = await db
-    .select({ id: comments.id })
+    .select()
     .from(comments)
     .where(and(eq(comments.id, id), eq(comments.userId, user.sub)))
     .limit(1);
@@ -74,6 +83,8 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
     action === "reject"  ? "rejected" as const :
                            "edited"   as const;
 
+  const replyText = action === "edit" && aiReply !== undefined ? aiReply : comment.aiReply;
+
   await db
     .update(comments)
     .set({
@@ -81,6 +92,20 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
       aiReply: action === "edit" && aiReply !== undefined ? aiReply : undefined,
     })
     .where(eq(comments.id, id));
+
+  // Deliver to platform when approved or edited (fire-and-forget — don't block response)
+  if (action !== "reject") {
+    deliverReply({
+      userId:            user.sub,
+      channel:           platformToCommentChannel(comment.platform),
+      recipientHandle:   comment.username,
+      platformCommentId: comment.platformCommentId,
+      platformVideoId:   comment.platformVideoId,
+      text:              replyText,
+    })
+      .then(result => logDelivery(result, `comment ${id} → ${comment.platform}`))
+      .catch(err => console.error("[delivery] Unexpected error:", err));
+  }
 
   return c.json({ ok: true });
 });
@@ -196,6 +221,20 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
       status:       replyStatus,
     })
     .where(eq(comments.id, commentId));
+
+  // Auto-deliver when confidence is high enough — no human needed
+  if (replyStatus === "auto_sent") {
+    deliverReply({
+      userId:            user.sub,
+      channel:           platformToCommentChannel(comment.platform),
+      recipientHandle:   comment.username,
+      platformCommentId: comment.platformCommentId,
+      platformVideoId:   comment.platformVideoId,
+      text:              reply,
+    })
+      .then(result => logDelivery(result, `auto comment ${commentId} → ${comment.platform}`))
+      .catch(err => console.error("[delivery] Unexpected error:", err));
+  }
 
   return c.json({
     commentId,

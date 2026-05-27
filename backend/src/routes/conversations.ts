@@ -7,6 +7,7 @@ import { db } from "../db/index.js";
 import { conversations, messages, toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
+import { deliverReply, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -17,6 +18,22 @@ function channelToPlatform(channel: string): "tiktok" | "instagram" | "facebook"
   if (channel.startsWith("instagram")) return "instagram";
   if (channel.startsWith("facebook"))  return "facebook";
   return "whatsapp";
+}
+
+// Map channel string → DeliveryChannel for platform delivery
+function toDeliveryChannel(channel: string): DeliveryChannel {
+  const map: Record<string, DeliveryChannel> = {
+    tiktok_comment:       "tiktok_comment",
+    tiktok_dm:            "tiktok_comment", // TikTok DMs not yet supported via API
+    instagram_comment:    "instagram_comment",
+    instagram_dm:         "instagram_dm",
+    facebook_comment:     "facebook_comment",
+    facebook_messenger:   "facebook_messenger",
+    whatsapp_business:    "whatsapp_business",
+    sms:                  "sms",
+    phone_call:           "phone_call",
+  };
+  return map[channel] ?? "whatsapp_business";
 }
 
 // Confidence integer (0–100) → float (0.0–1.0) for frontend
@@ -224,6 +241,18 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
     .set({ lastMessageAt: new Date() })
     .where(eq(conversations.id, conversationId));
 
+  // Auto-deliver when confidence is high enough (≥85%) — no human needed
+  if (replyStatus === "auto_sent") {
+    deliverReply({
+      userId:          user.sub,
+      channel:         toDeliveryChannel(conv.channel),
+      recipientHandle: conv.contactHandle,
+      text:            reply,
+    })
+      .then(result => logDelivery(result, `auto conv ${conversationId} → ${conv.channel}`))
+      .catch(err => console.error("[delivery] Unexpected error:", err));
+  }
+
   return c.json({
     messageId:    newMsg.id,
     reply,
@@ -257,7 +286,7 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
 
   // approve / reject / edit
   const [conv] = await db
-    .select({ id: conversations.id })
+    .select()
     .from(conversations)
     .where(and(eq(conversations.id, body.conversationId), eq(conversations.userId, user.sub)))
     .limit(1);
@@ -265,7 +294,7 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
   if (!conv) return c.json({ message: "Conversation not found" }, 404);
 
   const [pendingMsg] = await db
-    .select({ id: messages.id })
+    .select()
     .from(messages)
     .where(and(eq(messages.convId, body.conversationId), eq(messages.replyStatus, "pending")))
     .orderBy(desc(messages.timestamp))
@@ -278,11 +307,13 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
     body.action === "reject"  ? "rejected" as const :
                                 "edited"   as const;
 
+  const replyText = body.action === "edit" ? body.content : (pendingMsg.aiReply ?? pendingMsg.content);
+
   await db
     .update(messages)
     .set({
       replyStatus: newStatus,
-      aiReply: body.action === "edit" ? body.content : undefined,
+      aiReply:     body.action === "edit" ? body.content : undefined,
     })
     .where(eq(messages.id, pendingMsg.id));
 
@@ -291,6 +322,16 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
       .update(conversations)
       .set({ unreadCount: 0 })
       .where(eq(conversations.id, body.conversationId));
+
+    // Deliver to platform (fire-and-forget — DB status is already updated)
+    deliverReply({
+      userId:          user.sub,
+      channel:         toDeliveryChannel(conv.channel),
+      recipientHandle: conv.contactHandle,
+      text:            replyText,
+    })
+      .then(result => logDelivery(result, `conv ${body.conversationId} → ${conv.channel}`))
+      .catch(err => console.error("[delivery] Unexpected error:", err));
   }
 
   return c.json({ ok: true });

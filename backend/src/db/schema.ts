@@ -247,14 +247,18 @@ export const postMetrics = pgTable("post_metrics", {
 // ── Social Comments ───────────────────────────────────────────────────────────
 
 export const comments = pgTable("comments", {
-  id:           uuid("id").primaryKey().defaultRandom(),
-  userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  platform:     platformEnum("platform").notNull(),
-  username:     text("username").notNull().default(""),
-  text:         text("text").notNull().default(""),
-  aiReply:      text("ai_reply").notNull().default(""),
-  aiConfidence: integer("ai_confidence"),
-  status:       replyStatusEnum("status").notNull().default("pending"),
-  timestamp:    timestamp("timestamp").notNull().defaultNow(),
-  createdAt:    timestamp("created_at").notNull().defaultNow(),
+  id:                uuid("id").primaryKey().defaultRandom(),
+  userId:            uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  platform:          platformEnum("platform").notNull(),
+  username:          text("username").notNull().default(""),
+  text:              text("text").notNull().default(""),
+  aiReply:           text("ai_reply").notNull().default(""),
+  aiConfidence:      integer("ai_confidence"),
+  status:            replyStatusEnum("status").notNull().default("pending"),
+  // ID of the comment on the social platform — required for API reply delivery
+  platformCommentId: text("platform_comment_id"),
+  // For TikTok: the video ID that contains this comment
+  platformVideoId:   text("platform_video_id"),
+  timestamp:         timestamp("timestamp").notNull().defaultNow(),
+  createdAt:         timestamp("created_at").notNull().defaultNow(),
 });

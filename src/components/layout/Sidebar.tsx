@@ -55,7 +55,6 @@ const CLIENT_NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Contacts",   href: "/contacts",   icon: UserCircle },
       { label: "Analytics",  href: "/analytics",  icon: BarChart2 },
-      { label: "Automation", href: "/automation", icon: Zap },
       { label: "Resources",  href: "/resources",  icon: BookOpen },
       { label: "Templates",  href: "/templates",  icon: FileText },
       { label: "Campaigns",  href: "/campaigns",  icon: Megaphone },

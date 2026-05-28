@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, Inbox, Users, BarChart2, Zap,
   Settings, LogOut, ChevronRight, Menu, X, UserCircle,
-  CalendarDays, BookOpen, FileText, Megaphone, GitBranch, Radio, MessageSquare,
+  CalendarDays, BookOpen, FileText, Megaphone, GitBranch, Radio, MessageSquare, Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -48,6 +48,7 @@ const CLIENT_NAV_GROUPS: NavGroup[] = [
       { label: "Content",   href: "/content",    icon: CalendarDays },
       { label: "Inbox",     href: "/inbox",       icon: Inbox, badge: true },
       { label: "Comments",  href: "/comments",   icon: MessageSquare },
+      { label: "Calls",     href: "/calls",      icon: Phone },
     ],
   },
   {

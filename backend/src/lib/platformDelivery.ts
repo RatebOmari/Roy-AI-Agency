@@ -14,7 +14,7 @@ import { platformCredentials } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
 
 type DeliveryResult =
-  | { ok: true }
+  | { ok: true; sid?: string }
   | { ok: false; skipped: true; reason: string }
   | { ok: false; error: string };
 
@@ -239,6 +239,10 @@ export async function makePhoneCall(
   const twiml = `<Response><Say voice="alice" language="en-US">${safeMsg}</Say></Response>`;
 
   const body = new URLSearchParams({ To: phone, From: fromNumber, Twiml: twiml });
+  if (process.env.APP_URL) {
+    body.append("StatusCallback", `${process.env.APP_URL}/api/calls/webhook/status`);
+    body.append("StatusCallbackMethod", "POST");
+  }
   const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
 
   const res = await fetch(
@@ -260,7 +264,7 @@ export async function makePhoneCall(
 
   const data = await res.json() as { sid: string; status: string };
   console.log(`[call] Initiated SID=${data.sid} → ${phone} status=${data.status}`);
-  return { ok: true };
+  return { ok: true, sid: data.sid };
 }
 
 // ── Main dispatcher ───────────────────────────────────────────────────────────

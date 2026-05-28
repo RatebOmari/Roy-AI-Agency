@@ -244,6 +244,30 @@ export const postMetrics = pgTable("post_metrics", {
   recordedAt: timestamp("recorded_at").notNull().defaultNow(),
 });
 
+// ── Calls ─────────────────────────────────────────────────────────────────────
+
+export const callStatusEnum = pgEnum("call_status", [
+  "initiated", "ringing", "in-progress", "completed", "failed", "busy", "no-answer", "canceled", "missed"
+]);
+
+export const calls = pgTable("calls", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  convId:       uuid("conv_id").references(() => conversations.id, { onDelete: "set null" }),
+  twilioSid:    text("twilio_sid"),
+  direction:    directionEnum("direction").notNull().default("outbound"),
+  toNumber:     text("to_number").notNull().default(""),
+  fromNumber:   text("from_number").notNull().default(""),
+  contactName:  text("contact_name").notNull().default(""),
+  status:       callStatusEnum("status").notNull().default("initiated"),
+  duration:     integer("duration"),
+  recordingUrl: text("recording_url"),
+  notes:        text("notes").notNull().default(""),
+  startedAt:    timestamp("started_at").notNull().defaultNow(),
+  endedAt:      timestamp("ended_at"),
+  createdAt:    timestamp("created_at").notNull().defaultNow(),
+});
+
 // ── Social Comments ───────────────────────────────────────────────────────────
 
 export const comments = pgTable("comments", {

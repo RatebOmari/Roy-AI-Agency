@@ -15,6 +15,7 @@ import Campaigns from "./pages/client/Campaigns";
 import Flows from "./pages/client/Flows";
 import Team from "./pages/client/Team";
 import Listening from "./pages/client/Listening";
+import Calls from "./pages/client/Calls";
 import AgencyDashboard from "./pages/agency/Dashboard";
 import AgencyClients from "./pages/agency/Clients";
 import AgencyAnalytics from "./pages/agency/Analytics";
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="/flows"               element={<ProtectedRoute requiredRole="client"><Flows /></ProtectedRoute>} />
             <Route path="/team"                element={<ProtectedRoute requiredRole="client"><Team /></ProtectedRoute>} />
             <Route path="/listening"           element={<ProtectedRoute requiredRole="client"><Listening /></ProtectedRoute>} />
+            <Route path="/calls"               element={<ProtectedRoute requiredRole="client"><Calls /></ProtectedRoute>} />
             <Route path="/settings"            element={<ProtectedRoute requiredRole="client"><ToneSettings /></ProtectedRoute>} />
 
             {/* Agency */}

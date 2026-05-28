@@ -346,6 +346,29 @@ export interface BrandSettings {
   imageStyle: string;
 }
 
+// ── Calls ─────────────────────────────────────────────────────────────────────
+
+export type CallStatus = "initiated" | "ringing" | "in-progress" | "completed" | "failed" | "busy" | "no-answer" | "canceled" | "missed";
+export type CallDirection = "inbound" | "outbound";
+
+export interface Call {
+  id: string;
+  userId: string;
+  convId: string | null;
+  twilioSid: string | null;
+  direction: CallDirection;
+  toNumber: string;
+  fromNumber: string;
+  contactName: string;
+  status: CallStatus;
+  duration: number | null;
+  recordingUrl: string | null;
+  notes: string;
+  startedAt: string;
+  endedAt: string | null;
+  createdAt: string;
+}
+
 // ── Post Metrics ──────────────────────────────────────────────────────────────
 
 export interface PostMetrics {

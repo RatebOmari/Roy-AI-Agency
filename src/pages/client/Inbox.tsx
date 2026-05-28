@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ConversationList } from "@/components/inbox/ConversationList";
 import { ConversationPane } from "@/components/inbox/ConversationPane";
-import { useConversations, useReplyToConversation, useGenerateReply } from "@/hooks/useConversations";
+import { useConversations, useReplyToConversation, useGenerateReply, useInitiateCall } from "@/hooks/useConversations";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Conversation } from "@/types";
 import { Loader2 } from "lucide-react";
@@ -18,6 +18,7 @@ export default function Inbox() {
   const { data: conversations = [], isLoading } = useConversations();
   const replyMutation    = useReplyToConversation();
   const generateMutation = useGenerateReply();
+  const callMutation     = useInitiateCall();
 
   // Local optimistic state
   const [localConvs, setLocalConvs] = useState<Conversation[] | null>(null);
@@ -128,6 +129,8 @@ export default function Inbox() {
             onGenerateReply={convId => generateMutation.mutate(convId)}
             isGenerating={generateMutation.isPending}
             onBack={() => setSelectedId(null)}
+            onCall={convId => callMutation.mutate(convId)}
+            isCalling={callMutation.isPending}
           />
         </div>
       </div>

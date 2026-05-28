@@ -7,7 +7,7 @@ import { db } from "../db/index.js";
 import { conversations, messages, toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
-import { deliverReply, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
+import { deliverReply, makePhoneCall, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -335,6 +335,50 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
   }
 
   return c.json({ ok: true });
+});
+
+// ── Initiate outbound phone call ──────────────────────────────────────────────
+
+app.post("/:id/call", async (c) => {
+  const user   = c.get("user");
+  const convId = c.req.param("id");
+
+  const [conv] = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.id, convId), eq(conversations.userId, user.sub)))
+    .limit(1);
+
+  if (!conv) return c.json({ message: "Conversation not found" }, 404);
+  if (conv.channel !== "phone_call") {
+    return c.json({ message: "Not a phone channel" }, 400);
+  }
+
+  // Attempt Twilio outbound call
+  const result = await makePhoneCall(conv.contactHandle, "Hello! This is a call from our support team. Please stay on the line.");
+  logDelivery(result, `phone call → ${conv.contactHandle}`);
+
+  // Record call attempt as a message
+  const statusText = result.ok
+    ? "📞 Outbound call initiated"
+    : "skipped" in result
+      ? `📞 Call skipped: ${result.reason}`
+      : `📞 Call failed: ${(result as { error: string }).error}`;
+
+  await db.insert(messages).values({
+    convId:    convId,
+    direction: "outbound",
+    content:   statusText,
+    sentBy:    "human",
+    timestamp: new Date(),
+  });
+
+  await db
+    .update(conversations)
+    .set({ lastMessageAt: new Date() })
+    .where(eq(conversations.id, convId));
+
+  return c.json({ ok: result.ok });
 });
 
 export default app;

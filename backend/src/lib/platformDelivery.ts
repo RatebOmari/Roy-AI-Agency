@@ -214,6 +214,55 @@ export async function replyToTikTokComment(
   return { ok: true };
 }
 
+// ── Twilio Voice Call ─────────────────────────────────────────────────────────
+
+export async function makePhoneCall(
+  to: string,
+  message: string
+): Promise<DeliveryResult> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken  = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    return { ok: false, skipped: true, reason: "twilio_credentials_not_set" };
+  }
+
+  // Normalize phone number — ensure E.164 format
+  const digits = to.replace(/\D/g, "");
+  const phone  = digits.startsWith("1") && digits.length === 11 ? `+${digits}` : `+1${digits}`;
+
+  // Inline TwiML — no public webhook URL required
+  const safeMsg = message.replace(/[<>&'"]/g, c =>
+    c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : c === "'" ? "&apos;" : "&quot;"
+  );
+  const twiml = `<Response><Say voice="alice" language="en-US">${safeMsg}</Say></Response>`;
+
+  const body = new URLSearchParams({ To: phone, From: fromNumber, Twiml: twiml });
+  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${credentials}`,
+      },
+      body: body.toString(),
+    }
+  );
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { message?: string; code?: number };
+    return { ok: false, error: data?.message ?? `Twilio API ${res.status}` };
+  }
+
+  const data = await res.json() as { sid: string; status: string };
+  console.log(`[call] Initiated SID=${data.sid} → ${phone} status=${data.status}`);
+  return { ok: true };
+}
+
 // ── Main dispatcher ───────────────────────────────────────────────────────────
 
 export type DeliveryChannel =
@@ -250,6 +299,9 @@ export async function deliverReply(params: {
 
     case "tiktok_comment":
       return replyToTikTokComment(userId, platformVideoId ?? "", platformCommentId ?? null, text);
+
+    case "phone_call":
+      return makePhoneCall(recipientHandle, text);
 
     default:
       return { ok: false, skipped: true, reason: `channel_not_supported: ${channel}` };

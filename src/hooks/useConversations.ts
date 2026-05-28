@@ -109,6 +109,22 @@ const MOCK_CONVERSATIONS: Conversation[] = [
     ],
   },
   {
+    id: "c8",
+    contactId: "u8",
+    contactName: "Ahmad Al-Rashid",
+    contactHandle: "9715551234",
+    channel: "phone_call",
+    lastMessage: "📞 Missed call — follow up needed",
+    lastMessageAt: mins(15),
+    unreadCount: 1,
+    status: "pending",
+    priority: "urgent",
+    tags: ["call", "follow-up"],
+    messages: [
+      { id: "m15", conversationId: "c8", direction: "inbound", content: "📞 Missed call — follow up needed", timestamp: mins(15) },
+    ],
+  },
+  {
     id: "c7",
     contactId: "u7",
     contactName: "Sofia Ramirez",
@@ -178,5 +194,14 @@ export function useGenerateReply() {
         { conversationId }
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+  });
+}
+
+export function useInitiateCall() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) =>
+      api.post<{ ok: boolean }>(`/conversations/${conversationId}/call`, {}),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
   });
 }

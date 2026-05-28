@@ -20,6 +20,8 @@ interface ConversationPaneProps {
   onGenerateReply?: (convId: string) => void;
   isGenerating?:    boolean;
   onBack?:          () => void;
+  onCall?:          (convId: string) => void;
+  isCalling?:       boolean;
 }
 
 // ── Channel badge ──────────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ function ContactAvatar({ name }: { name: string }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function ConversationPane({ conversation, onApprove, onReject, onEdit, onResolve, onGenerateReply, isGenerating, onBack }: ConversationPaneProps) {
+export function ConversationPane({ conversation, onApprove, onReject, onEdit, onResolve, onGenerateReply, isGenerating, onBack, onCall, isCalling }: ConversationPaneProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -140,6 +142,21 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
             ))}
           </div>
         </div>
+
+        {/* Call button — phone_call channel only */}
+        {conversation.channel === "phone_call" && onCall && (
+          <button
+            onClick={() => onCall(conversation.id)}
+            disabled={isCalling}
+            title={`Call ${conversation.contactHandle}`}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex-shrink-0"
+          >
+            {isCalling
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Phone className="w-4 h-4" />}
+            {isCalling ? "Calling…" : "Call"}
+          </button>
+        )}
       </div>
 
       {/* Messages */}

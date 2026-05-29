@@ -4,7 +4,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Plus, Search, MessageSquare, Copy, Check, Pencil, Trash2,
-  X, Loader2, ToggleLeft, ToggleRight,
+  X, Loader2, ToggleLeft, ToggleRight, SortAsc, Hash,
+  ChevronDown,
 } from "lucide-react";
 import {
   useTemplates,
@@ -24,7 +25,7 @@ const PLATFORMS: { key: Platform; label: string }[] = [
   { key: "whatsapp",  label: "WhatsApp" },
 ];
 
-const PLATFORM_BADGE: Record<Platform, string> = {
+const PLATFORM_BADGE: Record<string, string> = {
   instagram: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400",
   tiktok:    "bg-zinc-900 text-zinc-100 dark:bg-zinc-800 dark:text-zinc-200",
   facebook:  "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
@@ -43,29 +44,68 @@ const LANGUAGE_BADGE: Record<LanguageType, string> = {
   ar_en: "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400",
 };
 
+const CATEGORIES: { key: string; label: string }[] = [
+  { key: "greeting",  label: "Greeting"  },
+  { key: "faq",       label: "FAQ"       },
+  { key: "order",     label: "Order"     },
+  { key: "complaint", label: "Complaint" },
+  { key: "info",      label: "Info"      },
+  { key: "promo",     label: "Promo"     },
+  { key: "follow-up", label: "Follow-up" },
+];
+
+type SortKey = "newest" | "used" | "az";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "newest", label: "Newest" },
+  { key: "used",   label: "Most Used" },
+  { key: "az",     label: "A–Z" },
+];
+
+// ── Variable chip ─────────────────────────────────────────────────────────────
+
+function VariableChips({ content }: { content: string }) {
+  const vars = Array.from(content.matchAll(/\{\{(\w+)\}\}/g)).map(m => m[1]);
+  const unique = [...new Set(vars)];
+  if (unique.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {unique.map(v => (
+        <span key={v} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono">
+          {`{{${v}}}`}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── Template Dialog ───────────────────────────────────────────────────────────
 
 interface TemplateDialogProps {
   initial?: Partial<ReplyTemplate>;
-  onSave: (data: Omit<ReplyTemplate, "id" | "createdAt">) => void;
+  onSave: (data: Omit<ReplyTemplate, "id" | "createdAt" | "usedCount">) => void;
   onClose: () => void;
   saving: boolean;
 }
 
 function TemplateDialog({ initial, onSave, onClose, saving }: TemplateDialogProps) {
-  const [title, setTitle]       = useState(initial?.title ?? "");
-  const [content, setContent]   = useState(initial?.content ?? "");
+  const [title, setTitle]         = useState(initial?.title ?? "");
+  const [content, setContent]     = useState(initial?.content ?? "");
   const [platforms, setPlatforms] = useState<Platform[]>(initial?.platforms ?? ["instagram"]);
-  const [language, setLanguage] = useState<LanguageType>(initial?.language ?? "en");
-  const [active, setActive]     = useState(initial?.active ?? true);
+  const [language, setLanguage]   = useState<LanguageType>(initial?.language ?? "en");
+  const [category, setCategory]   = useState<string>(initial?.category ?? "");
+  const [active, setActive]       = useState(initial?.active ?? true);
 
   const togglePlatform = (p: Platform) =>
     setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
 
   const handleSave = () => {
     if (!title.trim() || !content.trim() || platforms.length === 0) return;
-    onSave({ title: title.trim(), content: content.trim(), platforms, language, active });
+    onSave({ title: title.trim(), content: content.trim(), platforms, language, category, active });
   };
+
+  const charLimit = platforms.includes("tiktok") ? 150 : platforms.includes("instagram") ? 2200 : 4096;
+  const over = content.length > charLimit;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -75,7 +115,6 @@ function TemplateDialog({ initial, onSave, onClose, saving }: TemplateDialogProp
         className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-foreground">
             {initial?.id ? "Edit Template" : "New Template"}
@@ -96,9 +135,25 @@ function TemplateDialog({ initial, onSave, onClose, saving }: TemplateDialogProp
           />
         </div>
 
+        {/* Category */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground block mb-2">Category</label>
+          <select
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value="">— None —</option>
+            {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </select>
+        </div>
+
         {/* Content */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground block mb-2">Content</label>
+          <label className="text-xs font-medium text-muted-foreground block mb-1">Content</label>
+          <p className="text-[10px] text-muted-foreground mb-2">
+            Use <code className="bg-muted px-1 rounded">{"{{name}}"}</code>, <code className="bg-muted px-1 rounded">{"{{handle}}"}</code> for dynamic values
+          </p>
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
@@ -106,7 +161,12 @@ function TemplateDialog({ initial, onSave, onClose, saving }: TemplateDialogProp
             placeholder="Write your reply template…"
             className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
           />
-          <p className="text-[11px] text-muted-foreground mt-1 text-right">{content.length} chars</p>
+          <div className="flex items-center justify-between mt-1">
+            <VariableChips content={content} />
+            <span className={cn("text-[11px] ml-auto", over ? "text-red-500 font-medium" : "text-muted-foreground")}>
+              {content.length}{over ? ` / ${charLimit} ⚠️` : ""}
+            </span>
+          </div>
         </div>
 
         {/* Platforms */}
@@ -135,23 +195,14 @@ function TemplateDialog({ initial, onSave, onClose, saving }: TemplateDialogProp
             onChange={e => setLanguage(e.target.value as LanguageType)}
             className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
-            {LANGUAGE_OPTIONS.map(l => (
-              <option key={l.key} value={l.key}>{l.label}</option>
-            ))}
+            {LANGUAGE_OPTIONS.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
           </select>
         </div>
 
         {/* Active toggle */}
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setActive(a => !a)}
-            className="text-muted-foreground hover:text-primary transition-colors"
-          >
-            {active
-              ? <ToggleRight className="w-7 h-7 text-primary" />
-              : <ToggleLeft className="w-7 h-7" />
-            }
+          <button type="button" onClick={() => setActive(a => !a)} className="text-muted-foreground hover:text-primary transition-colors">
+            {active ? <ToggleRight className="w-7 h-7 text-primary" /> : <ToggleLeft className="w-7 h-7" />}
           </button>
           <span className="text-sm text-foreground">Active</span>
         </div>
@@ -163,15 +214,9 @@ function TemplateDialog({ initial, onSave, onClose, saving }: TemplateDialogProp
             disabled={saving || !title.trim() || !content.trim() || platforms.length === 0}
             className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
-            {saving
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
-              : <><Check className="w-3.5 h-3.5" /> Save Template</>
-            }
+            {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</> : <><Check className="w-3.5 h-3.5" /> Save Template</>}
           </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors"
-          >
+          <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors">
             Cancel
           </button>
         </div>
@@ -189,51 +234,41 @@ export default function Templates() {
   const updateTemplate = useUpdateTemplate();
   const deleteTemplate = useDeleteTemplate();
 
-  const [search, setSearch]             = useState("");
+  const [search, setSearch]                 = useState("");
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
   const [languageFilter, setLanguageFilter] = useState<LanguageType | "all">("all");
-  const [dialogOpen, setDialogOpen]     = useState(false);
-  const [editTemplate, setEditTemplate] = useState<ReplyTemplate | null>(null);
-  const [copiedId, setCopiedId]         = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sort, setSort]                     = useState<SortKey>("newest");
+  const [showSortMenu, setShowSortMenu]     = useState(false);
+  const [dialogOpen, setDialogOpen]         = useState(false);
+  const [editTemplate, setEditTemplate]     = useState<ReplyTemplate | null>(null);
+  const [copiedId, setCopiedId]             = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // ── Derived ────────────────────────────────────────────────────────────────
+  // Derived
+  const sorted = [...templates].sort((a, b) => {
+    if (sort === "used")   return (b.usedCount ?? 0) - (a.usedCount ?? 0);
+    if (sort === "az")     return a.title.localeCompare(b.title);
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
-  const filtered = templates.filter(t => {
-    const matchSearch =
-      !search ||
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      t.content.toLowerCase().includes(search.toLowerCase());
-    const matchPlatform =
-      platformFilter === "all" || t.platforms.includes(platformFilter);
-    const matchLanguage =
-      languageFilter === "all" || t.language === languageFilter;
-    return matchSearch && matchPlatform && matchLanguage;
+  const filtered = sorted.filter(t => {
+    const matchSearch   = !search || t.title.toLowerCase().includes(search.toLowerCase()) || t.content.toLowerCase().includes(search.toLowerCase());
+    const matchPlatform = platformFilter === "all" || t.platforms.includes(platformFilter);
+    const matchLanguage = languageFilter === "all" || t.language === languageFilter;
+    const matchCategory = categoryFilter === "all" || t.category === categoryFilter;
+    return matchSearch && matchPlatform && matchLanguage && matchCategory;
   });
 
   const activeCount = templates.filter(t => t.active).length;
-  const enCount     = templates.filter(t => t.language === "en").length;
-  const arCount     = templates.filter(t => t.language === "ar").length;
-  const biCount     = templates.filter(t => t.language === "ar_en").length;
+  const totalUses   = templates.reduce((s, t) => s + (t.usedCount ?? 0), 0);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  const openNew = () => { setEditTemplate(null); setDialogOpen(true); };
+  const openEdit = (t: ReplyTemplate) => { setEditTemplate(t); setDialogOpen(true); };
 
-  const openNew = () => {
-    setEditTemplate(null);
-    setDialogOpen(true);
-  };
-
-  const openEdit = (t: ReplyTemplate) => {
-    setEditTemplate(t);
-    setDialogOpen(true);
-  };
-
-  const handleSave = (data: Omit<ReplyTemplate, "id" | "createdAt">) => {
+  const handleSave = (data: Omit<ReplyTemplate, "id" | "createdAt" | "usedCount">) => {
     if (editTemplate) {
-      updateTemplate.mutate(
-        { id: editTemplate.id, ...data },
-        { onSuccess: () => setDialogOpen(false) },
-      );
+      updateTemplate.mutate({ id: editTemplate.id, ...data }, { onSuccess: () => setDialogOpen(false) });
     } else {
       createTemplate.mutate(data, { onSuccess: () => setDialogOpen(false) });
     }
@@ -254,124 +289,101 @@ export default function Templates() {
     setDeleteConfirmId(null);
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   return (
     <AppLayout role="client" businessName={user?.businessName}>
-      <div className="space-y-6">
+      <div className="space-y-5">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-start justify-between"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Reply Templates</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Save common replies and insert them directly from the Inbox
+              Reusable replies — insert directly from the Inbox with <code className="bg-muted px-1 rounded text-xs">{"{{name}}"}</code> substitution
             </p>
           </div>
-          <button
-            onClick={openNew}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Template
+          <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors">
+            <Plus className="w-4 h-4" /> New Template
           </button>
         </motion.div>
 
-        {/* Stats chips */}
+        {/* Stats */}
         <div className="flex flex-wrap gap-2">
-          <span className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground font-medium">
-            {templates.length} total
+          <span className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground font-medium">{templates.length} total</span>
+          <span className="text-xs px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">{activeCount} active</span>
+          <span className="text-xs px-3 py-1.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-1">
+            <Hash className="w-3 h-3" />{totalUses} uses
           </span>
-          <span className="text-xs px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
-            {activeCount} active
-          </span>
-          {enCount > 0 && (
-            <span className={cn("text-xs px-3 py-1.5 rounded-full font-medium", LANGUAGE_BADGE.en)}>
-              {enCount} EN
-            </span>
-          )}
-          {arCount > 0 && (
-            <span className={cn("text-xs px-3 py-1.5 rounded-full font-medium", LANGUAGE_BADGE.ar)}>
-              {arCount} AR
-            </span>
-          )}
-          {biCount > 0 && (
-            <span className={cn("text-xs px-3 py-1.5 rounded-full font-medium", LANGUAGE_BADGE.ar_en)}>
-              {biCount} Bilingual
-            </span>
-          )}
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search templates…"
-            className="w-full h-10 pl-9 pr-3 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </div>
-
-        {/* Platform filter chips */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setPlatformFilter("all")}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-              platformFilter === "all"
-                ? "bg-primary text-white"
-                : "bg-muted text-muted-foreground hover:text-foreground",
-            )}
-          >
-            All Platforms
-          </button>
-          {PLATFORMS.map(p => (
-            <button
-              key={p.key}
-              onClick={() => setPlatformFilter(p.key)}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                platformFilter === p.key
-                  ? "bg-primary text-white"
-                  : "bg-muted text-muted-foreground hover:text-foreground",
+        {/* Unified filter bar */}
+        <div className="flex flex-col gap-2">
+          {/* Row 1: search + sort */}
+          <div className="flex gap-2">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search templates…"
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setShowSortMenu(v => !v)}
+                className="flex items-center gap-1.5 h-9 px-3 text-xs font-medium border border-border rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <SortAsc className="w-3.5 h-3.5" />
+                {SORT_OPTIONS.find(s => s.key === sort)?.label}
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {showSortMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg z-20 min-w-32 overflow-hidden">
+                  {SORT_OPTIONS.map(s => (
+                    <button
+                      key={s.key}
+                      onClick={() => { setSort(s.key); setShowSortMenu(false); }}
+                      className={cn("w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors", sort === s.key ? "text-primary font-medium" : "text-foreground")}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
               )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+            </div>
+          </div>
 
-        {/* Language filter chips */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setLanguageFilter("all")}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-              languageFilter === "all"
-                ? "bg-primary text-white"
-                : "bg-muted text-muted-foreground hover:text-foreground",
-            )}
-          >
-            All Languages
-          </button>
-          {LANGUAGE_OPTIONS.map(l => (
-            <button
-              key={l.key}
-              onClick={() => setLanguageFilter(l.key)}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                languageFilter === l.key
-                  ? "bg-primary text-white"
-                  : "bg-muted text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {l.label}
-            </button>
-          ))}
+          {/* Row 2: platform + language + category chips (one scrollable row) */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+            {/* Platform */}
+            {[{ key: "all", label: "All" }, ...PLATFORMS.map(p => ({ key: p.key, label: p.label }))].map(p => (
+              <button
+                key={p.key}
+                onClick={() => setPlatformFilter(p.key as Platform | "all")}
+                className={cn("px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0",
+                  platformFilter === p.key ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground")}
+              >{p.label}</button>
+            ))}
+            <div className="w-px bg-border mx-1 flex-shrink-0" />
+            {/* Language */}
+            {[{ key: "all", label: "All Lang" }, ...LANGUAGE_OPTIONS.map(l => ({ key: l.key, label: l.short }))].map(l => (
+              <button
+                key={l.key}
+                onClick={() => setLanguageFilter(l.key as LanguageType | "all")}
+                className={cn("px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0",
+                  languageFilter === l.key ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground")}
+              >{l.label}</button>
+            ))}
+            <div className="w-px bg-border mx-1 flex-shrink-0" />
+            {/* Category */}
+            {[{ key: "all", label: "All Types" }, ...CATEGORIES].map(c => (
+              <button
+                key={c.key}
+                onClick={() => setCategoryFilter(c.key)}
+                className={cn("px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0",
+                  categoryFilter === c.key ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground")}
+              >{c.label}</button>
+            ))}
+          </div>
         </div>
 
         {/* Content */}
@@ -382,12 +394,9 @@ export default function Templates() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground">
             <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p className="text-sm font-medium">No templates yet</p>
-            <p className="text-xs mt-1 opacity-70">Create your first reply template to get started</p>
-            <button
-              onClick={openNew}
-              className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl mx-auto hover:bg-primary/90 transition-colors"
-            >
+            <p className="text-sm font-medium">No templates found</p>
+            <p className="text-xs mt-1 opacity-70">Try adjusting filters or create a new template</p>
+            <button onClick={openNew} className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl mx-auto hover:bg-primary/90 transition-colors">
               <Plus className="w-3.5 h-3.5" /> Create Template
             </button>
           </div>
@@ -399,56 +408,35 @@ export default function Templates() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
-                className="bg-card rounded-2xl border border-border p-4 space-y-3 flex flex-col"
+                className={cn("bg-card rounded-2xl border border-border p-4 space-y-3 flex flex-col", !t.active && "opacity-60")}
               >
                 {/* Title row */}
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-foreground leading-snug">{t.title}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground leading-snug">{t.title}</p>
+                    {t.category && (
+                      <span className="text-[10px] text-muted-foreground">{CATEGORIES.find(c => c.key === t.category)?.label ?? t.category}</span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    {/* Copy button */}
                     <button
                       onClick={() => handleCopy(t)}
                       title={copiedId === t.id ? "Copied!" : "Copy content"}
-                      className={cn(
-                        "p-1.5 rounded-lg transition-colors text-muted-foreground",
-                        copiedId === t.id
-                          ? "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
-                          : "hover:bg-muted hover:text-foreground",
-                      )}
+                      className={cn("p-1.5 rounded-lg transition-colors text-muted-foreground",
+                        copiedId === t.id ? "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20" : "hover:bg-muted hover:text-foreground")}
                     >
-                      {copiedId === t.id
-                        ? <Check className="w-3.5 h-3.5" />
-                        : <Copy className="w-3.5 h-3.5" />
-                      }
+                      {copiedId === t.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
-                    {/* Edit button */}
-                    <button
-                      onClick={() => openEdit(t)}
-                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    >
+                    <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    {/* Delete button */}
                     {deleteConfirmId === t.id ? (
                       <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleDelete(t.id)}
-                          className="text-[11px] px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                        >
-                          Yes
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmId(null)}
-                          className="text-[11px] px-2 py-1 bg-muted text-muted-foreground rounded-lg hover:text-foreground transition-colors"
-                        >
-                          No
-                        </button>
+                        <button onClick={() => handleDelete(t.id)} className="text-[11px] px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">Yes</button>
+                        <button onClick={() => setDeleteConfirmId(null)} className="text-[11px] px-2 py-1 bg-muted text-muted-foreground rounded-lg hover:text-foreground transition-colors">No</button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setDeleteConfirmId(t.id)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 transition-colors"
-                      >
+                      <button onClick={() => setDeleteConfirmId(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -456,41 +444,31 @@ export default function Templates() {
                 </div>
 
                 {/* Content preview */}
-                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 flex-1">
-                  {t.content}
-                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 flex-1">{t.content}</p>
 
-                {/* Badges + active toggle */}
+                {/* Variable chips */}
+                <VariableChips content={t.content} />
+
+                {/* Badges + stats + active toggle */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  {/* Platform badges */}
                   {t.platforms.map(p => (
-                    <span
-                      key={p}
-                      className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", PLATFORM_BADGE[p])}
-                    >
+                    <span key={p} className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", PLATFORM_BADGE[p] ?? "bg-muted text-muted-foreground")}>
                       {PLATFORMS.find(pl => pl.key === p)?.label ?? p}
                     </span>
                   ))}
-                  {/* Language badge */}
                   <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", LANGUAGE_BADGE[t.language])}>
                     {LANGUAGE_OPTIONS.find(l => l.key === t.language)?.short ?? t.language}
                   </span>
-
-                  {/* Active toggle — pushed to right */}
-                  <div className="ml-auto flex items-center gap-1.5">
-                    <button
-                      onClick={() => handleToggleActive(t)}
-                      className="text-muted-foreground hover:text-primary transition-colors"
-                      title={t.active ? "Disable template" : "Enable template"}
-                    >
-                      {t.active
-                        ? <ToggleRight className="w-6 h-6 text-primary" />
-                        : <ToggleLeft className="w-6 h-6" />
-                      }
-                    </button>
-                    <span className="text-[11px] text-muted-foreground">
-                      {t.active ? "Active" : "Inactive"}
+                  {(t.usedCount ?? 0) > 0 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                      <Hash className="w-2.5 h-2.5" />{t.usedCount} uses
                     </span>
+                  )}
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <button onClick={() => handleToggleActive(t)} className="text-muted-foreground hover:text-primary transition-colors" title={t.active ? "Disable" : "Enable"}>
+                      {t.active ? <ToggleRight className="w-6 h-6 text-primary" /> : <ToggleLeft className="w-6 h-6" />}
+                    </button>
+                    <span className="text-[11px] text-muted-foreground">{t.active ? "Active" : "Inactive"}</span>
                   </div>
                 </div>
               </motion.div>
@@ -499,7 +477,6 @@ export default function Templates() {
         )}
       </div>
 
-      {/* New / Edit Dialog */}
       <AnimatePresence>
         {dialogOpen && (
           <TemplateDialog

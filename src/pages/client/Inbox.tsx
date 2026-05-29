@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ConversationList } from "@/components/inbox/ConversationList";
 import { ConversationPane } from "@/components/inbox/ConversationPane";
-import { useConversations, useReplyToConversation, useGenerateReply, useInitiateCall } from "@/hooks/useConversations";
+import { useConversations, useReplyToConversation, useGenerateReply, useInitiateCall, useInsertTemplateDraft } from "@/hooks/useConversations";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Conversation } from "@/types";
 import { Loader2 } from "lucide-react";
@@ -19,6 +19,7 @@ export default function Inbox() {
   const replyMutation    = useReplyToConversation();
   const generateMutation = useGenerateReply();
   const callMutation     = useInitiateCall();
+  const insertDraftMutation = useInsertTemplateDraft();
 
   // Local optimistic state
   const [localConvs, setLocalConvs] = useState<Conversation[] | null>(null);
@@ -76,6 +77,10 @@ export default function Inbox() {
     replyMutation.mutate({ conversationId: convId, content, action: "edit" });
   };
 
+  const handleInsertTemplate = (convId: string, text: string) => {
+    insertDraftMutation.mutate({ conversationId: convId, content: text });
+  };
+
   // On mobile: show list when nothing selected, show pane when selected
   const showList = !selectedId;
   const showPane = !!selectedId;
@@ -131,6 +136,7 @@ export default function Inbox() {
             onBack={() => setSelectedId(null)}
             onCall={convId => callMutation.mutate(convId)}
             isCalling={callMutation.isPending}
+            onInsertTemplate={handleInsertTemplate}
           />
         </div>
       </div>

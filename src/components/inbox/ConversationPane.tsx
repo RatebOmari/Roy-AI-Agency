@@ -68,9 +68,10 @@ function ContactAvatar({ name }: { name: string }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function ConversationPane({ conversation, onApprove, onReject, onEdit, onResolve, onGenerateReply, isGenerating, onBack, onCall, isCalling }: ConversationPaneProps) {
+export function ConversationPane({ conversation, onApprove, onReject, onEdit, onResolve, onGenerateReply, isGenerating, onBack, onCall, isCalling, onInsertTemplate }: ConversationPaneProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -270,6 +271,30 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
                   {isGenerating ? "Generating…" : "Generate AI Reply"}
                 </button>
               )}
+              <div className="relative">
+                <button
+                  onClick={() => setShowTemplatePicker(v => !v)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
+                    showTemplatePicker
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground border border-border hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <FileText className="w-3 h-3" />
+                  Templates
+                </button>
+                {showTemplatePicker && (
+                  <TemplatePicker
+                    conversation={conversation}
+                    onInsert={text => {
+                      onInsertTemplate?.(conversation.id, text);
+                      setShowTemplatePicker(false);
+                    }}
+                    onClose={() => setShowTemplatePicker(false)}
+                  />
+                )}
+              </div>
               <button
                 onClick={() => onResolve(conversation.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-muted hover:text-foreground transition-colors"

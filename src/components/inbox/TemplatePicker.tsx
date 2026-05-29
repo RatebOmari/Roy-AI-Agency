@@ -39,15 +39,16 @@ export function TemplatePicker({ conversation, onInsert, onClose }: TemplatePick
   // Focus search on mount
   useEffect(() => { searchRef.current?.focus(); }, []);
 
-  // Close on outside click
+  // Close on outside click — use "click" (not "mousedown") so React's onClick
+  // toggle fires first; otherwise the picker would reopen after closing.
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         onClose();
       }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
   }, [onClose]);
 
   // Derive conversation platform for filtering
@@ -82,7 +83,7 @@ export function TemplatePicker({ conversation, onInsert, onClose }: TemplatePick
   return (
     <div
       ref={panelRef}
-      className="absolute bottom-full left-0 right-0 mb-2 bg-card border border-border rounded-2xl shadow-xl z-40 max-h-80 flex flex-col overflow-hidden"
+      className="absolute bottom-full right-0 mb-2 w-80 bg-card border border-border rounded-2xl shadow-xl z-40 max-h-80 flex flex-col overflow-hidden"
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
@@ -148,7 +149,7 @@ export function TemplatePicker({ conversation, onInsert, onClose }: TemplatePick
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground line-clamp-1 leading-relaxed">
-                {t.content.replace(/\{\{name\}\}/g, conversation.contactName)}
+                {substituteVariables(t.content, conversation)}
               </p>
             </button>
           ))

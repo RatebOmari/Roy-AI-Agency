@@ -107,6 +107,17 @@ export function useUpdateTemplate() {
   return useMutation({
     mutationFn: ({ id, ...data }: Partial<ReplyTemplate> & { id: string }) =>
       api.put<ReplyTemplate>(`/templates/${id}`, data),
+    onMutate: async ({ id, ...data }) => {
+      await queryClient.cancelQueries({ queryKey: ["templates"] });
+      const prev = queryClient.getQueryData<ReplyTemplate[]>(["templates"]);
+      queryClient.setQueryData<ReplyTemplate[]>(["templates"], old =>
+        (old ?? []).map(t => t.id === id ? { ...t, ...data } : t)
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["templates"], ctx.prev);
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["templates"] }),
   });
 }

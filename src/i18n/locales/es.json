@@ -4,6 +4,14 @@
     "tagline": "Respuestas con IA para tus redes sociales",
     "poweredBy": "Desarrollado con Claude AI de Anthropic"
   },
+  "common": {
+    "all": "Todos",
+    "add": "Agregar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "save": "Guardar",
+    "saved": "¡Guardado!"
+  },
   "login": {
     "businessOwner": "Negocio",
     "agency": "Agencia",
@@ -45,9 +53,15 @@
   "comments": {
     "title": "Revisión de comentarios",
     "subtitle": "Revisa y aprueba las respuestas de la IA",
+    "pageSubtitle": "La IA responde automáticamente — aprueba cuando se necesite revisión",
     "pending": "pendiente",
-    "searchPlaceholder": "Buscar comentarios...",
+    "searchPlaceholder": "Buscar por usuario o comentario...",
     "all": "Todos",
+    "needsReview": "Necesita revisión",
+    "filterReview": "Revisión",
+    "autoSent": "Enviado auto",
+    "tryFilters": "Intenta ajustar los filtros",
+    "noComments": "No se encontraron comentarios",
     "approve": "Aprobar y enviar",
     "reject": "Rechazar",
     "save": "Guardar y enviar",
@@ -62,9 +76,205 @@
       "edited": "Editado"
     }
   },
+  "campaigns": {
+    "title": "Campañas",
+    "subtitle": "Envía mensajes masivos a tus contactos de WhatsApp",
+    "newCampaign": "Nueva campaña",
+    "editCampaign": "Editar campaña",
+    "createCampaign": "Crear campaña",
+    "send": "Enviar",
+    "demoBanner": "Conecta tu cuenta de WhatsApp Business para enviar campañas reales. Mostrando datos de demostración.",
+    "audienceLabel": "Audiencia",
+    "audienceAll": "Todos los contactos",
+    "scheduledFor": "Programado para",
+    "statuses": {
+      "draft": "Borrador",
+      "scheduled": "Programado",
+      "sending": "Enviando",
+      "sent": "Enviado",
+      "failed": "Fallido"
+    },
+    "stats": {
+      "total": "Total campañas",
+      "totalSent": "Total enviados",
+      "avgReadRate": "Tasa de lectura prom.",
+      "avgReplyRate": "Tasa de respuesta prom.",
+      "sent": "Enviado:",
+      "read": "Leído:",
+      "replies": "Respuestas:"
+    },
+    "empty": {
+      "title": "Sin campañas aún",
+      "hint": "Crea tu primera campaña para difundir a tus contactos",
+      "filtered": "Sin campañas {{status}}"
+    },
+    "confirm": {
+      "sendAll": "¿Enviar a todos los contactos?",
+      "sendTag": "¿Enviar a contactos #{{tag}}?",
+      "sendPlatform": "¿Enviar a contactos de {{platform}}?",
+      "yesSend": "Sí, enviar",
+      "yes": "Sí",
+      "no": "No"
+    },
+    "dialog": {
+      "nameLabel": "Nombre de la campaña",
+      "namePlaceholder": "Ej. Oferta especial de Ramadán",
+      "platformNote": "— única plataforma soportada actualmente",
+      "audienceLabel": "Audiencia",
+      "byTag": "Por etiqueta",
+      "byPlatform": "Por plataforma",
+      "reachAll": "contactos cálidos recibirán este mensaje",
+      "reachTag": "contactos etiquetados #{{tag}} recibirán este mensaje",
+      "reachPlatform": "contactos de {{platform}} recibirán este mensaje",
+      "reachSelect": "— selecciona un filtro para ver el alcance estimado",
+      "messageLabel": "Mensaje",
+      "messagePlaceholder": "Escribe tu mensaje de difusión…",
+      "messageBubblePlaceholder": "Tu mensaje aparecerá aquí…",
+      "charCount": "{{count}} / {{max}} caracteres",
+      "scheduleLabel": "Fecha y hora de programación",
+      "scheduleHint": "(opcional — déjalo vacío para enviar inmediatamente)",
+      "preview": "Vista previa",
+      "saveDraft": "Guardar borrador",
+      "schedule": "Programar",
+      "queue": "En cola"
+    }
+  },
+  "contacts": {
+    "title": "Contactos",
+    "total": "{{count}} en total",
+    "searchPlaceholder": "Buscar contactos…",
+    "allTags": "Todas las etiquetas",
+    "noResults": "Sin contactos encontrados",
+    "selectContact": "Selecciona un contacto",
+    "selectContactHint": "Ver perfil, editar etiquetas, agregar notas",
+    "time": {
+      "justNow": "ahora mismo",
+      "minutesAgo": "hace {{count}}m",
+      "hoursAgo": "hace {{count}}h",
+      "daysAgo": "hace {{count}}d"
+    },
+    "profile": {
+      "channels": "Canales",
+      "tags": "Etiquetas",
+      "notes": "Notas",
+      "notesPlaceholder": "Agrega notas sobre este contacto…",
+      "saveNotes": "Guardar notas",
+      "saved": "Guardado",
+      "recentActivity": "Actividad reciente",
+      "conversations_one": "{{count}} conversación",
+      "conversations_other": "{{count}} conversaciones",
+      "broadcastHint": "Difundir a todos los #{{tag}} contactos — o elige audiencia en Campañas",
+      "sendCampaign": "Enviar campaña"
+    }
+  },
+  "resources": {
+    "title": "Base de conocimiento",
+    "subtitle": "Todo lo que agregues aquí se convierte en conocimiento de la IA — cuanto más agregues, mejor responderá a los clientes.",
+    "toggle": {
+      "active": "Activo"
+    },
+    "completeness": {
+      "title": "Cobertura de conocimiento",
+      "sections": "{{configured}}/{{total}} secciones",
+      "complete": "Base de conocimiento completa",
+      "good": "Buena cobertura — sigue completando secciones",
+      "poor": "Agrega más secciones para mejorar las respuestas de IA"
+    },
+    "snapshot": {
+      "title": "Qué sabe la IA ahora mismo",
+      "empty": "Sin recursos activos aún — completa las secciones para potenciar las respuestas de IA.",
+      "activeCount_one": "{{count}} recurso activo en contexto",
+      "activeCount_other": "{{count}} recursos activos en contexto",
+      "fullPreview": "Vista completa"
+    },
+    "section": {
+      "empty": "Vacío",
+      "items_one": "{{count}} elemento",
+      "items_other": "{{count}} elementos"
+    },
+    "info": {
+      "title": "Info del negocio",
+      "description": "La IA lo usa para responder preguntas generales sobre tu negocio",
+      "fieldName": "Nombre",
+      "fieldPhone": "Teléfono",
+      "fieldEmail": "Correo",
+      "fieldAddress": "Dirección",
+      "descriptionLabel": "Descripción",
+      "descriptionPlaceholder": "Describe brevemente qué hace tu negocio, a quién sirve y qué lo hace único…"
+    },
+    "hours": {
+      "title": "Horario laboral",
+      "description": "La IA incluye estos horarios cuando clientes preguntan por disponibilidad",
+      "open": "Abierto",
+      "closed": "Cerrado"
+    },
+    "days": {
+      "monday": "Lunes",
+      "tuesday": "Martes",
+      "wednesday": "Miércoles",
+      "thursday": "Jueves",
+      "friday": "Viernes",
+      "saturday": "Sábado",
+      "sunday": "Domingo"
+    },
+    "products": {
+      "title": "Productos y servicios",
+      "description": "La IA los referencia cuando clientes preguntan qué ofreces — aplica a cualquier negocio",
+      "empty": "Sin elementos aún. Agrega tus productos, servicios o paquetes.",
+      "addItem": "Agregar elemento"
+    },
+    "offers": {
+      "title": "Ofertas y promociones",
+      "description": "La IA menciona promociones activas cuando clientes preguntan sobre descuentos",
+      "empty": "Sin ofertas aún. Agrega descuentos de temporada o paquetes.",
+      "titleLabel": "Título",
+      "detailsLabel": "Detalles",
+      "expiresLabel": "Vence",
+      "expiresOptional": "Vence (opcional)",
+      "addOffer": "Agregar oferta"
+    },
+    "table": {
+      "name": "Nombre",
+      "description": "Descripción",
+      "price": "Precio",
+      "priceOptional": "Precio (opcional)"
+    },
+    "faq": {
+      "title": "Preguntas frecuentes",
+      "description": "La IA da respuestas consistentes y precisas a las preguntas más comunes de tus clientes",
+      "empty": "Sin preguntas frecuentes aún.",
+      "questionLabel": "Pregunta",
+      "answerLabel": "Respuesta",
+      "addFaq": "Agregar pregunta"
+    },
+    "documents": {
+      "title": "Documentos",
+      "description": "Sube cualquier documento al que la IA deba referirse — listas de precios, catálogos, políticas, etc.",
+      "dropHint": "Arrastra archivos aquí o haz clic para subir",
+      "fileTypes": "PDF, DOCX, TXT — hasta 10 MB cada uno",
+      "uploading": "Subiendo…"
+    },
+    "preview": {
+      "title": "Vista previa del contexto de IA",
+      "subtitle": "Exactamente lo que lee la IA antes de generar una respuesta",
+      "activeCount_one": "{{count}} recurso activo en contexto",
+      "activeCount_other": "{{count}} recursos activos en contexto"
+    }
+  },
   "settings": {
-    "title": "Configuración de tono",
-    "subtitle": "Personaliza la personalidad de respuestas por plataforma",
+    "title": "Configuración",
+    "subtitle": "Gestiona las preferencias de tu cuenta",
+    "tabs": {
+      "aiSettings": "IA",
+      "appearance": "Apariencia",
+      "notifications": "Notificaciones"
+    },
+    "appearance": {
+      "theme": "Tema",
+      "themeHint": "El modo automático activa oscuro a las 7pm y claro a las 6am",
+      "language": "Idioma",
+      "languageHint": "Idioma de la interfaz — guardado en tu cuenta"
+    },
     "toneLabel": "Tono de respuesta",
     "languageLabel": "Idioma de respuestas",
     "blockedLabel": "Palabras bloqueadas",

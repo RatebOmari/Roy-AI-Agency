@@ -1,26 +1,35 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Zap, Mail, Lock, ArrowLeft, ArrowRight } from "lucide-react";
+import { Zap, Mail, Lock, ArrowLeft, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
+  const { login, isLoading } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"client" | "agency">("client");
+  const [error, setError] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate(role === "agency" ? "/agency/clients" : "/dashboard");
+    setError("");
+    try {
+      const user = await login(email, password, role);
+      navigate(user.role === "agency" ? "/agency/dashboard" : "/dashboard");
+    } catch {
+      setError(t("login.invalidCredentials"));
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-muted flex items-center justify-center p-4">
-      {/* Language switcher top-right */}
       <div className="fixed top-4 right-4">
         <LanguageSwitcher />
       </div>
@@ -54,6 +63,13 @@ export default function Login() {
             ))}
           </div>
 
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-xl px-3 py-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">{t("login.email")}</label>
@@ -64,6 +80,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t("login.emailPlaceholder")}
+                  required
                   dir="ltr"
                   className={`w-full py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-background ${isRtl ? "pr-10 pl-4" : "pl-10 pr-4"}`}
                 />
@@ -79,6 +96,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t("login.passwordPlaceholder")}
+                  required
                   className={`w-full py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-background ${isRtl ? "pr-10 pl-4" : "pl-10 pr-4"}`}
                 />
               </div>
@@ -86,12 +104,22 @@ export default function Login() {
 
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
             >
-              {t("login.signIn")}
-              {isRtl ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+              {isLoading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <>
+                    {t("login.signIn")}
+                    {isRtl ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+                  </>
+              }
             </button>
           </form>
+
+          <p className="text-xs text-center text-muted-foreground border-t border-border pt-3">
+            Demo — <span dir="ltr" className="font-mono">client@demo.com</span> or <span dir="ltr" className="font-mono">agency@demo.com</span> · password: <span dir="ltr" className="font-mono">demo123</span>
+          </p>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">{t("app.poweredBy")}</p>

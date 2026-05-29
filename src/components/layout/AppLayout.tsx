@@ -10,10 +10,10 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, role, businessName }: AppLayoutProps) {
   return (
-    <div className="flex min-h-screen bg-muted/30" dir="rtl">
+    <div className="flex min-h-screen bg-muted/30">
       <Sidebar role={role} businessName={businessName} />
-      <main className="flex-1 pt-16 lg:pt-0 overflow-auto">
-        <div className="p-6 lg:p-8 max-w-7xl">{children}</div>
+      <main className="flex-1 pt-14 lg:pt-0 overflow-auto">
+        <div className="p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );

@@ -51,13 +51,6 @@ const STEP_LABELS: Record<FlowStepType, string> = {
   handoff: "Handoff",
 };
 
-const STEP_EMOJI: Record<FlowStepType, string> = {
-  message: "💬",
-  quick_replies: "🔘",
-  collect_input: "📝",
-  condition: "🔀",
-  handoff: "🙋",
-};
 
 const PLATFORM_COLORS: Record<Platform, string> = {
   instagram: "bg-pink-500",

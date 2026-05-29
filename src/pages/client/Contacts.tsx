@@ -32,7 +32,7 @@ const CHANNEL_CFG: Record<string, {
   phone_call:         { label: "Call", icon: Phone,      chipClass: "bg-slate-600 text-white", dotClass: "bg-slate-600" },
 };
 
-function channelPlatform(ch: string) {
+function channelPlatform(ch: string): string {
   if (ch.includes("instagram")) return "instagram";
   if (ch.includes("tiktok"))    return "tiktok";
   if (ch.includes("facebook") || ch === "facebook_messenger") return "facebook";

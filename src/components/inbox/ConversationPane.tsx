@@ -245,7 +245,7 @@ export function ConversationPane({ conversation, onApprove, onReject, onEdit, on
         </div>
       ) : (() => {
         // Check if last message is inbound with no pending reply → show Generate button
-        const lastMsg = [...conversation.messages].reverse().find(m => true);
+        const lastMsg = [...conversation.messages].reverse().find(() => true);
         const needsReply = lastMsg?.direction === "inbound";
         return (
           <div className="border-t border-border px-4 sm:px-5 py-3 bg-card flex items-center justify-between gap-3">

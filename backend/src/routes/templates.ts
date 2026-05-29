@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { replyTemplates } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -26,6 +26,7 @@ const templateSchema = z.object({
   platforms: z.array(z.string()).min(1),
   language:  z.string(),
   active:    z.boolean().optional(),
+  category:  z.string().optional().default(""),
 });
 
 // POST / — create template
@@ -41,6 +42,7 @@ app.post("/", zValidator("json", templateSchema), async (c) => {
       platforms: body.platforms,
       language:  body.language,
       active:    body.active ?? true,
+      category:  body.category ?? "",
     })
     .returning();
   return c.json(row, 201);
@@ -60,12 +62,24 @@ app.put("/:id", zValidator("json", templateSchema.partial()), async (c) => {
       ...(body.platforms !== undefined && { platforms: body.platforms }),
       ...(body.language  !== undefined && { language:  body.language }),
       ...(body.active    !== undefined && { active:    body.active }),
+      ...(body.category  !== undefined && { category:  body.category }),
     })
     .where(and(eq(replyTemplates.id, id), eq(replyTemplates.userId, user.sub)))
     .returning();
 
   if (!row) return c.json({ message: "Not found" }, 404);
   return c.json(row);
+});
+
+// POST /:id/use — increment usage count
+app.post("/:id/use", async (c) => {
+  const user = c.get("user");
+  const id   = c.req.param("id");
+  await db
+    .update(replyTemplates)
+    .set({ usedCount: sql`${replyTemplates.usedCount} + 1` })
+    .where(and(eq(replyTemplates.id, id), eq(replyTemplates.userId, user.sub)));
+  return c.json({ ok: true });
 });
 
 // DELETE /:id — delete template (ownership check)

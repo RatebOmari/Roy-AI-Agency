@@ -205,3 +205,12 @@ export function useInitiateCall() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
   });
 }
+
+export function useInsertTemplateDraft() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) =>
+      api.post<{ messageId: string }>(`/conversations/${conversationId}/draft`, { content }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+  });
+}

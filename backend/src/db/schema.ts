@@ -145,6 +145,8 @@ export const replyTemplates = pgTable("reply_templates", {
   platforms: text("platforms").array().notNull().default(sql`'{}'::text[]`),
   language:  text("language").notNull().default("en"),
   active:    boolean("active").notNull().default(true),
+  category:  text("category").notNull().default(""),
+  usedCount: integer("used_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

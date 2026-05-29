@@ -3,25 +3,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Conversation, Message } from "@/types";
 import { MessageBubble } from "./MessageBubble";
+import { TemplatePicker } from "./TemplatePicker";
 import {
   CheckCheck, X, Edit3, Send,
   Tag, AlertTriangle, CheckCircle2,
   AtSign, Smartphone, MessageCircle, MessageSquare, Phone,
-  ArrowLeft, Sparkles, Loader2,
+  ArrowLeft, Sparkles, Loader2, FileText,
 } from "lucide-react";
 import { ConfidenceBanner } from "@/components/shared/ConfidenceBanner";
 
 interface ConversationPaneProps {
-  conversation:     Conversation | null;
-  onApprove:        (convId: string, messageId: string, content: string) => void;
-  onReject:         (convId: string, messageId: string) => void;
-  onEdit:           (convId: string, messageId: string, content: string) => void;
-  onResolve:        (convId: string) => void;
-  onGenerateReply?: (convId: string) => void;
-  isGenerating?:    boolean;
-  onBack?:          () => void;
-  onCall?:          (convId: string) => void;
-  isCalling?:       boolean;
+  conversation:       Conversation | null;
+  onApprove:          (convId: string, messageId: string, content: string) => void;
+  onReject:           (convId: string, messageId: string) => void;
+  onEdit:             (convId: string, messageId: string, content: string) => void;
+  onResolve:          (convId: string) => void;
+  onGenerateReply?:   (convId: string) => void;
+  isGenerating?:      boolean;
+  onBack?:            () => void;
+  onCall?:            (convId: string) => void;
+  isCalling?:         boolean;
+  onInsertTemplate?:  (convId: string, text: string) => void;
 }
 
 // ── Channel badge ──────────────────────────────────────────────────────────

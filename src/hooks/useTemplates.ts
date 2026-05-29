@@ -12,6 +12,8 @@ const MOCK_TEMPLATES: ReplyTemplate[] = [
     content: "To place an order, simply DM us with your order details and we'll get back to you within minutes! 🛍️",
     platforms: ["instagram", "whatsapp"] as Platform[],
     language: "en" as LanguageType,
+    category: "order",
+    usedCount: 14,
     active: true,
     createdAt: past(14),
   },
@@ -21,6 +23,8 @@ const MOCK_TEMPLATES: ReplyTemplate[] = [
     content: "We're open Mon–Fri 9am–10pm, Sat–Sun 10am–11pm. Feel free to visit us anytime! ⏰",
     platforms: ["instagram", "facebook", "whatsapp"] as Platform[],
     language: "en" as LanguageType,
+    category: "info",
+    usedCount: 9,
     active: true,
     createdAt: past(12),
   },
@@ -30,6 +34,8 @@ const MOCK_TEMPLATES: ReplyTemplate[] = [
     content: "لتقديم طلبك، أرسل لنا رسالة مباشرة مع تفاصيل طلبك وسنرد عليك في أقرب وقت! 🛍️",
     platforms: ["whatsapp"] as Platform[],
     language: "ar" as LanguageType,
+    category: "order",
+    usedCount: 6,
     active: true,
     createdAt: past(10),
   },
@@ -39,6 +45,8 @@ const MOCK_TEMPLATES: ReplyTemplate[] = [
     content: "We deliver within 5km radius, free delivery on orders over $30. Estimated 30-45 minutes. 🚗",
     platforms: ["instagram", "facebook", "whatsapp"] as Platform[],
     language: "en" as LanguageType,
+    category: "info",
+    usedCount: 11,
     active: true,
     createdAt: past(7),
   },
@@ -48,6 +56,8 @@ const MOCK_TEMPLATES: ReplyTemplate[] = [
     content: "Check out our weekend specials! Every Friday and Saturday we have exclusive deals and new items on the menu. Don't miss out! 🎉",
     platforms: ["instagram", "tiktok"] as Platform[],
     language: "en" as LanguageType,
+    category: "promo",
+    usedCount: 3,
     active: true,
     createdAt: past(3),
   },
@@ -71,7 +81,7 @@ export function useTemplates() {
 export function useCreateTemplate() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Omit<ReplyTemplate, "id" | "createdAt">) =>
+    mutationFn: (data: Omit<ReplyTemplate, "id" | "createdAt" | "usedCount">) =>
       api.post<ReplyTemplate>("/templates", data),
     onMutate: async (newTemplate) => {
       await queryClient.cancelQueries({ queryKey: ["templates"] });
@@ -80,6 +90,7 @@ export function useCreateTemplate() {
         ...newTemplate,
         id: "optimistic-" + Date.now(),
         createdAt: new Date().toISOString(),
+        usedCount: 0,
       };
       queryClient.setQueryData<ReplyTemplate[]>(["templates"], old => [optimistic, ...(old ?? [])]);
       return { prev };
@@ -108,6 +119,25 @@ export function useDeleteTemplate() {
       await queryClient.cancelQueries({ queryKey: ["templates"] });
       const prev = queryClient.getQueryData<ReplyTemplate[]>(["templates"]);
       queryClient.setQueryData<ReplyTemplate[]>(["templates"], old => (old ?? []).filter(t => t.id !== id));
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["templates"], ctx.prev);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["templates"] }),
+  });
+}
+
+export function useIncrementTemplateUse() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<{ ok: boolean }>(`/templates/${id}/use`, {}),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["templates"] });
+      const prev = queryClient.getQueryData<ReplyTemplate[]>(["templates"]);
+      queryClient.setQueryData<ReplyTemplate[]>(["templates"], old =>
+        (old ?? []).map(t => t.id === id ? { ...t, usedCount: (t.usedCount ?? 0) + 1 } : t)
+      );
       return { prev };
     },
     onError: (_err, _vars, ctx) => {

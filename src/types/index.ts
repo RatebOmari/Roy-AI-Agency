@@ -239,6 +239,8 @@ export interface ReplyTemplate {
   content: string;
   platforms: Platform[];
   language: LanguageType;
+  category: string;
+  usedCount: number;
   active: boolean;
   createdAt: string;
 }

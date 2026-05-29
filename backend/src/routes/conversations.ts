@@ -381,4 +381,39 @@ app.post("/:id/call", async (c) => {
   return c.json({ ok: result.ok });
 });
 
+// POST /:id/draft — insert template as pending draft reply
+app.post("/:id/draft", zValidator("json", z.object({ content: z.string().min(1) })), async (c) => {
+  const user   = c.get("user");
+  const convId = c.req.param("id");
+  const { content } = c.req.valid("json");
+
+  const [conv] = await db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(and(eq(conversations.id, convId), eq(conversations.userId, user.sub)))
+    .limit(1);
+  if (!conv) return c.json({ message: "Not found" }, 404);
+
+  const [msg] = await db
+    .insert(messages)
+    .values({
+      convId,
+      direction:    "outbound",
+      content,
+      aiReply:      content,
+      aiConfidence: 100,
+      replyStatus:  "pending",
+      sentBy:       "human",
+      timestamp:    new Date(),
+    })
+    .returning();
+
+  await db
+    .update(conversations)
+    .set({ lastMessageAt: new Date() })
+    .where(eq(conversations.id, convId));
+
+  return c.json({ messageId: msg.id });
+});
+
 export default app;

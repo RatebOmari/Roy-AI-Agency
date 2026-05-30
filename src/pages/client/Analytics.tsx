@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -15,6 +15,7 @@ import { useConversations } from "@/hooks/useConversations";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { useFlows } from "@/hooks/useFlows";
 import { useMentions } from "@/hooks/useListening";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -178,22 +179,26 @@ export default function Analytics() {
   const [tab, setTab] = useState<Tab>("overview");
   const [range, setRange] = useState<DateRange>("7d");
 
+  const { data: analytics }      = useAnalytics(range);
   const { data: conversations = [] } = useConversations();
   const { data: campaigns     = [] } = useCampaigns();
   const { data: flows         = [] } = useFlows();
   const { data: mentions      = [] } = useMentions();
   const { data: postMetrics   = [] } = usePostMetrics();
 
-  // ── Computed stats from real data ─────────────────────────────────────────
+  // ── Real data from analytics endpoint (falls back to mock when empty) ──────
 
-  const allMsgs = useMemo(() =>
-    conversations.flatMap(c => c.messages).filter(m => m.direction === "outbound"),
-    [conversations]);
+  const summary    = analytics?.summary;
+  const msgData    = (analytics?.msgChart?.length ?? 0) > 0
+    ? analytics!.msgChart
+    : (range === "7d" ? MSG_7D : range === "30d" ? MSG_30D : MSG_90D);
+  const totalMsgs  = summary?.totalMessages
+    ?? msgData.reduce((s, d) => s + d.autoSent + d.manual + d.escalated, 0);
 
-  const autoSentCount  = allMsgs.filter(m => m.replyStatus === "auto_sent").length;
-  const manualCount    = allMsgs.filter(m => m.replyStatus === "approved" || m.replyStatus === "edited").length;
-  const escalatedCount = allMsgs.filter(m => m.replyStatus === "escalated").length;
-  const pendingCount   = conversations.filter(c => c.status === "pending").length;
+  const autoSentCount  = summary?.totalAutoSent  ?? 6;
+  const manualCount    = summary?.totalManual    ?? 2;
+  const escalatedCount = summary?.totalEscalated ?? 1;
+  const pendingCount   = summary?.pendingConversations ?? 0;
 
   const confidencePie = [
     { name: "Auto-sent (≥85%)",  value: autoSentCount  || 6, color: "#22c55e" },
@@ -201,22 +206,16 @@ export default function Analytics() {
     { name: "Escalated (<50%)",  value: escalatedCount  || 1, color: "#ef4444" },
   ];
 
-  const sentCampaigns  = campaigns.filter(c => c.status === "sent");
-  const totalCampSent  = sentCampaigns.reduce((s, c) => s + c.sentCount, 0);
-  const totalCampRead  = sentCampaigns.reduce((s, c) => s + c.readCount, 0);
-  const totalCampReply = sentCampaigns.reduce((s, c) => s + c.replyCount, 0);
-  const readRate       = totalCampSent > 0 ? Math.round((totalCampRead  / totalCampSent)  * 100) : 0;
-  const replyRate      = totalCampSent > 0 ? Math.round((totalCampReply / totalCampSent)  * 100) : 0;
+  const campStats  = analytics?.campaigns;
+  const readRate   = campStats?.readRate  ?? 0;
+  const replyRate  = campStats?.replyRate ?? 0;
 
-  const activeFlows    = flows.filter(f => f.active).length;
-  const totalTriggers  = flows.reduce((s, f) => s + f.triggerCount, 0);
+  const activeFlows   = flows.filter(f => f.active).length;
+  const totalTriggers = flows.reduce((s, f) => s + f.triggerCount, 0);
 
-  const posMentions    = mentions.filter(m => m.sentiment === "positive").length;
-  const negMentions    = mentions.filter(m => m.sentiment === "negative").length;
-  const posRate        = mentions.length > 0 ? Math.round((posMentions / mentions.length) * 100) : 0;
-
-  const msgData = range === "7d" ? MSG_7D : range === "30d" ? MSG_30D : MSG_90D;
-  const totalMsgs = msgData.reduce((s, d) => s + d.autoSent + d.manual + d.escalated, 0);
+  const posMentions = mentions.filter(m => m.sentiment === "positive").length;
+  const negMentions = mentions.filter(m => m.sentiment === "negative").length;
+  const posRate     = mentions.length > 0 ? Math.round((posMentions / mentions.length) * 100) : 0;
 
   return (
     <AppLayout role="client" businessName={user?.businessName}>

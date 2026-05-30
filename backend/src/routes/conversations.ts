@@ -10,6 +10,7 @@ import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, makePhoneCall, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
 import { evaluateRules, ruleActionToReplyStatus } from "../lib/automationRules.js";
+import { requireNotViewer } from "../middleware/teamRole.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -100,7 +101,7 @@ const generateReplySchema = z.object({
   conversationId: z.string().uuid(),
 });
 
-app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) => {
+app.post("/generate-reply", requireNotViewer, zValidator("json", generateReplySchema), async (c) => {
   const user = c.get("user");
   const { conversationId } = c.req.valid("json");
 
@@ -320,7 +321,7 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("updateStatus"), id: z.string().uuid(), status: z.enum(["open", "pending", "resolved", "closed"]) }),
 ]);
 
-app.post("/action", zValidator("json", actionSchema), async (c) => {
+app.post("/action", requireNotViewer, zValidator("json", actionSchema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
 

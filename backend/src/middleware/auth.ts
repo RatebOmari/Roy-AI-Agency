@@ -3,12 +3,15 @@ import { createMiddleware } from "hono/factory";
 import jwt from "jsonwebtoken";
 
 export interface JwtPayload {
-  sub: string;
-  role: "client" | "agency";
-  name: string;
+  sub:          string;
+  role:         "client" | "agency";
+  name:         string;
   businessName: string;
-  iat: number;
-  exp: number;
+  // Present only for team member tokens — ownerId is the account owner's userId
+  teamRole?:    "admin" | "agent" | "viewer";
+  ownerId?:     string;
+  iat:          number;
+  exp:          number;
 }
 
 declare module "hono" {

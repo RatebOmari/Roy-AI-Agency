@@ -11,15 +11,26 @@ import { agencyClients } from "../db/schema.js";
  */
 export const clientContextMiddleware = createMiddleware(async (c, next) => {
   const user = c.get("user");
+
+  // Team member token: ownerId is the actual account owner — use it as sub so all
+  // route handlers naturally query the owner's data (scoped to what the member can see).
+  if (user?.ownerId && user.sub !== user.ownerId) {
+    c.set("user", { ...user, sub: user.ownerId as string });
+  }
+
   const clientId = c.req.header("x-client-id");
 
   if (clientId && user?.role === "agency") {
+    // Re-read user in case it was overridden above
+    const resolvedUser = c.get("user");
+    const agencyId = user.ownerId ?? user.sub;
+
     const [rel] = await db
       .select({ clientId: agencyClients.clientId })
       .from(agencyClients)
       .where(
         and(
-          eq(agencyClients.agencyId, user.sub),
+          eq(agencyClients.agencyId, agencyId),
           eq(agencyClients.clientId, clientId),
         ),
       )
@@ -28,7 +39,7 @@ export const clientContextMiddleware = createMiddleware(async (c, next) => {
     if (!rel) return c.json({ message: "Client not found or access denied" }, 403);
 
     // Override sub so all route handlers query this client's data transparently
-    c.set("user", { ...user, sub: clientId });
+    c.set("user", { ...resolvedUser, sub: clientId });
   }
 
   await next();

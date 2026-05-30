@@ -1,6 +1,6 @@
 # SocialPilot — Complete Platform Documentation
 
-> **Version:** Post Phase-2 Fixes · **Date:** May 2026  
+> **Version:** Post Phase-3 Fixes · **Date:** May 2026  
 > **Audience:** Business owners, agency managers, onboarding staff — no technical knowledge required.
 
 ---
@@ -49,12 +49,15 @@ Every time a customer contacts your business on any platform, SocialPilot catche
 | Data loading and caching | TanStack Query (keeps pages fast and up to date) |
 | The server that stores your data | Hono + Node.js (a fast web server) |
 | The database | PostgreSQL (reliable, industry-standard database) |
-| The AI that writes replies | Claude AI by Anthropic |
-| Image generation for posts | DALL-E 3 by OpenAI (with photo fallback) |
+| The AI that writes replies | Claude AI by Anthropic (claude-haiku-4-5-20251001) |
+| Image generation for posts | DALL-E 3 by OpenAI (with Unsplash stock photo fallback) |
 | WhatsApp messages | WhatsApp Business Cloud API (Meta) |
-| Phone calls | Twilio |
-| Instagram & Facebook | Meta Graph API |
-| TikTok | TikTok Open API |
+| SMS messages | Twilio Messaging API |
+| Phone calls | Twilio Voice API (with inline TwiML) |
+| Instagram & Facebook | Meta Graph API v19.0 |
+| TikTok | TikTok Open API v2 |
+| Team invite emails | Resend API (with console-log fallback) |
+| Credential security | AES-256-GCM encryption at rest |
 
 ---
 
@@ -222,7 +225,7 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 - **Call Notes field** — add or edit notes about a call after it ends
 - **Make Call button** — enter a phone number to initiate a new outbound call
 - **Link to Conversation** — each call can be linked to a Conversation in the Inbox
-- **Twilio status sync** — call status updates automatically as the call progresses
+- **Twilio status sync** — call status updates automatically via the `/api/calls/webhook/status` callback as the call progresses
 
 **Reads from:** Calls table, conversations  
 **Writes to:** Calls (notes, status), conversations (system message when call is initiated)  
@@ -242,13 +245,19 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 - **Caption editor** — write your post caption with character counter per platform
 - **Image/video upload** — attach media to the post
 - **AI Generate Caption button** — Claude AI writes a caption based on your prompt using the Knowledge Base
-- **AI Generate Image button** — DALL-E 3 creates a custom image for the post (or uses stock photos in demo)
+- **AI Generate Image button** — DALL-E 3 creates a custom image (falls back to Unsplash stock photo if `OPENAI_API_KEY` is not set)
 - **Hashtag suggestions** — AI generates 3–5 relevant hashtags automatically
 - **Schedule Date/Time picker** — choose exact date and time for publishing
 - **Platform-specific brand style** — uses your brand image style settings for AI image generation
 - **Edit / Delete draft posts** — modify or remove any post before it publishes
 - **Post Status tracking** — Draft → Scheduled → Published / Failed
 - **Performance Metrics tab** — after publishing, shows likes, comments, reach, shares per post
+
+**Publishing behavior by platform:**
+- **Instagram** — real two-step Graph API publish (media container → media_publish). Requires a publishing credential with your Instagram Business Account ID.
+- **Facebook** — real Graph API publish to your Page feed or photos endpoint. Requires a publishing credential; Page ID auto-discovered via `GET /me/accounts` if not stored.
+- **TikTok** — currently skipped; TikTok's Content Posting API requires separate business app approval from TikTok. Posts are marked published in the database but not delivered to TikTok.
+- **WhatsApp** — content posting is not applicable; use Campaigns for WhatsApp broadcasts.
 
 **Reads from:** ScheduledPosts, postMetrics, resources (for AI caption context), brandSettings (for image style)  
 **Writes to:** ScheduledPosts, postMetrics (automatically after publishing)  
@@ -276,6 +285,8 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 - **Read rate & reply rate** — percentage metrics for each campaign
 - **Edit / Delete draft campaigns** — modify before sending
 
+**Real WhatsApp delivery:** When the campaign platform is WhatsApp and contacts with WhatsApp handles exist, the system sends real messages via the WhatsApp Business API. It probes the first recipient to verify credentials; if credentials are missing, it falls back to plausible mock counts so the UI still shows results.
+
 **Reads from:** Campaigns, contacts (for audience reach calculation)  
 **Writes to:** Campaigns (creates, updates, records sent/read/reply counts)  
 **Connects to:** Contacts (audience comes from here), Inbox (campaign replies land here), Analytics
@@ -288,7 +299,7 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 
 **Features:**
 - **Contact list** — all contacts sorted by most recent activity, with names and platform handles
-- **Search bar** — find contacts by name, phone number, or email
+- **Search bar** — find contacts by name, phone number, email, or platform handle
 - **Filter by Tag** — filter the list by tags like "vip", "complaint", "regular"
 - **Filter by Platform** — show only contacts from Instagram, WhatsApp, etc.
 - **Contact profile card** — clicking a contact shows their full profile:
@@ -319,7 +330,7 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 - **Menu Items** — add each product or dish with name, description, and price
 - **Offers & Promotions** — add limited-time deals with title, description, and expiry
 - **FAQs** — add common questions with their answers (the AI learns from these)
-- **Documents** — upload PDFs or files (e.g., catering menu, allergen list)
+- **Documents** — upload PDFs or files (e.g., catering menu, allergen list). Files are saved to the server's `/uploads` folder and served at `/uploads/<filename>`. In production, consider moving to S3 or Cloudflare R2.
 - **Active/Inactive toggle** — temporarily disable any resource without deleting it
 - **Add / Edit / Delete** — full management of every resource type
 - **AI uses all active resources** — every reply and content generation call reads from here automatically
@@ -362,21 +373,21 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 - **Create Flow button** — opens the flow builder
 - **Flow name** — descriptive label for the flow
 - **Trigger type selector:**
-  - **Greeting** — activates when a customer says hello/hi/hey
+  - **Greeting** — activates when a customer says hello/hi/hey (also matches Arabic: مرحبا, أهلا, سلام, صباح, مساء)
   - **Keyword** — activates when a specific word or phrase is detected
-  - **Order** — activates on order-related messages
-  - **Inquiry** — activates on general questions
+  - **Order** — activates on order-related messages (order, buy, book, reserve + Arabic equivalents)
+  - **Inquiry** — activates on general questions (contains ? or common question words in English/Arabic)
   - **Fallback** — activates when no other flow matches
 - **Trigger value** — the keyword(s) to listen for (comma-separated)
 - **Platform** — which platform this flow runs on (WhatsApp, Instagram, etc.)
-- **Steps editor** — define the sequence of messages the bot sends
+- **Steps editor** — define the sequence of messages the bot sends. Available step types: `message`, `quick_replies`, `collect_input`, `condition`, `handoff`
 - **Active / Inactive toggle** — pause a flow without deleting it
 - **Trigger count** — how many times this flow has been activated
 - **Edit / Delete flows** — full management
-- **Multi-turn support** — flows can ask questions and wait for the customer's answer before continuing
+- **Multi-turn support** — flows can ask questions (`collect_input` step) and wait for the customer's answer. Flow progress is persisted to the `flowSessions` database table — the flow continues correctly even if the server restarts.
 
-**Reads from:** ChatbotFlows table  
-**Writes to:** ChatbotFlows (creates, updates), messages (sends automated replies during flow execution)  
+**Reads from:** ChatbotFlows table, flowSessions table  
+**Writes to:** ChatbotFlows (creates, updates), flowSessions (tracks active conversation step), messages (sends automated replies during flow execution)  
 **Connects to:** Inbox (conversation appears in inbox when flow completes or hands off), Webhooks (flow triggered by incoming message)
 
 ---
@@ -392,21 +403,25 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 - **Active / Inactive toggle** — pause monitoring of a keyword
 - **Mention count badge** — how many mentions recorded for each keyword
 - **Edit / Delete keywords** — manage your monitoring list
-- **Mentions feed** — live list of all detected mentions, newest first:
+- **Mentions feed** — list of all detected mentions, newest first:
   - Platform logo + username
   - Full mention text
   - Sentiment badge (Positive / Neutral / Negative)
   - Date and time
-  - Link to original post
+  - Link to original post (if available)
 - **Filter by status** — All Mentions / Not Handled / Handled
 - **Sentiment filter** — All / Positive / Negative / Neutral
-- **AI Generate Reply button** — one click suggests a reply to the mention
+- **AI Generate Reply button** — one click suggests a reply to the mention using Claude AI + your Knowledge Base
 - **Mark as Handled button** — marks a mention as resolved (persisted to database)
 - **Unmark Handled** — undo the handled mark
 - **Handled count badge** — summary of how many mentions have been addressed
 
+**How mentions are detected:**
+- **Real-time (primary):** Every inbound message received via any platform webhook is automatically scanned against your active keywords. If the message text contains a keyword, a mention record is created immediately with basic sentiment detection (positive/negative/neutral via keyword regex).
+- **Demo seed (fallback):** If no mentions exist yet, 10 realistic sample mentions are seeded to the database on first page load so the feed is never empty. These are replaced by real detections as traffic arrives.
+
 **Reads from:** ListeningKeywords, listeningMentions  
-**Writes to:** ListeningKeywords (create/edit), listeningMentions (handled status)  
+**Writes to:** ListeningKeywords (create/edit), listeningMentions (real-time inserts from webhooks + handled status)  
 **Connects to:** Knowledge Base (AI reply uses your business info), Analytics
 
 ---
@@ -425,14 +440,14 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
   - Total Escalated count
   - Pending Conversations
   - Resolved Conversations
-  - Bar chart — day-by-day breakdown of Auto-sent / Manual / Escalated
+  - Bar chart — day-by-day (7d), week-by-week (30d), or month-by-month (90d) breakdown of Auto-sent / Manual / Escalated
 - **Inbox tab:**
-  - Reply volume chart by day
-  - Channel breakdown — which platforms are most active
+  - Reply volume chart by time period
+  - Channel breakdown — which platforms are most active (WhatsApp, Instagram DM, Facebook Messenger, TikTok, SMS, etc.)
   - Escalation trend
 - **Content tab:**
   - Published posts count
-  - Engagement metrics (likes, comments, reach, shares)
+  - Engagement metrics (likes, comments, reach, shares) — simulated based on platform averages
   - Best-performing post
 - **Listening tab:**
   - Mentions detected
@@ -460,8 +475,9 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 - **Status badges** — "Invited" (sent but not logged in), "Active" (logged in), "Disabled"
 - **Edit Member** — change name, email, or role
 - **Delete Member** — remove access permanently
-- **Team login system** — members log in using their unique member ID (invite link)
-- **Role enforcement** — the platform automatically restricts what each role can do
+- **Invite email** — when a new member is added, SocialPilot automatically emails them via Resend with their member UUID and a login link. If `RESEND_API_KEY` is not set, invite details are printed to the server console so you can share them manually.
+- **Team login** — members log in at `/login` using their unique member UUID (sent in the invite email)
+- **Role enforcement** — the platform automatically restricts what each role can do on every backend route
 
 **Reads from:** TeamMembers table  
 **Writes to:** TeamMembers (creates, updates, deletes)  
@@ -509,9 +525,12 @@ Settings are organized into **5 tabs**, one per platform:
 - **Active / Inactive toggle** — disable a rule without deleting it
 - **Edit / Delete rules**
 
-**How rules override AI confidence:**
-- A "Contains Word: refund" + "Action: Escalate" rule ensures any message with "refund" is always escalated to a human, regardless of AI confidence
-- A "Is a Question" + "Action: Auto-Send" rule sends all question replies automatically if the AI generates any reply at all
+**How rules work:**
+- Rules run **after** the AI generates a reply and override the confidence tier
+- Rules are evaluated in creation order — the first matching rule wins
+- Sentiment detection uses keyword matching (a built-in set of positive/negative words in English and Arabic)
+- The `New Follower` trigger never matches text-based messages (it is reserved for future event-based webhooks)
+- `Auto-Send` and `Skip Review` both result in the reply being sent immediately (treated identically)
 
 **Reads from:** AutomationRules table  
 **Writes to:** AutomationRules (creates, updates, deletes), messages (replyStatus is overridden)  
@@ -550,8 +569,8 @@ Settings are organized into **5 tabs**, one per platform:
 - **Add Client button** — create a new client account
 - **Client status management** — Activate, Pause, or put in Setup mode
 - **Platform permissions panel** — for each client, toggle which platforms and features are enabled (Comments, Messages per platform)
-- **Platform credentials panel** — input or revoke API access tokens for each client's platforms
-- **Switch to Client** — impersonate a client to manage their account directly (uses x-client-id internally)
+- **Platform credentials panel** — input or revoke API access tokens for each client's platforms. For Instagram and Facebook publishing, also provide the Account ID (Instagram Business Account ID or Facebook Page ID).
+- **Switch to Client** — impersonate a client to manage their account directly (uses `x-client-id` header internally)
 - **View per-client analytics**
 
 **Reads from:** AgencyClients, users (client records), platformCredentials, platformPermissions  
@@ -607,7 +626,7 @@ The AI reads every active entry in your Knowledge Base:
 - Every menu item or product with its name, description, and price
 - All current offers and promotions
 - All FAQs
-- Your most-used reply templates for that platform
+- Up to 8 of your most-used reply templates for that platform (truncated to 200 characters each as examples)
 
 **Step 3 — Read Your Settings**  
 The AI reads your tone setting for that platform (Friendly / Professional / Fun / Informative), your preferred language (Arabic / English / Mixed), your blocked words list, and any custom instructions you've written.
@@ -623,12 +642,16 @@ The system builds a detailed instruction for Claude AI that includes:
 - Custom instructions
 
 **Step 5 — Ask Claude AI**  
-The complete conversation history and system instructions are sent to Claude AI (claude-haiku-4-5-20251001). Claude AI returns a JSON response with two things:
-1. `reply` — the suggested reply text
-2. `confidence` — a number from 0 to 100 representing how confident the AI is in the reply
+The complete conversation history and system instructions are sent to Claude AI (`claude-haiku-4-5-20251001`). The AI is instructed to return **only valid JSON** with two fields:
+
+```json
+{ "reply": "your reply text here", "confidence": 88 }
+```
+
+If the JSON cannot be parsed, the system falls back to treating the full response as the reply text with a default confidence of 55 (placing it in Pending Review).
 
 **Step 6 — Apply the 3-Tier Routing System**  
-The confidence score determines what happens next.
+The confidence score determines what happens next. Automation Rules are then checked and can override the tier.
 
 ---
 
@@ -671,7 +694,7 @@ Sometimes you want different routing regardless of the AI's confidence. Automati
 **Example 3:** Any message with negative sentiment should be assigned to your complaints handler.  
 → Create a rule: Trigger = "Negative Sentiment" / Action = "Assign To: Sarah"
 
-Rules are checked after the AI generates a reply and override the confidence tier. The AI still writes the reply — the rule only changes what happens to it.
+Rules are checked **after** the AI generates a reply and override the confidence tier. The AI still writes the reply — the rule only changes what happens to it. Rules run in creation order; the first match wins.
 
 ---
 
@@ -680,10 +703,11 @@ Rules are checked after the AI generates a reply and override the confidence tie
 Chatbot Flows are a completely different path from AI replies. When a customer's message matches a Flow trigger, the system runs the scripted Flow instead of calling Claude AI.
 
 **Example:** A customer sends "hi" on WhatsApp. You have a Greeting Flow that:
-1. Sends: "Welcome to Raleigh Eats! 👋 How can I help you today?"
-2. Sends: "Reply with: 1 for Menu · 2 for Hours · 3 for Order Status"
-3. Waits for the customer's reply
-4. Based on their answer, continues the next step of the flow
+1. Sends: "Welcome to Raleigh Eats! 👋 How can we help you today? Reply with: 1 for Menu · 2 for Hours · 3 for Delivery"
+2. Waits for the customer's reply (tracked in the database via `flowSessions`)
+3. Based on their answer, continues the next step of the flow
+
+The customer's current position in the flow is saved to the `flowSessions` database table. This means even if the server restarts, the flow resumes correctly from where it left off.
 
 This is useful for standard, predictable interactions where you want speed and consistency over intelligence.
 
@@ -710,19 +734,21 @@ The difference between a useful AI reply and a generic one comes down to what is
 ### Workflow 1 — Inbound Direct Message (Full Journey)
 
 1. **Customer sends DM** — A customer sends "Do you deliver to downtown?" on WhatsApp.
-2. **Webhook receives it** — WhatsApp Business API sends the message to SocialPilot's webhook endpoint (`/webhook/whatsapp`).
-3. **Contact sync** — The system checks if this phone number already exists in Contacts. If not, it creates a new contact record automatically. If yes, it updates their "last seen" date.
-4. **Conversation check** — The system finds or creates the conversation thread for this customer.
-5. **Flow check** — The system scans all active Flows to see if the message triggers any keyword. If "deliver" is a Flow keyword, the Flow runs and skips steps 6–11.
-6. **Message stored** — The inbound message is saved to the messages table with direction = "inbound".
-7. **AI reply generated** — The system calls Claude AI with the full conversation history, knowledge base, tone settings, and any custom instructions.
-8. **Confidence scored** — Claude returns a reply and a confidence score (e.g., 88%).
-9. **Automation rules checked** — The system evaluates all active automation rules for matches.
-10. **Tier routing applied** — 88% confidence = Tier 1 = `auto_sent` (or overridden by a rule if one matches).
-11. **Reply delivered** — The system calls the WhatsApp Business API and sends the reply to the customer.
-12. **Conversation updated** — The conversation's `lastMessage` and `lastMessageAt` are updated. Unread count resets.
-13. **Analytics updated** — The message is recorded as "auto_sent" and included in today's analytics bucket.
-14. **Staff sees it** — In the Inbox, the conversation shows the auto-sent reply with a green "Auto-sent" badge.
+2. **Webhook receives it** — WhatsApp Business API sends the message to SocialPilot's webhook endpoint (`/webhook/whatsapp/:userId`).
+3. **Signature verified** — HMAC-SHA256 signature checked against `META_APP_SECRET`. Invalid signatures are rejected with 401.
+4. **Contact sync** — The system checks if this phone number already exists in Contacts. If not, it creates a new contact record automatically. If yes, it increments their conversation count.
+5. **Keyword scan** — The message text is compared against all active listening keywords (fire-and-forget). Any matches are inserted into `listeningMentions` immediately.
+6. **Conversation check** — The system finds or creates the conversation thread for this customer.
+7. **Flow check** — The system checks `flowSessions` (active mid-flow) and all active flow triggers. If the message triggers a flow, the flow runs and the AI is skipped.
+8. **Message stored** — The inbound message is saved to the messages table with direction = "inbound".
+9. **AI reply generated** — (Triggered manually by staff) The system calls Claude AI with the full conversation history, knowledge base, tone settings, and custom instructions.
+10. **Confidence scored** — Claude returns `{ reply, confidence }` as JSON (e.g., 88%).
+11. **Automation rules checked** — All active rules evaluated in order; first match overrides the tier.
+12. **Tier routing applied** — 88% confidence = Tier 1 = `auto_sent` (or overridden by rule).
+13. **Reply delivered** — The system calls the WhatsApp Business API and sends the reply.
+14. **Conversation updated** — `lastMessage`, `lastMessageAt` updated. Unread count resets.
+15. **Analytics updated** — Message counted as "auto_sent" in today's bucket.
+16. **Staff sees it** — Inbox shows the conversation with a green "Auto-sent" badge.
 
 ---
 
@@ -743,32 +769,34 @@ The difference between a useful AI reply and a generic one comes down to what is
 
 1. **Customer sends "Hello" on WhatsApp.**
 2. **Webhook receives it** — message arrives at SocialPilot.
-3. **Flow check** — The system checks all active Flows. A "Greeting" flow is active for WhatsApp with trigger value "hello|hi|hey".
-4. **Flow matched** — The Greeting flow activates.
+3. **Flow check** — No active `flowSessions` for this conversation. System checks all active flows. A "Greeting" flow is active for WhatsApp (trigger type: `greeting`, matches: hi/hello/hey + Arabic equivalents).
+4. **Flow matched** — The Greeting flow activates. `triggerCount` incremented in DB.
 5. **Step 1 executes** — Bot sends: "Welcome to Raleigh Eats! 👋 How can we help you today? Reply with: 1 for Menu · 2 for Hours · 3 for Delivery"
-6. **Customer replies "2"** — Message arrives back at the webhook.
-7. **Active flow detected** — The system recognizes this conversation has an active flow in progress.
-8. **Step 2 executes** — Bot sends: "We're open Monday–Saturday 10 AM to 9 PM and Sunday 12 PM to 7 PM. 🕙"
-9. **Flow completes** — The active flow state is cleared.
-10. **Conversation appears in Inbox** — Staff can see the full exchange and follow up if needed.
-11. **Trigger count incremented** — The flow's trigger count goes up by 1.
+6. **Flow state saved to DB** — A `flowSessions` record is created storing: conversation ID, flow ID, step index 1, empty collected values. Server can restart without losing this state.
+7. **Customer replies "2"** — Message arrives back at the webhook.
+8. **Active flow detected** — Webhook queries `flowSessions` — finds this conversation at step 1 of the Greeting flow.
+9. **Step 2 executes** — Bot sends: "We're open Monday–Saturday 10 AM to 9 PM and Sunday 12 PM to 7 PM. 🕙"
+10. **Flow completes** — The `flowSessions` record is deleted. Conversation status set to "open".
+11. **Conversation appears in Inbox** — Staff can see the full exchange and follow up if needed.
 
 ---
 
 ### Workflow 4 — Content Publishing
 
 1. **Staff opens Content Scheduler** — Clicks "Create Post."
-2. **Selects platforms** — Checks Instagram and TikTok.
+2. **Selects platforms** — Checks Instagram and Facebook.
 3. **Enters prompt** — "Summer promotion for our new seasonal dishes — fresh and exciting."
-4. **Clicks Generate Caption** — Claude AI reads the Knowledge Base (business info, current offers) and generates: "✨ Summer just got tastier! Introducing our new seasonal menu — crafted fresh every day. Come taste the difference! 🌿" with hashtags: seasonal, summervibes, freshfood.
-5. **Staff clicks Generate Image** — DALL-E 3 generates a vibrant food photography image based on the brand style guide.
+4. **Clicks Generate Caption** — Claude AI reads the Knowledge Base and generates a caption + hashtags.
+5. **Staff clicks Generate Image** — DALL-E 3 generates an image based on the brand style guide (Unsplash fallback if no OpenAI key).
 6. **Staff schedules it** — Sets date and time for next Tuesday at 11 AM.
 7. **Post saved** — Status = "Scheduled."
-8. **Scheduler runs** — At 11 AM Tuesday, the background scheduler wakes up, finds the post, and calls the Instagram and TikTok APIs to publish it.
-9. **publishedAt recorded** — The post's `publishedAt` timestamp is saved.
-10. **Initial metrics captured** — The system records initial engagement metrics (simulated based on platform averages in demo; real metrics from API in production).
-11. **Post visible in Analytics** — Content tab shows the post's performance.
-12. **Metrics refreshed** — Every 6 hours, the system refreshes metrics for all posts published in the last 7 days.
+8. **Scheduler checks every 60 seconds** — At 11 AM Tuesday, finds the post due.
+9. **Instagram published** — Two-step: `POST /{ig-user-id}/media` (create container) → `POST /{ig-user-id}/media_publish`. Instagram Business Account ID looked up from stored credential or via `GET /me?fields=instagram_business_account`.
+10. **Facebook published** — `GET /me/accounts` discovers Page token and Page ID → `POST /{page-id}/feed` (text) or `POST /{page-id}/photos` (image).
+11. **TikTok skipped** — Logged: "tiktok_content_api_requires_business_approval". Post marked published in DB.
+12. **`publishedAt` recorded** — Post status updated to "published".
+13. **Initial metrics captured** — Simulated engagement metrics recorded for each platform.
+14. **Metrics refreshed every 6 hours** — For all posts published in the last 7 days.
 
 ---
 
@@ -777,68 +805,65 @@ The difference between a useful AI reply and a generic one comes down to what is
 1. **Staff opens Campaigns** — Clicks "Create Campaign."
 2. **Writes the message** — "🌙 Ramadan Kareem! We're offering 20% off all orders this week. Use code RAMADAN20. Valid until Friday."
 3. **Selects audience** — Chooses "By Tag" → selects "vip" tag.
-4. **Live reach preview** — The platform shows "Estimated reach: 120 contacts" based on the actual contact database.
-5. **Schedules it** — Sets date for Monday 9 AM.
-6. **Staff clicks Save** — Campaign saved as "Scheduled."
-7. **Campaign dispatches Monday 9 AM** — System looks up all contacts tagged "vip" with WhatsApp handles, sends the message to each via the WhatsApp Business API.
-8. **sentCount recorded** — Campaign shows "120 Sent."
-9. **Replies arrive** — Customers who reply to the campaign message trigger new webhook events, creating new conversation threads in the Inbox.
-10. **Results visible** — Campaign card shows Sent: 120 · Read: 76 · Replies: 14 · Read Rate: 63%.
-11. **Analytics updated** — Campaign data feeds into the Campaigns analytics tab.
+4. **Live reach preview** — Shows "Estimated reach: 120 contacts" from actual contact database.
+5. **Staff clicks Save** — Campaign saved as "Scheduled."
+6. **Campaign dispatches** — System looks up all contacts tagged "vip" with WhatsApp handles. Probes first recipient to verify `WHATSAPP_PHONE_NUMBER_ID` + credentials exist. Sends to each via WhatsApp Business API.
+7. **sentCount recorded** — Campaign shows "120 Sent."
+8. **Replies arrive** — Customer replies create new webhook events → new conversation threads in the Inbox.
+9. **Results visible** — Campaign card shows Sent: 120 · Read: 76 · Replies: 14 · Read Rate: 63%.
+10. **Analytics updated** — Campaign data feeds into the Campaigns analytics tab.
 
 ---
 
 ### Workflow 6 — Brand Mention (Listening)
 
-1. **Keyword is set up** — Staff added "Raleigh Eats" as a monitored keyword on Instagram and TikTok.
-2. **Mention detected** — A user posts on Instagram: "Just tried Raleigh Eats for the first time — absolutely insane food, 10/10!"
-3. **Mention stored in database** — Added to `listeningMentions` with sentiment = "positive."
-4. **Staff opens Listening page** — Sees the mention appear in the feed with a green "Positive" badge.
-5. **Staff clicks Generate Reply** — Claude AI reads the mention and the Knowledge Base and suggests: "Thank you so much! 😍 We're thrilled you loved it — can't wait to see you again soon! ❤️"
-6. **Staff reviews and approves** — Clicks Approve.
-7. **Reply sent** — Posted as a comment reply on Instagram.
-8. **Staff marks as handled** — Clicks "Mark Handled." The mention now shows a grey checkmark.
-9. **Handled count updates** — The handled counter on the Listening page increments.
+1. **Keyword is set up** — Staff added "Raleigh Eats" as a monitored keyword.
+2. **Customer DM arrives via webhook** — Contains "Just tried Raleigh Eats — absolutely insane food, 10/10!"
+3. **Automatic scan** — Webhook handler calls `scanForMentions()`. Text matches "Raleigh Eats". Sentiment regex detects "insane food" near positive patterns → `positive`.
+4. **Mention inserted** — A `listeningMentions` row is created with the real username, platform, content, and sentiment.
+5. **Staff opens Listening page** — Sees the mention with a green "Positive" badge and the real customer username.
+6. **Staff clicks Generate Reply** — Claude AI reads the mention + Knowledge Base and suggests: "Thank you so much! 😍 We're thrilled you loved it — can't wait to see you again soon! ❤️"
+7. **Staff approves and sends reply.**
+8. **Staff marks as handled** — Clicks "Mark Handled." Handled count increments.
 
 ---
 
 ### Workflow 7 — Agency Onboarding a New Client
 
-1. **Agency signs in** — Agency Admin logs into their SocialPilot account at `/agency/dashboard`.
-2. **Creates client account** — Goes to Agency Clients → Add Client → enters client name, owner name, and email.
-3. **Assigns platform permissions** — Enables "Instagram: Comments ✅ Messages ✅" and "WhatsApp: Messages ✅" for this client.
-4. **Enters platform credentials** — Pastes the client's Instagram Graph API token and WhatsApp Business token into the credentials panel.
-5. **Client logs into their own account** — The business owner uses their own credentials to log in to SocialPilot.
-6. **Client fills Knowledge Base** — Goes to Resources and adds their business info, opening hours, menu items, and FAQs.
-7. **Client configures tone** — Goes to Settings and sets tone to "Friendly" in Arabic for WhatsApp, and "Fun" in English for Instagram.
-8. **Client creates Flows** — Sets up a Greeting flow on WhatsApp.
-9. **Client creates Automation Rules** — Sets "Contains Word: refund" → "Escalate."
-10. **Agency switches into client view** — Uses the "Switch to Client" feature with `x-client-id` header to verify everything looks correct from the client's perspective.
-11. **Client goes live** — From this point, all incoming messages and comments are handled automatically by the AI with human review for medium and low confidence replies.
+1. **Agency signs in** at `/agency/dashboard`.
+2. **Creates client account** — Agency Clients → Add Client.
+3. **Assigns platform permissions** — Enables Instagram: Comments ✅ Messages ✅, WhatsApp: Messages ✅.
+4. **Enters platform credentials** — For Instagram: access token (feature = "comments"), publishing token + Instagram Business Account ID (feature = "publishing"). For WhatsApp: access token (feature = "messages"). All tokens encrypted with AES-256-GCM before storage.
+5. **Client logs in** — Uses their own credentials.
+6. **Client fills Knowledge Base** — Business info, hours, menu items, FAQs.
+7. **Client configures tone** — Friendly/Arabic for WhatsApp, Fun/English for Instagram.
+8. **Client creates Flows** — Greeting flow on WhatsApp.
+9. **Client creates Automation Rules** — "Contains Word: refund" → "Escalate."
+10. **Agency switches to client view** — Verifies everything via `x-client-id` header.
+11. **Client goes live** — All incoming messages handled by AI.
 
 ---
 
 ### Workflow 8 — New Contact Created Automatically
 
 1. **New customer sends first-ever WhatsApp message** — "Is your terrace open tonight?"
-2. **Webhook receives the message** — `contactId` = "+19195551234", `contactName` = "Leila Hassan".
-3. **Contact sync runs** — The system calls `syncContact()` with the customer's WhatsApp number and name.
-4. **No existing match found** — The system searches for a contact with a matching WhatsApp handle. None found.
-5. **New contact created** — A new contact is created in the database:
+2. **Webhook receives** — `contactId` = "+19195551234", `contactName` = "Leila Hassan".
+3. **`syncContact()` runs** — Searches for matching WhatsApp handle. None found.
+4. **New contact created:**
    - Name: "Leila Hassan"
    - Handles: `[{ channel: "whatsapp_business", username: "+19195551234" }]`
    - TotalConversations: 1
    - LastSeenAt: now
-6. **Conversation created** — The system creates or finds the conversation thread.
-7. **Reply generated and sent** — AI answers the question about the terrace.
-8. **Contact available in CRM** — Staff can open the Contacts page, find Leila Hassan, add her tags (e.g., "regular"), add her email, and include her in future campaigns.
-9. **Next message she sends** — System finds her existing contact, increments `totalConversations`, and updates `lastSeenAt`. Her full history is visible in her contact profile.
+5. **Conversation created** — Thread found or created.
+6. **AI replies** — Answers the terrace question.
+7. **Contact in CRM** — Staff can find Leila Hassan in Contacts, add tags (e.g., "regular"), add email, include in future campaigns.
+8. **Next message** — System finds existing contact, increments `totalConversations`, updates `lastSeenAt`.
 
 ---
 
 ## 6. Data Architecture (in Plain Language)
 
-Each piece of information SocialPilot stores lives in a "table" inside the database. Think of each table as a spreadsheet with columns.
+Each piece of information SocialPilot stores lives in a "table" inside the database. Think of each table as a spreadsheet with columns. There are **21 tables** in total.
 
 ---
 
@@ -860,15 +885,20 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `platformCredentials` — API Access Tokens
 **What it stores:** The secret access tokens that allow SocialPilot to post on behalf of each business on each platform.  
-**Key columns:** User ID, platform (instagram/tiktok/etc.), feature (comments/messages), token (encrypted), expiry.  
+**Key columns:** User ID, platform (instagram/tiktok/facebook/whatsapp/sms/phone), **feature** (comments / messages / publishing), token (AES-256-GCM encrypted), scope (JSON — stores accountId for publishing credentials), expiry.  
+**Feature values explained:**
+- `comments` — for replying to public comments
+- `messages` — for sending DMs and WhatsApp messages
+- `publishing` — for posting new content to Instagram or Facebook (also stores the Page ID or Instagram Business Account ID in the `scope` JSON field)
+
 **Connected to:** Users.  
-**Features that depend on it:** All platform delivery (sending replies, posting content). If a token is missing or expired, replies cannot be delivered.
+**Features that depend on it:** All platform delivery. If a token is missing or expired, replies/posts cannot be delivered — they are skipped gracefully.
 
 ---
 
 ### `toneSettings` — AI Personality Per Platform
 **What it stores:** How the AI should behave on each platform for each user.  
-**Key columns:** User ID, platform, tone (friendly/professional/fun/informative), language (ar/en/ar_en), blocked words, custom instructions.  
+**Key columns:** User ID, platform, tone (friendly/professional/fun/informative), language (ar/en/ar_en), blocked words, custom instructions (extra).  
 **Connected to:** Users.  
 **Features that depend on it:** Every AI reply generation call reads this before building the Claude prompt.
 
@@ -876,7 +906,7 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `conversations` — DM & Comment Threads
 **What it stores:** Each unique conversation thread between a business and a customer.  
-**Key columns:** User ID, contact ID (platform user ID), contact name, contact handle, channel, last message, last message date, status, priority, assigned team member, tags.  
+**Key columns:** User ID, contact ID (platform user ID), contact name, contact handle, channel, last message, last message date, status (open/pending/resolved/closed), priority (urgent/normal/low), assigned team member, tags.  
 **Connected to:** Users, messages (one conversation has many messages).  
 **Features that depend on it:** Inbox, analytics, contact sync.
 
@@ -884,15 +914,15 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `messages` — Individual Messages
 **What it stores:** Every single message sent or received in every conversation.  
-**Key columns:** Conversation ID, direction (inbound/outbound), content, AI reply, AI confidence score, reply status, sent by (ai/human), timestamp.  
+**Key columns:** Conversation ID, direction (inbound/outbound), content, AI reply, AI confidence score (0–100 integer), reply status (pending/approved/rejected/edited/auto_sent/escalated), sent by (ai/human), timestamp.  
 **Connected to:** Conversations.  
-**Features that depend on it:** Inbox message display, AI reply generation, analytics (counts auto_sent/manual/escalated).
+**Features that depend on it:** Inbox message display, AI reply generation, analytics.
 
 ---
 
 ### `comments` — Public Social Comments
 **What it stores:** Public comments on TikTok/Instagram/Facebook posts.  
-**Key columns:** User ID, platform, username, comment text, AI reply, confidence, status, platform comment ID, video ID (for TikTok), timestamp.  
+**Key columns:** User ID, platform, username, comment text, AI reply, confidence, status, platform comment ID, video ID (TikTok only), timestamp.  
 **Connected to:** Users.  
 **Features that depend on it:** Comments page, AI reply for comments, platform delivery.
 
@@ -902,7 +932,7 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 **What it stores:** All the business information the AI uses to generate accurate replies.  
 **Key columns:** User ID, type (info/hours/menu_item/offer/faq/document), title, content (JSON), file URL, active flag.  
 **Connected to:** Users.  
-**Features that depend on it:** EVERY AI reply generation call, content generation, template generation, listening reply generation.
+**Features that depend on it:** Every AI reply generation call, content generation, template generation, listening reply generation.
 
 ---
 
@@ -910,7 +940,7 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 **What it stores:** Pre-written reply templates that staff can reuse.  
 **Key columns:** User ID, title, content (with `{{name}}` variables), platforms, language, category, usage count, active flag.  
 **Connected to:** Users.  
-**Features that depend on it:** Templates page, Inbox (quick insert), AI template generation, knowledge context (templates feed into AI prompts).
+**Features that depend on it:** Templates page, Inbox (quick insert), AI template generation, knowledge context (up to 8 templates feed into AI prompts, previewed at 200 characters each).
 
 ---
 
@@ -925,6 +955,7 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 ### `postMetrics` — Post Performance Data
 **What it stores:** Engagement statistics for each published post.  
 **Key columns:** Post ID, likes, comments, reach, shares, recorded date.  
+**Note:** Currently simulated using realistic platform-specific formulas (Instagram: 500–2000 reach, TikTok: 1000–8000 reach, Facebook: 300–1200 reach, WhatsApp: 50–300 reach). Growth simulated for first 24 hours then plateaus.  
 **Connected to:** ScheduledPosts.  
 **Features that depend on it:** Content Scheduler metrics tab, Analytics.
 
@@ -932,7 +963,7 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `campaigns` — Broadcast Messages
 **What it stores:** WhatsApp bulk campaigns.  
-**Key columns:** User ID, name, message, media URL, platform, audience type, audience value, scheduled date, status, sent count, read count, reply count.  
+**Key columns:** User ID, name, message, media URL, platform, audience type (all/tag/platform), audience value, scheduled date, status, sent count, read count, reply count.  
 **Connected to:** Users.  
 **Features that depend on it:** Campaigns page, Analytics campaigns tab.
 
@@ -940,15 +971,24 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `chatbotFlows` — Automated Conversation Scripts
 **What it stores:** Keyword-triggered conversation flows.  
-**Key columns:** User ID, name, trigger type, trigger value (keywords), platform, steps (JSON array), active flag, trigger count.  
-**Connected to:** Users.  
-**Features that depend on it:** Flows page, webhook (checks for flow triggers on every inbound message).
+**Key columns:** User ID, name, trigger type (greeting/keyword/order/inquiry/fallback), trigger value (keywords), platform, steps (JSON array of step objects), active flag, trigger count.  
+**Connected to:** Users, flowSessions.  
+**Features that depend on it:** Flows page, webhook trigger matching.
+
+---
+
+### `flowSessions` — Active Chatbot Flow State
+**What it stores:** The current position of a customer mid-way through a multi-turn chatbot flow.  
+**Key columns:** Conversation ID (unique — one active flow per conversation at a time), flow ID, user ID, channel, recipient handle, current step index, collected values (JSON), updated timestamp.  
+**Connected to:** Conversations, chatbotFlows, users.  
+**Why it exists:** Replaces the previous in-memory Map that was lost on server restart. Every `collect_input` step saves progress here; flow completion or handoff deletes the record.  
+**Features that depend on it:** Multi-turn chatbot execution in the webhook handler.
 
 ---
 
 ### `automationRules` — Reply Routing Rules
 **What it stores:** Rules that override AI confidence routing.  
-**Key columns:** User ID, name, trigger type, trigger value, action, action value, channels (JSON array), active flag.  
+**Key columns:** User ID, name, trigger type (contains_word/is_question/sentiment_positive/sentiment_negative/new_follower), trigger value, action (auto_send/skip_review/escalate/assign_to), action value, channels (JSON array — empty = all channels), active flag.  
 **Connected to:** Users.  
 **Features that depend on it:** Every AI reply generation (rules evaluated after confidence scoring).
 
@@ -956,7 +996,7 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `contacts` — Customer CRM
 **What it stores:** Every customer who has ever contacted the business.  
-**Key columns:** User ID, name, phone, email, handles (JSON: channel + username pairs), tags (JSON array), notes, total conversations count, last seen date.  
+**Key columns:** User ID, name, phone, email, handles (JSON: array of `{ channel, username }` pairs), tags (JSON array), notes, total conversations count, last seen date.  
 **Connected to:** Users.  
 **Features that depend on it:** Contacts CRM page, Campaigns (audience targeting), analytics.
 
@@ -965,8 +1005,9 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 ### `teamMembers` — Staff Accounts
 **What it stores:** Team members invited to the account.  
 **Key columns:** Owner user ID, name, email, role (admin/agent/viewer), status (invited/active/disabled).  
+**Note:** The member's UUID is their login token. Status changes from "invited" to "active" on first login.  
 **Connected to:** Users (owner), internalNotes.  
-**Features that depend on it:** Team page, team login, role-based access control on all routes.
+**Features that depend on it:** Team page, team login (`POST /api/auth/team-login`), role-based access control on all routes.
 
 ---
 
@@ -980,15 +1021,15 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `listeningKeywords` — Brand Monitoring Keywords
 **What it stores:** Keywords to monitor for brand mentions.  
-**Key columns:** User ID, keyword text, platforms (JSON array), active flag, mention count.  
+**Key columns:** User ID, keyword text, platforms (array), active flag, mention count.  
 **Connected to:** Users, listeningMentions.  
-**Features that depend on it:** Listening page keyword management.
+**Features that depend on it:** Listening page management; webhook inbound message scanning (every inbound message is checked against active keywords).
 
 ---
 
 ### `listeningMentions` — Detected Brand Mentions
 **What it stores:** Every brand mention detected for a keyword.  
-**Key columns:** User ID, keyword ID, keyword text, platform, username, mention content, URL, sentiment, handled flag, handled date, timestamp.  
+**Key columns:** User ID, keyword ID, keyword text, platform, username, mention content, URL (nullable), sentiment (positive/negative/neutral), handled flag, handled date, timestamp.  
 **Connected to:** Users, listeningKeywords.  
 **Features that depend on it:** Listening feed, handled/unhandled tracking, AI reply for mentions.
 
@@ -996,7 +1037,7 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `calls` — Phone Call History
 **What it stores:** Every inbound and outbound phone call.  
-**Key columns:** User ID, conversation ID (optional), Twilio call SID, direction, to/from numbers, contact name, status, duration, recording URL, notes, start/end times.  
+**Key columns:** User ID, conversation ID (optional), Twilio call SID, direction, to/from numbers, contact name, status (initiated/ringing/in-progress/completed/failed/busy/no-answer/canceled/missed), duration, recording URL, notes, start/end times.  
 **Connected to:** Users, conversations.  
 **Features that depend on it:** Phone page, Inbox (calls linked to conversations).
 
@@ -1006,7 +1047,7 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 **What it stores:** Your brand's visual style description for AI image generation.  
 **Key columns:** User ID (unique — one record per user), image style description.  
 **Connected to:** Users.  
-**Features that depend on it:** Content Scheduler image generation (DALL-E uses this style guide).
+**Features that depend on it:** Content Scheduler image generation (DALL-E uses this style guide in the generation prompt).
 
 ---
 
@@ -1027,11 +1068,11 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 | Field | Details |
 |---|---|
 | **What it does** | Generates AI reply suggestions for conversations, comments, templates, captions, and listening mentions |
-| **Model used** | claude-haiku-4-5-20251001 (fast, cost-efficient) |
+| **Model used** | `claude-haiku-4-5-20251001` — centralized in `backend/src/lib/constants.ts` as `AI_FAST_MODEL`. Change one file to update the model across the entire platform. |
 | **Where used** | Inbox reply generation, Comments reply generation, Content caption generation, Templates generation, Listening reply generation |
-| **Configuration** | Requires `ANTHROPIC_API_KEY` environment variable |
-| **If it goes down** | AI reply buttons will fail with an error. All manual reply features (typing and sending) continue to work. Pending reviews already in the queue are not affected. |
-| **Demo fallback** | If `ANTHROPIC_API_KEY` is not set, a console warning is shown and AI calls will fail gracefully |
+| **Response format** | Instructed to return `{ "reply": "...", "confidence": 0-100 }` as JSON. Parsed via regex; falls back to plain text + confidence 55 if JSON is malformed. |
+| **Configuration** | `ANTHROPIC_API_KEY` environment variable |
+| **If key is missing** | Server logs a warning at startup. AI calls fail. Content generation uses a demo fallback response. Manual reply features (typing + sending) continue to work. |
 
 ---
 
@@ -1039,11 +1080,10 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 | Field | Details |
 |---|---|
-| **What it does** | Generates custom images for social media posts based on a text prompt and your brand style guide |
+| **What it does** | Generates custom images for social media posts from a text prompt + your brand style guide |
 | **Where used** | Content Scheduler → Generate Image button |
-| **Configuration** | Requires `OPENAI_API_KEY` environment variable |
-| **If it goes down** | Falls back to Unsplash stock photos (a random food/lifestyle photo is returned instead) |
-| **Demo fallback** | Stock photo fallback is always active when `OPENAI_API_KEY` is not set |
+| **Configuration** | `OPENAI_API_KEY` environment variable |
+| **If key is missing** | Returns a random Unsplash stock photo — image generation always produces a result, just not AI-generated |
 
 ---
 
@@ -1051,11 +1091,14 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 | Field | Details |
 |---|---|
-| **What it does** | Sends and receives WhatsApp messages between customers and the business |
+| **What it does** | Sends and receives WhatsApp messages; broadcast campaigns |
 | **Where used** | Inbox (WhatsApp DMs), Campaigns (broadcast sends), webhook (receives incoming messages) |
-| **Configuration** | Requires `WHATSAPP_PHONE_NUMBER_ID` + Meta access token per client (set in Agency Clients or Platform settings) |
-| **Webhook** | Meta sends incoming messages to `/webhook/whatsapp` — SocialPilot processes them and creates conversation records |
-| **If it goes down** | Incoming messages are lost (Meta does not retry indefinitely). Outbound replies queue but cannot be sent. |
+| **Configuration** | `WHATSAPP_PHONE_NUMBER_ID` env var + Meta access token per client (stored encrypted with feature = "messages") |
+| **Webhook URL** | `https://your-server.com/webhook/whatsapp/:userId` |
+| **Webhook verification** | Responds to `hub.challenge` using `WEBHOOK_VERIFY_TOKEN` |
+| **Signature verification** | HMAC-SHA256 using `META_APP_SECRET` |
+| **API version** | v19.0 |
+| **If it goes down** | Incoming messages are lost. Outbound replies logged as skipped — no crash. |
 
 ---
 
@@ -1063,10 +1106,12 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 | Field | Details |
 |---|---|
-| **What it does** | Posts comment replies on Instagram, sends Instagram DMs, receives webhooks for new comments and DMs |
-| **Where used** | Comments page (Instagram comments), Inbox (Instagram DMs), Content Scheduler (publishing to Instagram) |
-| **Configuration** | Instagram Graph API access token per client |
-| **If it goes down** | Replies cannot be sent to Instagram. Content publishing will fail and the post status will be marked "Failed." |
+| **What it does** | Replies to comments, sends DMs, publishes content posts, receives webhooks |
+| **Where used** | Comments page (replies), Inbox (DMs), Content Scheduler (publishing) |
+| **Configuration** | Access token per client. Publishing also requires Instagram Business Account ID (stored in credential scope JSON or auto-discovered via `GET /me?fields=instagram_business_account`). |
+| **Publishing flow** | Step 1: `POST /{ig-user-id}/media` → Step 2: `POST /{ig-user-id}/media_publish` |
+| **API version** | v19.0 |
+| **If it goes down** | Replies and posts fail. Post status marked "Failed" in database. |
 
 ---
 
@@ -1074,10 +1119,12 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 | Field | Details |
 |---|---|
-| **What it does** | Posts comment replies on Facebook, sends Facebook Messenger messages, receives webhooks |
-| **Where used** | Comments page (Facebook comments), Inbox (Facebook Messenger DMs) |
-| **Configuration** | Facebook Page access token per client |
-| **If it goes down** | Same as Instagram — replies and posts to Facebook will fail. |
+| **What it does** | Replies to comments, sends Messenger messages, publishes Page posts, receives webhooks |
+| **Where used** | Comments page (replies), Inbox (Messenger DMs), Content Scheduler (publishing) |
+| **Configuration** | Access token per client. Publishing uses Page ID from credential scope or auto-discovered via `GET /me/accounts`. |
+| **Publishing flow** | Text: `POST /{page-id}/feed` · Image: `POST /{page-id}/photos` |
+| **API version** | v19.0 |
+| **If it goes down** | Replies and posts fail. |
 
 ---
 
@@ -1085,23 +1132,63 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 | Field | Details |
 |---|---|
-| **What it does** | Posts comment replies on TikTok videos, receives webhooks for new comments |
-| **Where used** | Comments page (TikTok comments), Content Scheduler (publishing videos/posts to TikTok) |
-| **Configuration** | TikTok API access token per client |
-| **Note** | TikTok replies require both the Video ID and Comment ID — both are captured when the webhook receives the comment |
-| **If it goes down** | TikTok comment replies fail. Posts are not delivered. |
+| **What it does** | Replies to TikTok comments; receives comment webhooks |
+| **Where used** | Comments page (TikTok replies) |
+| **Configuration** | TikTok API access token per client (feature = "comments") |
+| **Comment reply requirement** | Both Video ID and Comment ID must be present — captured when webhook receives the comment |
+| **Content publishing** | Currently skipped — requires TikTok Content Posting API business app approval. Posts are marked published in DB but not delivered to TikTok. |
+| **API version** | v2 |
+| **Webhook signature** | HMAC-SHA256 using `TIKTOK_CLIENT_SECRET` |
 
 ---
 
-### Twilio (Phone Calls)
+### Twilio Voice (Phone Calls)
 
 | Field | Details |
 |---|---|
-| **What it does** | Makes and receives phone calls, records calls, and sends call status updates back to SocialPilot |
-| **Where used** | Phone page (call log), Inbox (call button on phone channel conversations) |
-| **Configuration** | Requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, and `APP_URL` environment variables |
-| **Webhook** | Twilio posts call status updates to `/webhook/calls/status` (no authentication — uses Twilio signature verification) |
-| **If it goes down** | Phone calls cannot be initiated or received. Existing call records are unaffected. |
+| **What it does** | Makes outbound calls with text-to-speech message; tracks status and duration |
+| **Where used** | Phone page, Inbox call button |
+| **Configuration** | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `APP_URL` |
+| **TwiML** | Inline — no external TwiML bin needed. Uses `<Say voice="alice" language="en-US">` with HTML-escaped message. |
+| **Status callback URL** | `https://your-server.com/api/calls/webhook/status` *(note: under `/api`, not `/webhook`)* |
+| **Callback receives** | `CallSid`, `CallStatus`, `CallDuration`, `RecordingUrl` as URL-encoded form data |
+
+---
+
+### Twilio SMS
+
+| Field | Details |
+|---|---|
+| **What it does** | Sends outbound SMS; receives inbound SMS messages |
+| **Where used** | Inbox (SMS channel conversations), platform delivery (`sendSmsMessage()`) |
+| **Configuration** | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` (shared with Voice) |
+| **Inbound webhook** | `POST /webhook/sms/:userId` — Twilio sends URL-encoded form data (`From`, `Body`, `MessageSid`) |
+| **Phone normalization** | Numbers are normalized to E.164 format (`+1` prefix for US numbers without country code) |
+| **If credentials missing** | Delivery returns `{ ok: false, skipped: true }` — no crash |
+
+---
+
+### Resend (Team Invite Emails)
+
+| Field | Details |
+|---|---|
+| **What it does** | Sends HTML email invitations to new team members with their login link |
+| **Where used** | Team page → Add Team Member |
+| **Configuration** | `RESEND_API_KEY` · `EMAIL_FROM_DOMAIN` (sender domain, must be verified with Resend; default: `socialpilot.app`) · `APP_URL` (for login link in email) |
+| **If key is missing** | Console fallback — member ID and login link printed to server log. Member can still be onboarded manually. |
+| **Email format** | Both HTML (styled) and plain-text versions sent |
+
+---
+
+### AES-256-GCM Encryption
+
+| Field | Details |
+|---|---|
+| **What it does** | Encrypts all platform access tokens before they are written to the database |
+| **Where used** | Every write to `platformCredentials.accessTokenEnc` |
+| **Configuration** | `ENCRYPTION_KEY` — 64-character hex string (32 bytes). Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| **Algorithm** | AES-256-GCM, 12-byte random IV per token. Stored as `iv:authTag:ciphertext` (hex) |
+| **If key is missing** | Tokens stored as plaintext (graceful degradation for dev). Existing plaintext rows read correctly. **Set before storing real tokens in production.** |
 
 ---
 
@@ -1109,10 +1196,11 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 | Field | Details |
 |---|---|
-| **What it does** | Stores all data permanently — conversations, messages, contacts, campaigns, posts, settings, credentials |
-| **Where used** | Every single feature of the platform |
-| **Configuration** | `DATABASE_URL` environment variable (automatically provided by Railway if using their PostgreSQL plugin) |
-| **If it goes down** | The entire platform stops working — no data can be read or written. All API calls return 500 errors. |
+| **What it does** | Stores all platform data permanently |
+| **Configuration** | `DATABASE_URL` environment variable |
+| **ORM** | Drizzle ORM — schema in `backend/src/db/schema.ts` |
+| **Migrations** | `cd backend && npx drizzle-kit push` |
+| **If it goes down** | Entire platform stops — all API calls return errors |
 
 ---
 
@@ -1122,7 +1210,8 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 | Feature | Status |
 |---|---|
-| User login / logout (demo accounts) | ✅ Fully working |
+| User login / logout | ✅ Fully working |
+| Team member login via invite UUID | ✅ Fully working |
 | Dashboard KPI cards | ✅ Fully working |
 | Inbox — view conversations and messages | ✅ Fully working |
 | Inbox — generate AI reply (requires API key) | ✅ Fully working |
@@ -1130,26 +1219,32 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 | Inbox — mark conversation resolved | ✅ Fully working |
 | Inbox — internal notes | ✅ Fully working |
 | Inbox — assign to team member | ✅ Fully working |
+| Inbox — send SMS replies | ✅ Fully working (requires Twilio) |
 | Comments — view and manage | ✅ Fully working |
 | Knowledge Base — all resource types CRUD | ✅ Fully working |
+| Knowledge Base — file document upload (local `/uploads`) | ✅ Fully working |
 | Reply Templates — CRUD + AI generation | ✅ Fully working |
 | Content Scheduler — create/edit/delete posts | ✅ Fully working |
-| Content — AI caption generation | ✅ Fully working |
-| Content — schedule and publish (with credentials) | ✅ Fully working |
-| Content — post metrics tracking | ✅ Fully working |
+| Content — AI caption + hashtag generation | ✅ Fully working |
+| Content — publish to Instagram (with publishing credential) | ✅ Fully working |
+| Content — publish to Facebook (with publishing credential) | ✅ Fully working |
+| Content — post metrics tracking (simulated) | ✅ Fully working |
 | Campaigns — CRUD | ✅ Fully working |
+| Campaigns — real WhatsApp delivery (with credentials) | ✅ Working (mock fallback if no credentials) |
 | Campaigns — real audience reach from contacts | ✅ Fully working |
 | Contacts CRM — CRUD | ✅ Fully working |
 | Contacts — auto-created from inbound messages | ✅ Fully working |
 | Chatbot Flows — CRUD | ✅ Fully working |
-| Chatbot Flows — multi-turn execution on webhook | ✅ Fully working |
+| Chatbot Flows — multi-turn execution (DB-persisted state) | ✅ Fully working |
 | Listening — keywords CRUD | ✅ Fully working |
-| Listening — mentions with stable IDs | ✅ Fully working |
+| Listening — real-time mention detection from inbound webhooks | ✅ Fully working |
+| Listening — demo seed data for empty feed | ✅ Fully working |
 | Listening — mark handled / unhandled (persisted) | ✅ Fully working |
+| Listening — AI reply generation for mentions | ✅ Fully working |
 | Automation Rules — CRUD | ✅ Fully working |
 | Automation Rules — override AI confidence | ✅ Fully working |
 | Team members — CRUD + role enforcement | ✅ Fully working |
-| Team member login (team-login endpoint) | ✅ Fully working |
+| Team member invite email (requires Resend key) | ✅ Working (console fallback if no key) |
 | Settings — tone/language/blocked words per platform | ✅ Fully working |
 | Brand settings — image style | ✅ Fully working |
 | Analytics — date range (7d/30d/90d) | ✅ Fully working |
@@ -1159,8 +1254,9 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 | Agency — switch to client context | ✅ Fully working |
 | Phone — call history | ✅ Fully working |
 | Phone — outbound call initiation | ✅ Working (requires Twilio credentials) |
-| Startup env warnings (missing keys) | ✅ Fully working |
+| Token encryption at rest (AES-256-GCM) | ✅ Working (requires `ENCRYPTION_KEY`) |
 | AI model name centralized in constants.ts | ✅ Fully working |
+| Startup environment warnings for missing keys | ✅ Fully working |
 
 ---
 
@@ -1168,16 +1264,23 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 | Feature | What's Needed |
 |---|---|
-| Sending replies to Instagram | Instagram Graph API token |
-| Sending replies to Facebook | Facebook Page access token |
-| Sending replies to TikTok | TikTok Open API token |
-| Sending WhatsApp messages | WhatsApp Business API phone number ID + token |
-| Receiving inbound messages from platforms | Public webhook URL + platform webhook registration |
-| Publishing posts to Instagram/TikTok/Facebook | Platform-specific publish permissions in API token |
-| Generating AI images with DALL-E | `OPENAI_API_KEY` |
-| Phone calls | Twilio account credentials |
+| Sending replies to Instagram comments | Instagram Graph API token (feature = "comments") |
+| Sending Instagram DMs | Instagram Graph API token (feature = "messages") |
+| Publishing posts to Instagram | Instagram Graph API token (feature = "publishing") + Instagram Business Account ID |
+| Sending replies to Facebook comments | Facebook Page access token (feature = "comments") |
+| Sending Facebook Messenger messages | Facebook Page access token (feature = "messages") |
+| Publishing posts to Facebook | Facebook Page access token (feature = "publishing") |
+| Sending replies to TikTok comments | TikTok API token (feature = "comments") |
+| Publishing posts to TikTok | Requires TikTok Content Posting API business approval — not yet available |
+| Sending WhatsApp messages | `WHATSAPP_PHONE_NUMBER_ID` env var + Meta access token |
+| Sending / receiving SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` |
+| Receiving inbound messages from any platform | Public HTTPS webhook URL + platform webhook registration |
+| Phone calls | Twilio credentials + `APP_URL` for status callback |
+| AI image generation | `OPENAI_API_KEY` (Unsplash fallback active without it) |
+| Team invite emails | `RESEND_API_KEY` + verified `EMAIL_FROM_DOMAIN` (console fallback without it) |
+| Token encryption | `ENCRYPTION_KEY` (plaintext fallback without it — set before going live) |
 
-Without these credentials, the platform shows all features correctly in the UI and stores data in the database — but outbound platform delivery is gracefully skipped (the system logs `{ ok: false, skipped: true }` and does not crash).
+Without these credentials, the platform shows all features correctly in the UI and stores data in the database — outbound delivery is gracefully skipped with `{ ok: false, skipped: true }` and does not crash.
 
 ---
 
@@ -1185,29 +1288,27 @@ Without these credentials, the platform shows all features correctly in the UI a
 
 | Feature | Reason |
 |---|---|
-| Inbound webhook from WhatsApp | Requires a public HTTPS URL that Meta can reach — not available on localhost |
-| Instagram comment webhooks | Same — Meta requires HTTPS + webhook verification challenge |
-| TikTok webhooks | Same — requires platform webhook registration |
-| Twilio call status callbacks | Requires public HTTPS URL for Twilio to send status updates |
-| Scheduler (post publishing at exact time) | Background scheduler runs fine locally, but exact-time reliability requires persistent server (Railway recommended) |
-| Metrics refresh (every 6 hours) | Same — requires always-on server |
-| API token encryption at rest | Current: plaintext storage. Production: AES-256 encryption recommended before going live |
+| Inbound webhook from WhatsApp | Requires a public HTTPS URL that Meta can reach |
+| Instagram comment / DM webhooks | Same — Meta requires HTTPS + verification challenge |
+| TikTok webhooks | Requires platform webhook registration |
+| Twilio call status callbacks | Requires public HTTPS URL |
+| SMS inbound messages | Requires Twilio webhook registration with public URL |
+| Scheduler (post publishing at exact time) | Background process requires persistent always-on server |
+| Metrics refresh every 6 hours | Same — requires always-on server |
 
 ---
 
 ### Known Limitations
 
-1. **Flow state is in-memory:** Chatbot flow states (tracking which step a customer is on) are stored in the server's memory. If the server restarts, active flow conversations lose their state. For production, this should be migrated to Redis or a database table.
+1. **TikTok content publishing requires separate approval:** TikTok's Content Posting API is only available to apps reviewed and approved by TikTok for Business. Posts scheduled to TikTok are marked published in the database but not delivered. Apply via the TikTok for Business developer portal.
 
-2. **No email invitations:** Team members are "invited" by giving them their member UUID to log in with. A proper invite-by-email system is not yet implemented.
+2. **Post metrics are simulated:** Engagement metrics are generated using realistic simulation formulas (growth over first 24 hours, platform-specific reach ranges). Real platform Insights API integration is a future upgrade.
 
-3. **Social listening is simulated:** Real keyword monitoring requires API access to each platform's search APIs. The current listening feed seeds realistic mock data on first load — real integration requires platform API upgrades.
+3. **File uploads are local:** Document uploads save to `/uploads` on the server and are served via `serveStatic`. For horizontally-scaled or ephemeral servers, use S3 or Cloudflare R2.
 
-4. **Campaign delivery is simulated:** The current campaign send creates plausible sent/read/reply counts in the database. Real bulk WhatsApp delivery requires WhatsApp Business API broadcast permissions.
+4. **Listening detects inbound messages only:** The keyword scanner catches mentions that arrive through your registered webhooks (DMs and comments to your connected accounts). Proactive scraping of public posts mentioning your brand requires platform Search APIs not yet integrated.
 
-5. **File upload stores locally:** Document uploads in the Knowledge Base save files to a local `/uploads` folder. In production, this should use S3 or Cloudflare R2.
-
-6. **Token encryption pending:** Platform credentials are currently stored as plaintext in the database. Encrypt them before storing real customer tokens in production.
+5. **TikTok DMs:** TikTok DM delivery is internally routed through the comment reply API. TikTok does not offer a public DM send endpoint. DMs show in the Inbox but outbound replies use the comment channel.
 
 ---
 
@@ -1223,105 +1324,146 @@ Follow these steps in order to set up SocialPilot for a new client.
 
 - [ ] 1. Clone the repository to your server (Railway, VPS, etc.)
 - [ ] 2. Create a PostgreSQL database (Railway provides one automatically)
-- [ ] 3. Set the `DATABASE_URL` environment variable pointing to your database
-- [ ] 4. Generate a JWT secret: run `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"` and set `JWT_SECRET`
-- [ ] 5. Set `PORT=3001` and `ALLOWED_ORIGINS=https://your-frontend-domain.com`
-- [ ] 6. Set `ANTHROPIC_API_KEY=sk-ant-...` (from console.anthropic.com)
-- [ ] 7. (Optional) Set `OPENAI_API_KEY=sk-...` for AI image generation
-- [ ] 8. Run database migrations: `cd backend && npx drizzle-kit push`
-- [ ] 9. (Optional) Seed demo data: `npx tsx src/db/seed.ts`
-- [ ] 10. Start the backend: `npm run build && npm start`
-- [ ] 11. Deploy the frontend to Vercel or similar with `VITE_API_URL=https://your-backend.railway.app/api`
+- [ ] 3. Set `DATABASE_URL` pointing to your database
+- [ ] 4. Generate a JWT secret and set `JWT_SECRET`:
+  ```
+  node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+  ```
+- [ ] 5. Generate a 32-byte encryption key and set `ENCRYPTION_KEY` (protects all stored platform tokens):
+  ```
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
+- [ ] 6. Set `PORT=3001`
+- [ ] 7. Set `ALLOWED_ORIGINS=https://your-frontend-domain.com`
+- [ ] 8. Set `APP_URL=https://your-backend-domain.com` (used for Twilio callbacks and invite email links)
+- [ ] 9. Set `ANTHROPIC_API_KEY=sk-ant-...` (from console.anthropic.com)
+- [ ] 10. (Optional) Set `OPENAI_API_KEY=sk-...` for AI image generation
+- [ ] 11. (Optional) Set `RESEND_API_KEY=re_...` for team invite emails
+- [ ] 12. (Optional) Set `EMAIL_FROM_DOMAIN=yourdomain.com` for invite email sender (must be verified with Resend; default: `socialpilot.app`)
+- [ ] 13. Run database migrations to create all tables:
+  ```
+  cd backend && npx drizzle-kit push
+  ```
+- [ ] 14. (Optional) Seed demo data:
+  ```
+  npx tsx src/db/seed.ts
+  ```
+- [ ] 15. Build and start the backend: `npm run build && npm start`
+- [ ] 16. Deploy the frontend with `VITE_API_URL=https://your-backend-domain.com/api`
+
+> **Upgrading an existing deployment:** Run `npx drizzle-kit push` after deploying to apply any new tables or enum changes (e.g., the `flow_sessions` table and the `publishing` feature type added in Phase 3).
 
 ---
 
 **Phase 2 — Agency Account Setup**
 
-- [ ] 12. Open the platform in your browser and go to `/login`
-- [ ] 13. Log in with your agency admin credentials (or use demo: `agency@demo.com` / `demo123`)
-- [ ] 14. Navigate to Agency → Clients
-- [ ] 15. Click "Add Client" and enter the new client's business name, owner name, and email
-- [ ] 16. In the client's permissions panel, enable the platforms they will use (e.g., Instagram: Comments ✅ Messages ✅, WhatsApp: Messages ✅)
-- [ ] 17. Enter the client's platform access tokens in the credentials panel for each enabled platform
+- [ ] 17. Open the platform and go to `/login`
+- [ ] 18. Log in with your agency admin credentials (demo: `agency@demo.com` / `demo123`)
+- [ ] 19. Navigate to Agency → Clients
+- [ ] 20. Click "Add Client" — enter business name, owner name, email
+- [ ] 21. In the permissions panel, enable the platforms the client will use
+- [ ] 22. Enter platform credentials for each enabled feature:
+  - **Instagram comments:** token with feature = "comments"
+  - **Instagram DMs:** token with feature = "messages"
+  - **Instagram publishing:** token with feature = "publishing" + Instagram Business Account ID
+  - **Facebook comments:** token with feature = "comments"
+  - **Facebook Messenger:** token with feature = "messages"
+  - **Facebook publishing:** token with feature = "publishing" (Page ID optional — auto-discovered if omitted)
+  - **WhatsApp:** token with feature = "messages" (also set `WHATSAPP_PHONE_NUMBER_ID` in server env)
+  - **TikTok:** token with feature = "comments"
 
 ---
 
 **Phase 3 — Client Knowledge Base Setup**
 
-- [ ] 18. Log into the client's account (either directly or via Switch to Client)
-- [ ] 19. Go to Resources → add Business Info (name, description, address, phone, email)
-- [ ] 20. Add Operating Hours for each day of the week
-- [ ] 21. Add at least 5 Menu Items or Products with names, descriptions, and prices
-- [ ] 22. Add any current Offers or Promotions
-- [ ] 23. Add 5–10 FAQs covering the most common customer questions
-- [ ] 24. Confirm all resources show "Active" status
+- [ ] 23. Log into the client account (directly or via Switch to Client)
+- [ ] 24. Go to Resources → add Business Info
+- [ ] 25. Add Operating Hours for each day
+- [ ] 26. Add at least 5 Menu Items / Products with names, descriptions, and prices
+- [ ] 27. Add any current Offers or Promotions
+- [ ] 28. Add 5–10 FAQs covering the most common questions
+- [ ] 29. Confirm all resources show "Active" status
 
 ---
 
 **Phase 4 — AI Settings Configuration**
 
-- [ ] 25. Go to Settings
-- [ ] 26. For each connected platform (TikTok, Instagram, Facebook, WhatsApp):
-  - [ ] Select the appropriate Tone (Friendly recommended for most businesses)
-  - [ ] Select the Language (Arabic, English, or Mixed)
-  - [ ] Add any Blocked Words (competitor names, inappropriate terms, etc.)
-  - [ ] Add Custom Instructions (e.g., "Always mention our loyalty program", "Never promise same-day delivery")
-- [ ] 27. Click Save for each platform
+- [ ] 30. Go to Settings
+- [ ] 31. For each connected platform (TikTok, Instagram, Facebook, WhatsApp, SMS):
+  - Select Tone (Friendly recommended for most businesses)
+  - Select Language (Arabic, English, or Mixed)
+  - Add Blocked Words
+  - Add Custom Instructions
+- [ ] 32. Click Save for each platform
 
 ---
 
 **Phase 5 — Automation Rules**
 
-- [ ] 28. Go to Automation
-- [ ] 29. Create a rule for complaint handling: Trigger = "Contains Word: refund, cancel, complaint, angry" → Action = "Escalate"
-- [ ] 30. Create a rule for simple questions: Trigger = "Is a Question" → Action = "Auto-Send" (only if you trust the knowledge base is complete)
-- [ ] 31. (Optional) Create rules for specific keywords relevant to your business
+- [ ] 33. Go to Automation
+- [ ] 34. Create a complaint escalation rule: "Contains Word: refund, cancel, complaint" → "Escalate"
+- [ ] 35. (Optional) Create an auto-send rule for simple questions: "Is a Question" → "Auto-Send"
+- [ ] 36. (Optional) Create additional business-specific rules
 
 ---
 
 **Phase 6 — Chatbot Flows**
 
-- [ ] 32. Go to Flows
-- [ ] 33. Create a Greeting flow for WhatsApp:
-  - Trigger: Greeting
-  - Step 1: Welcome message with menu options
-- [ ] 34. Set the flow to Active
-- [ ] 35. Test by sending a "hello" to the WhatsApp number
+- [ ] 37. Go to Flows
+- [ ] 38. Create a Greeting flow for WhatsApp (trigger: Greeting, Step 1: welcome message)
+- [ ] 39. Set the flow to Active
+- [ ] 40. Test after webhook registration (Phase 9)
 
 ---
 
-**Phase 7 — Team Setup**
+**Phase 7 — Brand Listening**
 
-- [ ] 36. Go to Team
-- [ ] 37. Add each team member with their name, email, and role (Admin/Agent/Viewer)
-- [ ] 38. Share each member's unique member ID with them to use for their first login at `/login`
-- [ ] 39. Confirm each member can log in and sees the correct pages based on their role
-
----
-
-**Phase 8 — Webhook Registration (requires public URL)**
-
-- [ ] 40. Get your server's public HTTPS URL (e.g., `https://socialpilot.railway.app`)
-- [ ] 41. Register the webhook URL with each platform:
-  - **WhatsApp**: Meta Developer Console → WhatsApp → Configuration → Webhook URL: `https://your-server.com/webhook/whatsapp`
-  - **Instagram**: Meta Developer Console → Instagram → Webhooks → `https://your-server.com/webhook/instagram`
-  - **Facebook**: Meta Developer Console → Facebook → Webhooks → `https://your-server.com/webhook/facebook`
-  - **TikTok**: TikTok Developer Portal → App → Events → `https://your-server.com/webhook/tiktok`
-  - **Twilio**: Twilio Console → Phone Numbers → your number → Voice → Status Callback: `https://your-server.com/webhook/calls/status`
-- [ ] 42. Verify each webhook with the platform's challenge verification
+- [ ] 41. Go to Listening
+- [ ] 42. Add your business name as a monitored keyword
+- [ ] 43. Add any common misspellings or short-form names
+- [ ] 44. Once webhooks are live, any inbound message matching a keyword appears in the feed automatically
 
 ---
 
-**Phase 9 — First Live Test**
+**Phase 8 — Team Setup**
 
-- [ ] 43. Send a test WhatsApp message to the connected phone number
-- [ ] 44. Confirm it appears in the Inbox within a few seconds
-- [ ] 45. Click "Generate AI Reply" and verify it uses your Knowledge Base correctly
-- [ ] 46. Approve the reply and verify it is delivered back to WhatsApp
-- [ ] 47. Post a test comment on the connected Instagram post
-- [ ] 48. Confirm it appears in the Comments page and receives an AI reply
-- [ ] 49. Check Analytics to verify the message counts are updating
-- [ ] 50. 🎉 System is live!
+- [ ] 45. Go to Team
+- [ ] 46. Add each team member with name, email, and role
+- [ ] 47. Each member receives an invite email (or check server console if `RESEND_API_KEY` not set) with their UUID login link
+- [ ] 48. Confirm each member can log in and sees the correct pages for their role
+
+---
+
+**Phase 9 — Webhook Registration (requires public HTTPS URL)**
+
+- [ ] 49. Set `WEBHOOK_VERIFY_TOKEN` — any random string you choose
+- [ ] 50. Set `META_APP_SECRET` — from Meta Developer App settings
+- [ ] 51. Set `TIKTOK_CLIENT_SECRET` — from TikTok Developer App settings
+- [ ] 52. Set `WHATSAPP_PHONE_NUMBER_ID` — from Meta WhatsApp Business settings
+- [ ] 53. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`
+- [ ] 54. Register webhook URLs with each platform:
+  - **WhatsApp:** `https://your-server.com/webhook/whatsapp/:userId`
+  - **Instagram:** `https://your-server.com/webhook/instagram/:userId`
+  - **Facebook:** `https://your-server.com/webhook/facebook/:userId`
+  - **TikTok:** `https://your-server.com/webhook/tiktok/:userId`
+  - **SMS (Twilio):** `https://your-server.com/webhook/sms/:userId`
+  - **Call status (Twilio):** `https://your-server.com/api/calls/webhook/status`
+    *(This path is under `/api/calls`, not `/webhook` — do not register it under `/webhook`)*
+- [ ] 55. Verify each webhook via the platform's challenge process (SocialPilot responds automatically to `hub.challenge` requests using `WEBHOOK_VERIFY_TOKEN`)
+
+---
+
+**Phase 10 — First Live Test**
+
+- [ ] 56. Send a test WhatsApp message to the connected phone number
+- [ ] 57. Confirm it appears in the Inbox within seconds
+- [ ] 58. Click "Generate AI Reply" — verify it uses your Knowledge Base
+- [ ] 59. Approve the reply and verify it is delivered to WhatsApp
+- [ ] 60. Post a test comment on the connected Instagram post
+- [ ] 61. Confirm it appears in Comments and receives an AI reply
+- [ ] 62. Create a test scheduled post for Instagram, set 2 minutes from now, verify it publishes
+- [ ] 63. Check Analytics to verify message counts are updating
+- [ ] 64. 🎉 System is live!
 
 ---
 
@@ -1348,35 +1490,38 @@ Follow these steps in order to set up SocialPilot for a new client.
 | **Audience** | الجمهور المستهدف | The group of contacts a campaign is sent to. Can be "all contacts", "contacts tagged VIP", or "contacts from Instagram". |
 | **Reach** | مدى الوصول | The number of people a campaign can potentially reach based on your contact list. |
 | **Flow** | مسار المحادثة | A scripted chatbot conversation. When a customer sends a specific word, the bot follows a pre-written script automatically. |
+| **Flow Session** | جلسة المسار | A database record that tracks where a customer is in a multi-step chatbot flow. Saves progress so the flow continues correctly even if the server restarts. |
 | **Trigger** | المشغّل | The keyword or phrase that activates a Flow. For example, the word "hello" could be the trigger for a Greeting Flow. |
 | **Step** | خطوة | One message in a Flow. A Flow can have multiple steps, each sending a different message. |
-| **Webhook** | خطاف الويب | A technical connection between an external platform (like WhatsApp or TikTok) and SocialPilot. When a customer sends a message on WhatsApp, WhatsApp immediately calls SocialPilot's webhook to deliver it. Invisible to users — it just makes messages appear in real time. |
-| **API Token / Access Token** | رمز الوصول | A secret password that allows SocialPilot to act on behalf of your business account on a platform (like Instagram or WhatsApp). Without it, replies cannot be sent. |
-| **Platform Credential** | بيانات اعتماد المنصة | The combination of API tokens that connect SocialPilot to an external platform. Entered by the Agency Admin or Client Admin. |
-| **Automation Rule** | قاعدة الأتمتة | A condition + action pair. Example: "IF the message contains the word 'refund' THEN always escalate it." Rules override the AI's confidence routing. |
+| **Webhook** | خطاف الويب | A technical connection between an external platform (like WhatsApp or TikTok) and SocialPilot. When a customer sends a message, the platform immediately calls SocialPilot's webhook to deliver it. Invisible to users — it just makes messages appear in real time. |
+| **API Token / Access Token** | رمز الوصول | A secret password that allows SocialPilot to act on behalf of your business account on a platform. Without it, replies cannot be sent. |
+| **Platform Credential** | بيانات اعتماد المنصة | The combination of API tokens that connect SocialPilot to an external platform. Stored encrypted with AES-256-GCM. |
+| **Publishing Credential** | بيانات اعتماد النشر | A special credential with feature = "publishing" that allows SocialPilot to post new content (not just reply) on Instagram or Facebook. Also stores the Page ID or Business Account ID. |
+| **Encryption Key** | مفتاح التشفير | A 64-character secret (32 bytes hex) in the server environment. Used to encrypt all platform tokens before database storage. Must be set before going live. |
+| **Automation Rule** | قاعدة الأتمتة | A condition + action pair. Example: "IF message contains 'refund' THEN always escalate it." Rules override the AI's confidence routing. Evaluated in creation order; first match wins. |
 | **Sentiment** | المشاعر / النبرة العاطفية | The emotional tone of a message or mention. Positive (إيجابي) = happy customer. Negative (سلبي) = unhappy or complaining. Neutral (محايد) = no strong emotion. |
-| **Mention** | إشارة | A post by a customer on social media that includes your keyword (like your business name). Found and tracked by the Listening feature. |
-| **Listening** | الرصد الاجتماعي | The feature that monitors social media for mentions of your chosen keywords. Like setting up a Google Alert, but for TikTok, Instagram, and Facebook. |
-| **Handled** | تم التعامل معه | A mention that a team member has responded to and marked as resolved. Stays in the database permanently. |
-| **Contact** | جهة اتصال | A profile record for one customer — including their name, phone number, email, platform handles, and conversation history. Created automatically when a new customer messages you. |
-| **Tag** | وسم | A label you apply to a contact or conversation to categorize it. Examples: "vip", "complaint", "order-inquiry", "new-customer". |
+| **Mention** | إشارة | A message containing your monitored keyword. Detected automatically from every inbound webhook message. |
+| **Listening** | الرصد الاجتماعي | The feature that scans every inbound message for your brand keywords and logs matching ones as mentions. |
+| **Handled** | تم التعامل معه | A mention that a team member has responded to and marked as resolved. |
+| **Contact** | جهة اتصال | A profile record for one customer — name, phone, email, platform handles, conversation history. Created automatically on first contact. |
+| **Tag** | وسم | A label applied to a contact or conversation. Examples: "vip", "complaint", "order-inquiry". |
 | **Handle** | المعرّف على المنصة | A customer's username on a platform. For example, `@jessica_nc` on Instagram, or `+19195551234` on WhatsApp. |
-| **Channel** | القناة | A specific communication type on a specific platform. For example, "WhatsApp Business messages" is one channel. "Instagram DMs" is another. "TikTok comments" is another. |
-| **Draft** | مسودة | A post or reply that has been created but not yet scheduled or sent. |
-| **Scheduled** | مجدوَل | A post that has been assigned a date and time to be published automatically. |
-| **Published** | منشور | A post that has been successfully posted to the platform. |
-| **Failed** | فشل | A post or reply that could not be delivered — usually because the platform credential is missing or expired. |
-| **Agency** | الوكالة | A social media management company that uses SocialPilot to manage multiple business clients at once. |
+| **Channel** | القناة | A specific communication type on a specific platform. "WhatsApp Business messages", "Instagram DMs", and "TikTok comments" are three different channels. |
+| **Draft** | مسودة | A post or reply created but not yet scheduled or sent. |
+| **Scheduled** | مجدوَل | A post assigned a date and time to be published automatically. |
+| **Published** | منشور | A post successfully posted to the platform. |
+| **Failed** | فشل | A post or reply that could not be delivered — usually because a platform credential is missing or expired. |
+| **Agency** | الوكالة | A social media management company using SocialPilot to manage multiple business clients. |
 | **Client** | العميل | A business account managed by an agency inside SocialPilot. |
 | **Admin** | المشرف | The highest permission role. Can change settings, manage team members, and do everything. |
 | **Agent** | الوكيل / المشغّل | A team member who can respond to conversations and handle daily tasks, but cannot change settings or manage the team. |
 | **Viewer** | المراقب | A read-only team member. Can see everything but cannot send or change anything. |
-| **3-Tier Routing** | نظام التوجيه الثلاثي | The system that decides whether an AI reply is sent automatically (high confidence), put in review (medium confidence), or escalated to a human (low confidence). |
-| **Post Metrics** | مقاييس المنشور | The performance numbers for a published post: Likes (إعجابات), Comments (تعليقات), Reach (مدى الوصول), Shares (مشاركات). |
-| **Internal Note** | ملاحظة داخلية | A private comment that team members write about a conversation. The customer NEVER sees these. Only team members see them. |
-| **Scheduler** | المجدوِل | The background process that checks every minute for posts that are due to be published and automatically sends them to the platforms. |
-| **Demo Mode** | الوضع التجريبي | A mode that works without real platform connections. Uses sample data so you can explore all features without real customers or real API credentials. |
+| **3-Tier Routing** | نظام التوجيه الثلاثي | The system that decides whether an AI reply is sent automatically (≥85%), put in review (50–84%), or escalated to a human (0–49%). |
+| **Post Metrics** | مقاييس المنشور | Performance numbers for a published post: Likes, Comments, Reach, Shares. Currently simulated using realistic platform averages. |
+| **Internal Note** | ملاحظة داخلية | A private comment team members write about a conversation. The customer NEVER sees these. |
+| **Scheduler** | المجدوِل | The background process that checks every 60 seconds for posts due to publish, and refreshes post metrics every 6 hours for posts from the last 7 days. |
+| **Demo Mode** | الوضع التجريبي | A mode that works without real platform connections. Uses fallback responses so you can explore features without real API credentials. |
 
 ---
 
-*End of Documentation — SocialPilot Platform, Post Phase-2 Build*
+*Documentation last updated: May 2026 — reflects all Phase 1, 2, and 3 fixes: AES-256-GCM token encryption, DB-persisted flow state (flowSessions table), real Instagram/Facebook content publishing (two-step Graph API), real-time brand mention detection from inbound webhooks, real WhatsApp campaign delivery, team invite emails via Resend, SMS delivery via Twilio, publishing credential feature type, and corrected Twilio status callback path (`/api/calls/webhook/status`).*

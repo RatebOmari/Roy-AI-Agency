@@ -71,28 +71,7 @@ app.put("/:id", zValidator("json", templateSchema.partial()), async (c) => {
   return c.json(row);
 });
 
-// POST /:id/use — increment usage count
-app.post("/:id/use", async (c) => {
-  const user = c.get("user");
-  const id   = c.req.param("id");
-  await db
-    .update(replyTemplates)
-    .set({ usedCount: sql`${replyTemplates.usedCount} + 1` })
-    .where(and(eq(replyTemplates.id, id), eq(replyTemplates.userId, user.sub)));
-  return c.json({ ok: true });
-});
-
-// DELETE /:id — delete template (ownership check)
-app.delete("/:id", async (c) => {
-  const user = c.get("user");
-  const id = c.req.param("id");
-  await db
-    .delete(replyTemplates)
-    .where(and(eq(replyTemplates.id, id), eq(replyTemplates.userId, user.sub)));
-  return c.json({ ok: true });
-});
-
-// POST /generate — AI-generate a template
+// POST /generate — AI-generate a template (must be before /:id routes)
 app.post("/generate", zValidator("json", z.object({
   description: z.string().min(1),
   platforms: z.array(z.string()).optional(),
@@ -117,6 +96,27 @@ app.post("/generate", zValidator("json", z.object({
   } catch {
     return c.json({ title: "", content: text }, 200);
   }
+});
+
+// POST /:id/use — increment usage count
+app.post("/:id/use", async (c) => {
+  const user = c.get("user");
+  const id   = c.req.param("id");
+  await db
+    .update(replyTemplates)
+    .set({ usedCount: sql`${replyTemplates.usedCount} + 1` })
+    .where(and(eq(replyTemplates.id, id), eq(replyTemplates.userId, user.sub)));
+  return c.json({ ok: true });
+});
+
+// DELETE /:id — delete template (ownership check)
+app.delete("/:id", async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  await db
+    .delete(replyTemplates)
+    .where(and(eq(replyTemplates.id, id), eq(replyTemplates.userId, user.sub)));
+  return c.json({ ok: true });
 });
 
 export default app;

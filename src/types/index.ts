@@ -332,13 +332,15 @@ export interface ListeningKeyword {
 
 export interface Mention {
   id: string;
-  keywordId: string;
+  keywordId: string | null;
   keyword: string;
   platform: Platform;
   username: string;
   content: string;
-  url?: string;
+  url?: string | null;
   sentiment: MentionSentiment;
+  handled: boolean;
+  handledAt?: string | null;
   timestamp: string;
 }
 

@@ -120,3 +120,18 @@ export function useGenerateMentionReply() {
       api.post<{ reply: string }>("/listening/generate-reply", data),
   });
 }
+
+export function useMarkMentionHandled() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, handled }: { id: string; handled: boolean }) =>
+      api.patch<Mention>(`/listening/mentions/${id}/${handled ? "handle" : "unhandle"}`, {}),
+    onSuccess: (updated) => {
+      // Optimistically update the cached mention
+      queryClient.setQueryData<Mention[]>(["mentions"], (old) =>
+        (old ?? []).map(m => m.id === updated.id ? updated : m)
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["mentions"] }),
+  });
+}

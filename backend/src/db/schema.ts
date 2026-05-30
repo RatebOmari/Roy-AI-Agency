@@ -226,6 +226,23 @@ export const listeningKeywords = pgTable("listening_keywords", {
   createdAt:    timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── Listening Mentions ────────────────────────────────────────────────────────
+
+export const listeningMentions = pgTable("listening_mentions", {
+  id:         uuid("id").primaryKey().defaultRandom(),
+  userId:     uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  keywordId:  uuid("keyword_id").references(() => listeningKeywords.id, { onDelete: "set null" }),
+  keyword:    text("keyword").notNull(),
+  platform:   text("platform").notNull(),
+  username:   text("username").notNull(),
+  content:    text("content").notNull(),
+  url:        text("url"),
+  sentiment:  text("sentiment").notNull().default("neutral"),
+  handled:    boolean("handled").notNull().default(false),
+  handledAt:  timestamp("handled_at"),
+  timestamp:  timestamp("timestamp").notNull().defaultNow(),
+});
+
 // ── Brand Settings ────────────────────────────────────────────────────────────
 
 export const brandSettings = pgTable("brand_settings", {

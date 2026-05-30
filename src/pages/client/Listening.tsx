@@ -8,6 +8,7 @@ import {
   useDeleteKeyword,
   useMentions,
   useGenerateMentionReply,
+  useMarkMentionHandled,
 } from "@/hooks/useListening";
 import type { ListeningKeyword, Mention, MentionSentiment, Platform } from "@/types";
 import {
@@ -269,9 +270,10 @@ export default function Listening() {
 
   const { data: keywords = [], isLoading: kwLoading } = useListeningKeywords();
   const { data: allMentions = [], isError: mentionsError, refetch: refetchMentions } = useMentions();
-  const createKeyword = useCreateKeyword();
-  const updateKeyword = useUpdateKeyword();
-  const deleteKeyword = useDeleteKeyword();
+  const createKeyword    = useCreateKeyword();
+  const updateKeyword    = useUpdateKeyword();
+  const deleteKeyword    = useDeleteKeyword();
+  const markMentionHandled = useMarkMentionHandled();
 
   // Keyword add form state
   const [newKeyword, setNewKeyword] = useState("");
@@ -282,11 +284,10 @@ export default function Listening() {
   const [sentimentFilter, setSentimentFilter] = useState<MentionSentiment | "all">("all");
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
   const [dateRange, setDateRange] = useState<DateRange>("7d");
-
-  // Handled state (local — tracks which mentions are done)
-  const [handledIds, setHandledIds] = useState<Set<string>>(new Set());
   const [showHandled, setShowHandled] = useState(false);
-  const markHandled = (id: string) => setHandledIds(prev => new Set(prev).add(id));
+
+  const markHandled = (id: string) =>
+    markMentionHandled.mutate({ id, handled: true });
 
   // Compute stats (based on 7d)
   const recentMentions = allMentions.filter((m) => isWithinRange(m.timestamp, "7d"));
@@ -294,16 +295,16 @@ export default function Listening() {
   const negCount = recentMentions.filter((m) => m.sentiment === "negative").length;
   const platformsMonitored = new Set(keywords.flatMap((k) => k.platforms)).size;
 
-  // Filter mentions
+  // Filter mentions — use DB-persisted `handled` field
   const filteredMentions = allMentions.filter((m) => {
-    if (!showHandled && handledIds.has(m.id)) return false;
+    if (!showHandled && m.handled) return false;
     if (!isWithinRange(m.timestamp, dateRange)) return false;
     if (sentimentFilter !== "all" && m.sentiment !== sentimentFilter) return false;
     if (platformFilter !== "all" && m.platform !== platformFilter) return false;
     return true;
   });
 
-  const handledCount = handledIds.size;
+  const handledCount = allMentions.filter(m => m.handled).length;
 
   // Sentiment counts for filter tabs
   const sentimentCounts = {
@@ -632,7 +633,7 @@ export default function Listening() {
                   <MentionCard
                     key={mention.id}
                     mention={mention}
-                    handled={handledIds.has(mention.id)}
+                    handled={mention.handled}
                     onMarkHandled={() => markHandled(mention.id)}
                   />
                 ))}

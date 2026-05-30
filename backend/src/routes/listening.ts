@@ -4,7 +4,7 @@ import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
-import { listeningKeywords } from "../db/schema.js";
+import { listeningKeywords, listeningMentions } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
@@ -77,11 +77,23 @@ app.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// GET /mentions — return mock mention data
+// GET /mentions — list persisted mentions, seeding mock data if empty
 app.get("/mentions", async (c) => {
   const user = c.get("user");
 
-  // Fetch user's keywords to make mock data more realistic
+  // Return persisted mentions newest first
+  const existing = await db
+    .select()
+    .from(listeningMentions)
+    .where(eq(listeningMentions.userId, user.sub))
+    .orderBy(desc(listeningMentions.timestamp))
+    .limit(50);
+
+  if (existing.length > 0) {
+    return c.json(existing);
+  }
+
+  // Seed mock mentions into DB on first load so they have stable IDs
   const userKeywords = await db
     .select()
     .from(listeningKeywords)
@@ -89,22 +101,12 @@ app.get("/mentions", async (c) => {
 
   const sampleKeywords = userKeywords.length > 0
     ? userKeywords.map((k) => ({ id: k.id, keyword: k.keyword }))
-    : [
-        { id: "sample-1", keyword: "restaurant" },
-        { id: "sample-2", keyword: "food" },
-        { id: "sample-3", keyword: "delivery" },
-      ];
+    : [{ id: null as string | null, keyword: "brand" }];
 
-  const platforms = ["instagram", "tiktok", "facebook", "twitter"];
-  const sentiments = ["positive", "negative", "neutral"] as const;
-
-  const mockUsernames = [
-    "foodie_adventures", "sara_eats_out", "ahmed_reviews", "layla_foodblog",
-    "the_real_critic", "yummy_bites99", "local_explorer", "taste_hunter",
-    "casual_diner", "street_food_fan",
-  ];
-
-  const contentTemplates = [
+  const platforms   = ["instagram", "tiktok", "facebook", "twitter"];
+  const sentiments  = ["positive", "negative", "neutral"] as const;
+  const usernames   = ["foodie_adventures","sara_eats_out","ahmed_reviews","layla_foodblog","the_real_critic","yummy_bites99","local_explorer","taste_hunter","casual_diner","street_food_fan"];
+  const templates   = [
     (kw: string) => `Just tried the best ${kw} spot in town! Absolutely loved it 😍`,
     (kw: string) => `Has anyone else had issues with ${kw} lately? Not my best experience...`,
     (kw: string) => `Looking for recommendations — which ${kw} place do you prefer?`,
@@ -117,31 +119,61 @@ app.get("/mentions", async (c) => {
     (kw: string) => `The ${kw} craze is real and I'm here for it 🙌`,
   ];
 
-  const now = Date.now();
+  const now       = Date.now();
   const sevenDays = 7 * 24 * 60 * 60 * 1000;
 
-  const mentions = Array.from({ length: 10 }, (_, i) => {
+  const toInsert = Array.from({ length: 10 }, (_, i) => {
     const kwEntry = sampleKeywords[i % sampleKeywords.length];
-    const platform = platforms[i % platforms.length];
-    const sentiment = sentiments[i % sentiments.length];
-    const username = mockUsernames[i];
-    const template = contentTemplates[i];
-    const timestamp = new Date(now - Math.floor(Math.random() * sevenDays)).toISOString();
-
     return {
-      id:        `mention-${Date.now()}-${i}`,
-      keywordId: kwEntry.id,
+      userId:    user.sub,
+      keywordId: kwEntry.id ?? undefined,
       keyword:   kwEntry.keyword,
-      platform,
-      username,
-      content:   template(kwEntry.keyword),
-      url:       `https://${platform}.com/${username}/post/${Math.random().toString(36).slice(2, 10)}`,
-      sentiment,
-      timestamp,
+      platform:  platforms[i % platforms.length],
+      username:  usernames[i],
+      content:   templates[i](kwEntry.keyword),
+      url:       `https://${platforms[i % platforms.length]}.com/${usernames[i]}/post/${Math.random().toString(36).slice(2, 10)}`,
+      sentiment: sentiments[i % sentiments.length],
+      handled:   false,
+      timestamp: new Date(now - Math.floor(Math.random() * sevenDays)),
     };
   });
 
-  return c.json(mentions);
+  const seeded = await db
+    .insert(listeningMentions)
+    .values(toInsert)
+    .returning();
+
+  return c.json(seeded.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()));
+});
+
+// PATCH /mentions/:id/handle — mark a mention as handled
+app.patch("/mentions/:id/handle", async (c) => {
+  const user = c.get("user");
+  const { id } = c.req.param();
+
+  const [updated] = await db
+    .update(listeningMentions)
+    .set({ handled: true, handledAt: new Date() })
+    .where(and(eq(listeningMentions.id, id), eq(listeningMentions.userId, user.sub)))
+    .returning();
+
+  if (!updated) return c.json({ message: "Mention not found" }, 404);
+  return c.json(updated);
+});
+
+// PATCH /mentions/:id/unhandle — unmark a mention as handled
+app.patch("/mentions/:id/unhandle", async (c) => {
+  const user = c.get("user");
+  const { id } = c.req.param();
+
+  const [updated] = await db
+    .update(listeningMentions)
+    .set({ handled: false, handledAt: null })
+    .where(and(eq(listeningMentions.id, id), eq(listeningMentions.userId, user.sub)))
+    .returning();
+
+  if (!updated) return c.json({ message: "Mention not found" }, 404);
+  return c.json(updated);
 });
 
 // POST /generate-reply — AI-suggested reply for a mention

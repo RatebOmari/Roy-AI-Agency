@@ -39,13 +39,22 @@ function relTime(ts: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-const CHANNEL_DOT: Record<string, string> = {
+const PLATFORM_DOT: Record<string, string> = {
   instagram: "bg-pink-500",
   tiktok:    "bg-neutral-800 dark:bg-neutral-300",
   facebook:  "bg-blue-600",
   whatsapp:  "bg-green-500",
   sms:       "bg-orange-400",
 };
+
+function channelDot(channel: string): string {
+  if (channel.startsWith("instagram")) return PLATFORM_DOT.instagram;
+  if (channel.startsWith("tiktok"))    return PLATFORM_DOT.tiktok;
+  if (channel.startsWith("facebook"))  return PLATFORM_DOT.facebook;
+  if (channel.startsWith("whatsapp"))  return PLATFORM_DOT.whatsapp;
+  if (channel === "sms")               return PLATFORM_DOT.sms;
+  return "bg-muted-foreground/30";
+}
 
 const CHANNEL_LABEL: Record<string, string> = {
   instagram: "Instagram",
@@ -214,7 +223,7 @@ export default function Dashboard() {
             >
               <div className="flex items-start justify-between mb-3">
                 <div className={`w-9 h-9 rounded-xl ${s.bg} flex items-center justify-center`}>
-                  <s.icon className={`w-4.5 h-4.5 ${s.color}`} />
+                  <s.icon className={`w-5 h-5 ${s.color}`} />
                 </div>
                 {s.href && (
                   <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors mt-1" />
@@ -266,7 +275,7 @@ export default function Dashboard() {
                       <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-muted-foreground">
                         {conv.contactName.charAt(0).toUpperCase()}
                       </div>
-                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card ${CHANNEL_DOT[conv.channel] ?? "bg-muted"}`} />
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card ${channelDot(conv.channel)}`} />
                     </div>
 
                     {/* Content */}
@@ -389,7 +398,7 @@ export default function Dashboard() {
                   const connected = p.comments?.connected || p.messages?.connected;
                   return (
                     <div key={p.platform} className="flex items-center gap-2.5">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${connected ? CHANNEL_DOT[p.platform] ?? "bg-muted" : "bg-muted-foreground/20"}`} />
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${connected ? PLATFORM_DOT[p.platform] ?? "bg-muted" : "bg-muted-foreground/20"}`} />
                       <span className="text-xs text-foreground capitalize flex-1">{CHANNEL_LABEL[p.platform] ?? p.platform}</span>
                       <span className={`text-xs ${connected ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
                         {connected ? "Connected" : "Not connected"}

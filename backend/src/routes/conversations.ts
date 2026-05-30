@@ -144,26 +144,65 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
     langStr === "ar_en" ? "Respond primarily in Arabic; you may use English words where natural." :
                           "Respond in English.";
 
-  // Fetch knowledge base context
-  const knowledge = await buildKnowledgeContext(user.sub);
+  // Fetch knowledge base context (pass platform so templates are filtered to this channel)
+  const knowledge = await buildKnowledgeContext(user.sub, platform);
 
-  // Build system prompt
+  // ── Channel-specific guidance ─────────────────────────────────────────────
+  const channelGuidance: Record<string, string> = {
+    instagram_comment:  "This is a PUBLIC Instagram comment — keep the reply short (1-2 sentences), warm, and brand-appropriate. Avoid sharing private details publicly.",
+    instagram_dm:       "This is a private Instagram DM — you can be more detailed and personal. Address the customer by name if possible.",
+    tiktok_comment:     "This is a PUBLIC TikTok comment — be brief, fun, and engaging. Use casual language that fits the TikTok vibe.",
+    tiktok_dm:          "This is a private TikTok DM — be helpful and conversational.",
+    facebook_comment:   "This is a PUBLIC Facebook comment — be professional yet approachable. Keep it concise.",
+    facebook_messenger: "This is a private Facebook Messenger conversation — you can be detailed and personal.",
+    whatsapp_business:  "This is a WhatsApp Business message — be helpful and conversational. Emojis are appropriate but don't overuse them.",
+    sms:                "This is an SMS — be very concise (under 160 characters ideally). No emojis unless the customer used them first.",
+    phone_call:         "This is a phone follow-up — write a natural, spoken-language response.",
+  };
+  const channelGuide = channelGuidance[conv.channel] ?? `This is a ${conv.channel} conversation.`;
+
+  // ── Priority & tag context ────────────────────────────────────────────────
+  const priorityGuide =
+    conv.priority === "urgent"
+      ? "URGENT: This customer needs immediate attention — prioritize speed and a resolution path."
+      : conv.priority === "low"
+      ? "Low priority — a helpful standard reply is fine."
+      : "";
+
+  const tagGuides: string[] = [];
+  if (conv.tags.includes("complaint"))      tagGuides.push("This customer is complaining — be empathetic, apologize sincerely, and offer a clear resolution.");
+  if (conv.tags.includes("order-inquiry"))  tagGuides.push("This is an order inquiry — provide clear, specific information about ordering.");
+  if (conv.tags.includes("dietary"))        tagGuides.push("This involves dietary or ingredient questions — be precise and accurate.");
+  if (conv.tags.includes("appointment"))    tagGuides.push("This involves an appointment — confirm details clearly.");
+  if (conv.tags.includes("purchase-intent")) tagGuides.push("This customer is interested in buying — be encouraging and guide them toward a purchase.");
+  if (conv.tags.includes("escalate"))       tagGuides.push("This conversation may need escalation — if unsure, suggest the customer contact us directly.");
+
+  // ── Build system prompt ───────────────────────────────────────────────────
   const systemParts: string[] = [
-    `You are an AI customer support assistant replying on behalf of a business on ${platform}.`,
+    `You are an AI customer support assistant replying on behalf of a business.`,
+    `You are replying to ${conv.contactName} (${conv.contactHandle}).`,
+    channelGuide,
     `Tone: ${toneStr}. ${langInstruction}`,
-    `Keep replies concise and natural (1–3 sentences for social media, up to 5 for DMs).`,
   ];
+
+  if (priorityGuide)        systemParts.push(priorityGuide);
+  if (tagGuides.length > 0) systemParts.push(tagGuides.join(" "));
+
   if (knowledge) {
     systemParts.push(`\nBUSINESS KNOWLEDGE BASE:\n${knowledge}`);
+    systemParts.push(`\nIMPORTANT: Use only facts from the knowledge base. If you don't know something, say you'll check and follow up rather than guessing.`);
+  } else {
+    systemParts.push(`\nIMPORTANT: If you don't have specific information about something, say you'll check and follow up rather than guessing.`);
   }
-  if (blocked) {
-    systemParts.push(`\nNever use these words: ${blocked}`);
-  }
-  if (extra) {
-    systemParts.push(`\nAdditional instructions: ${extra}`);
-  }
+
+  if (blocked) systemParts.push(`\nNever use these words or phrases: ${blocked}`);
+  if (extra)   systemParts.push(`\nAdditional business instructions: ${extra}`);
+
   systemParts.push(
-    `\nAfter writing your reply, rate your confidence (0–100) that it's accurate and helpful given the knowledge base.`,
+    `\nAfter writing your reply, rate your confidence (0–100) that it is accurate, helpful, and grounded in the knowledge base provided.`,
+    `High confidence (85+) = you are certain the information is correct.`,
+    `Medium confidence (50-84) = the reply is reasonable but the business should review it.`,
+    `Low confidence (0-49) = you are guessing or the topic needs human expertise.`,
     `Return ONLY valid JSON: { "reply": "<your reply>", "confidence": <integer 0-100> }`
   );
 

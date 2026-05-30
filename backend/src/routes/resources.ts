@@ -21,7 +21,7 @@ app.get("/", async (c) => {
 });
 
 const resourceSchema = z.object({
-  type:    z.enum(["info", "hours", "menu_item", "offer", "document"]),
+  type:    z.enum(["info", "hours", "menu_item", "offer", "document", "faq"]),
   title:   z.string().default(""),
   content: z.string().default("{}"),
   fileUrl: z.string().nullable().optional(),

@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Plus, Search, MessageSquare, Copy, Check, Pencil, Trash2,
   X, Loader2, ToggleLeft, ToggleRight, SortAsc, Hash,
-  ChevronDown, Copy2, Eye, Sparkles,
+  ChevronDown, CopyPlus, Eye, Sparkles,
 } from "lucide-react";
 import {
   useTemplates,
@@ -686,7 +686,7 @@ export default function Templates() {
                           title="Duplicate"
                           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          <Copy2 className="w-3.5 h-3.5" />
+                          <CopyPlus className="w-3.5 h-3.5" />
                         </button>
                         {/* Edit button */}
                         <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">

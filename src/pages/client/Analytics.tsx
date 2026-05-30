@@ -217,6 +217,10 @@ export default function Analytics() {
   const negMentions = mentions.filter(m => m.sentiment === "negative").length;
   const posRate     = mentions.length > 0 ? Math.round((posMentions / mentions.length) * 100) : 0;
 
+  const sentCampaigns = campaigns.filter(c => c.status === "sent");
+  const totalCampSent = sentCampaigns.reduce((s, c) => s + c.sentCount, 0);
+  const allMsgs       = conversations;
+
   return (
     <AppLayout role="client" businessName={user?.businessName}>
       <div className="space-y-5">

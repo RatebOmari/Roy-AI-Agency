@@ -538,7 +538,7 @@ export default function Campaigns() {
                             {campaign.audienceType === "tag" && campaign.audienceValue
                               ? t("campaigns.confirm.sendTag", { tag: campaign.audienceValue })
                               : campaign.audienceType === "platform" && campaign.audienceValue
-                                ? t("campaigns.confirm.sendPlatform", { platform: PLATFORM_REACH[campaign.audienceValue]?.label ?? campaign.audienceValue })
+                                ? t("campaigns.confirm.sendPlatform", { platform: PLATFORM_CHIP[campaign.audienceValue]?.label ?? campaign.audienceValue })
                                 : t("campaigns.confirm.sendAll")}
                           </span>
                           <button
@@ -628,7 +628,7 @@ export default function Campaigns() {
                         : campaign.audienceType === "tag"
                           ? `#${campaign.audienceValue}`
                           : campaign.audienceValue
-                            ? PLATFORM_REACH[campaign.audienceValue]?.label ?? campaign.audienceValue
+                            ? PLATFORM_CHIP[campaign.audienceValue]?.label ?? campaign.audienceValue
                             : "—"}
                     </span>
                   </div>

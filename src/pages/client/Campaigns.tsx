@@ -454,13 +454,13 @@ export default function Campaigns() {
         </div>
 
         {/* Status filter tabs */}
-        <div className="flex bg-muted p-1 rounded-xl w-fit gap-1 flex-wrap">
+        <div className="flex bg-muted p-1 rounded-xl gap-1 overflow-x-auto no-scrollbar w-full sm:w-fit">
           {STATUS_TAB_KEYS.map(key => (
             <button
               key={key}
               onClick={() => setStatusFilter(key)}
               className={cn(
-                "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                "px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 whitespace-nowrap",
                 statusFilter === key
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",

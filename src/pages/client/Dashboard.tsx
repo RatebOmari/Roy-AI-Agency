@@ -236,7 +236,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Two-column body ───────────────────────────────────────────────── */}
-        <div className="flex gap-5 items-start">
+        <div className="flex flex-col lg:flex-row gap-5 items-start">
 
           {/* Left: Recent Activity */}
           <motion.div
@@ -309,7 +309,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="w-72 shrink-0 space-y-4"
+            className="w-full lg:w-72 lg:shrink-0 space-y-4"
           >
             {/* Quick Actions */}
             <div className="bg-card border border-border rounded-2xl overflow-hidden">

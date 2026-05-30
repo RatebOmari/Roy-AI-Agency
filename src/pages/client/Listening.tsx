@@ -389,9 +389,9 @@ export default function Listening() {
         </div>
 
         {/* Two-panel layout */}
-        <div className="flex gap-5 items-start">
+        <div className="flex flex-col lg:flex-row gap-5 items-start">
           {/* ── Left: Keywords sidebar ─────────────────────────────────────────── */}
-          <div className="w-72 shrink-0 bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="w-full lg:w-72 lg:shrink-0 bg-card border border-border rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <h3 className="text-sm font-semibold text-foreground">Tracked Keywords</h3>
               <span className="text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">
@@ -577,7 +577,7 @@ export default function Listening() {
                 </div>
 
                 {/* Handled toggle + date range */}
-                <div className="ml-auto flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {handledCount > 0 && (
                     <button
                       onClick={() => setShowHandled(prev => !prev)}

@@ -45,7 +45,7 @@ export function AppLayout({ children, role, businessName }: AppLayoutProps) {
             </button>
           </div>
         )}
-        <div className="p-6 lg:p-8">{children}</div>
+        <div className="p-4 lg:p-8">{children}</div>
       </main>
     </div>
   );

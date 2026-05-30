@@ -245,27 +245,28 @@ export default function Analytics() {
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {r === "7d" ? "Last 7 days" : r === "30d" ? "Last 30 days" : "Last 90 days"}
+                <span className="hidden sm:inline">{r === "7d" ? "Last 7 days" : r === "30d" ? "Last 30 days" : "Last 90 days"}</span>
+                <span className="sm:hidden">{r}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* ── Tabs ───────────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1 border-b border-border overflow-x-auto pb-0">
+        <div className="flex items-center gap-1 border-b border-border overflow-x-auto no-scrollbar pb-0">
           {TABS.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                "flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 tab === t.id
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              <t.icon className="w-3.5 h-3.5" />
-              {t.label}
+              <t.icon className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{t.label}</span>
             </button>
           ))}
         </div>

@@ -2,9 +2,13 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
+import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
 import { listeningKeywords } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { buildKnowledgeContext } from "../lib/knowledge.js";
+
+const anthropic = new Anthropic();
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -136,6 +140,38 @@ app.get("/mentions", async (c) => {
   });
 
   return c.json(mentions);
+});
+
+// POST /generate-reply — AI-suggested reply for a mention
+app.post("/generate-reply", zValidator("json", z.object({
+  content:  z.string().min(1),
+  platform: z.string(),
+  username: z.string().optional(),
+  keyword:  z.string().optional(),
+})), async (c) => {
+  const user = c.get("user");
+  const { content, platform, username, keyword } = c.req.valid("json");
+
+  const knowledgeCtx = await buildKnowledgeContext(user.sub, platform);
+
+  const systemParts = [
+    `You are a social media manager responding to a brand mention on ${platform}.`,
+    username ? `You are replying to @${username}.` : "",
+    keyword  ? `The mention involves the keyword: "${keyword}".` : "",
+    "Write a single short, friendly, on-brand reply. 1-2 sentences max. No hashtags unless natural.",
+  ].filter(Boolean);
+
+  if (knowledgeCtx) systemParts.push(`\n${knowledgeCtx}`);
+
+  const response = await anthropic.messages.create({
+    model:      "claude-haiku-4-5-20251001",
+    max_tokens: 150,
+    system:     systemParts.join(" "),
+    messages:   [{ role: "user", content: `Mention: "${content}"\n\nWrite a reply:` }],
+  });
+
+  const reply = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+  return c.json({ reply });
 });
 
 export default app;

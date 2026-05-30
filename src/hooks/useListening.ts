@@ -113,3 +113,10 @@ export function useMentions() {
     staleTime: 30_000,
   });
 }
+
+export function useGenerateMentionReply() {
+  return useMutation({
+    mutationFn: (data: { content: string; platform: string; username: string; keyword: string }) =>
+      api.post<{ reply: string }>("/listening/generate-reply", data),
+  });
+}

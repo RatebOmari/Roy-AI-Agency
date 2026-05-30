@@ -7,6 +7,7 @@ import {
   useUpdateKeyword,
   useDeleteKeyword,
   useMentions,
+  useGenerateMentionReply,
 } from "@/hooks/useListening";
 import type { ListeningKeyword, Mention, MentionSentiment, Platform } from "@/types";
 import {
@@ -21,6 +22,9 @@ import {
   Send,
   ChevronDown,
   AlertTriangle,
+  CheckCircle2,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 
 // ── Platform config ────────────────────────────────────────────────────────────
@@ -126,40 +130,46 @@ function HighlightedContent({
 
 // ── Mention card ──────────────────────────────────────────────────────────────
 
-function MentionCard({ mention }: { mention: Mention }) {
+interface MentionCardProps {
+  mention:       Mention;
+  handled:       boolean;
+  onMarkHandled: () => void;
+}
+
+function MentionCard({ mention, handled, onMarkHandled }: MentionCardProps) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [replySent, setReplySent] = useState(false);
+  const generateReply = useGenerateMentionReply();
   const sentiment = SENTIMENT_CONFIG[mention.sentiment];
 
   const handleSendReply = () => {
     if (!replyText.trim()) return;
     setReplySent(true);
     setReplyText("");
+    onMarkHandled();
+  };
+
+  const handleGenerateReply = () => {
+    generateReply.mutate(
+      { content: mention.content, platform: mention.platform, username: mention.username, keyword: mention.keyword },
+      { onSuccess: (data) => setReplyText(data.reply) },
+    );
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-4">
-      {/* Top row: platform + user + time */}
+    <div className={`bg-card border rounded-2xl p-4 transition-opacity ${handled ? "border-green-500/30 opacity-60" : "border-border"}`}>
+      {/* Top row */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span
-            className={`w-2.5 h-2.5 rounded-full shrink-0 ${PLATFORM_COLORS[mention.platform]}`}
-          />
-          <span className="text-xs font-medium text-muted-foreground">
-            {PLATFORM_LABELS[mention.platform]}
-          </span>
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${PLATFORM_COLORS[mention.platform]}`} />
+          <span className="text-xs font-medium text-muted-foreground">{PLATFORM_LABELS[mention.platform]}</span>
           <span className="text-xs text-foreground font-medium">{mention.username}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{relativeTime(mention.timestamp)}</span>
           {mention.url && (
-            <a
-              href={mention.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-primary transition-colors"
-            >
+            <a href={mention.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
@@ -171,7 +181,7 @@ function MentionCard({ mention }: { mention: Mention }) {
         <HighlightedContent content={mention.content} keyword={mention.keyword} />
       </p>
 
-      {/* Bottom row: sentiment + keyword + reply */}
+      {/* Bottom row */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sentiment.cls}`}>
@@ -181,41 +191,70 @@ function MentionCard({ mention }: { mention: Mention }) {
             {mention.keyword}
           </span>
         </div>
-        <button
-          onClick={() => setReplyOpen((prev) => !prev)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-        >
-          <MessageSquare className="w-3.5 h-3.5" />
-          Reply
-        </button>
+        <div className="flex items-center gap-1.5">
+          {handled ? (
+            <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 px-2 py-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Handled
+            </span>
+          ) : (
+            <button
+              onClick={onMarkHandled}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg text-muted-foreground hover:text-green-600 hover:border-green-500/40 transition-colors"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Done
+            </button>
+          )}
+          <button
+            onClick={() => setReplyOpen(prev => !prev)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            Reply
+          </button>
+        </div>
       </div>
 
       {/* Inline reply */}
       {replyOpen && (
-        <div className="mt-3 pt-3 border-t border-border">
+        <div className="mt-3 pt-3 border-t border-border space-y-2">
           {replySent ? (
             <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
               <Send className="w-3.5 h-3.5" />
-              Reply sent successfully
+              Reply sent — marked as handled
             </div>
           ) : (
-            <div className="flex gap-2">
-              <input
-                type="text"
+            <>
+              <textarea
                 value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendReply()}
-                placeholder={`Reply to ${mention.username}...`}
-                className="flex-1 px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                onChange={e => setReplyText(e.target.value)}
+                placeholder={`Reply to ${mention.username}…`}
+                rows={2}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
               />
-              <button
-                onClick={handleSendReply}
-                disabled={!replyText.trim()}
-                className="px-3 py-1.5 bg-primary text-white text-xs rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-3.5 h-3.5" />
-              </button>
-            </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleGenerateReply}
+                  disabled={generateReply.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-primary/30 text-primary rounded-lg hover:bg-primary/5 transition-colors disabled:opacity-50"
+                >
+                  {generateReply.isPending
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Sparkles className="w-3.5 h-3.5" />
+                  }
+                  {generateReply.isPending ? "Generating…" : "AI Suggest"}
+                </button>
+                <button
+                  onClick={handleSendReply}
+                  disabled={!replyText.trim()}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Send
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -244,6 +283,11 @@ export default function Listening() {
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
   const [dateRange, setDateRange] = useState<DateRange>("7d");
 
+  // Handled state (local — tracks which mentions are done)
+  const [handledIds, setHandledIds] = useState<Set<string>>(new Set());
+  const [showHandled, setShowHandled] = useState(false);
+  const markHandled = (id: string) => setHandledIds(prev => new Set(prev).add(id));
+
   // Compute stats (based on 7d)
   const recentMentions = allMentions.filter((m) => isWithinRange(m.timestamp, "7d"));
   const posCount = recentMentions.filter((m) => m.sentiment === "positive").length;
@@ -252,11 +296,14 @@ export default function Listening() {
 
   // Filter mentions
   const filteredMentions = allMentions.filter((m) => {
+    if (!showHandled && handledIds.has(m.id)) return false;
     if (!isWithinRange(m.timestamp, dateRange)) return false;
     if (sentimentFilter !== "all" && m.sentiment !== sentimentFilter) return false;
     if (platformFilter !== "all" && m.platform !== platformFilter) return false;
     return true;
   });
+
+  const handledCount = handledIds.size;
 
   // Sentiment counts for filter tabs
   const sentimentCounts = {
@@ -528,20 +575,33 @@ export default function Listening() {
                   ))}
                 </div>
 
-                {/* Date range */}
-                <div className="ml-auto relative">
-                  <select
-                    value={dateRange}
-                    onChange={(e) => setDateRange(e.target.value as DateRange)}
-                    className="appearance-none pl-3 pr-8 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  >
-                    {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
-                      <option key={r} value={r}>
-                        {DATE_RANGE_LABELS[r]}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                {/* Handled toggle + date range */}
+                <div className="ml-auto flex items-center gap-2">
+                  {handledCount > 0 && (
+                    <button
+                      onClick={() => setShowHandled(prev => !prev)}
+                      className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded-full border transition-colors ${
+                        showHandled
+                          ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400"
+                          : "border-border text-muted-foreground hover:border-green-500/30"
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3 h-3" />
+                      {showHandled ? "Hiding handled" : `${handledCount} handled`}
+                    </button>
+                  )}
+                  <div className="relative">
+                    <select
+                      value={dateRange}
+                      onChange={(e) => setDateRange(e.target.value as DateRange)}
+                      className="appearance-none pl-3 pr-8 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    >
+                      {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
+                        <option key={r} value={r}>{DATE_RANGE_LABELS[r]}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -569,7 +629,12 @@ export default function Listening() {
             ) : (
               <div className="space-y-3">
                 {filteredMentions.map((mention) => (
-                  <MentionCard key={mention.id} mention={mention} />
+                  <MentionCard
+                    key={mention.id}
+                    mention={mention}
+                    handled={handledIds.has(mention.id)}
+                    onMarkHandled={() => markHandled(mention.id)}
+                  />
                 ))}
               </div>
             )}

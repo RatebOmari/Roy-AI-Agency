@@ -92,4 +92,31 @@ app.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// POST /generate — AI-generate a template
+app.post("/generate", zValidator("json", z.object({
+  description: z.string().min(1),
+  platforms: z.array(z.string()).optional(),
+  language: z.string().optional(),
+})), async (c) => {
+  const { description, platforms, language } = c.req.valid("json");
+  const Anthropic = (await import("@anthropic-ai/sdk")).default;
+  const client = new Anthropic();
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 400,
+    messages: [{
+      role: "user",
+      content: `Generate a social media reply template.\nDescription: "${description}"\nPlatforms: ${platforms?.join(", ") || "general"}\nLanguage: ${language || "en"}\n\nReturn ONLY valid JSON: {"title": "...", "content": "..."}\nUse {{name}} for customer name where natural. Keep content concise.`
+    }]
+  });
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  const match = text.match(/\{[\s\S]*\}/);
+  try {
+    const parsed = JSON.parse(match?.[0] ?? "{}");
+    return c.json({ title: parsed.title ?? "", content: parsed.content ?? "" });
+  } catch {
+    return c.json({ title: "", content: text }, 200);
+  }
+});
+
 export default app;

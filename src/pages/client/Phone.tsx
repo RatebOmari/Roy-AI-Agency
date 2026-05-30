@@ -519,19 +519,23 @@ export default function PhonePage() {
 
   const selectedContact = contacts.find(c => c.key === selectedKey) ?? null;
 
-  // Auto-select first contact on load
+  // Auto-select first contact on desktop only.
+  // Deps intentionally exclude selectedKey — we don't re-select when the user
+  // taps back (clears selection) on mobile.
   useEffect(() => {
+    if (window.innerWidth < 1024) return;
     if (contacts.length > 0 && !selectedKey) {
       setSelectedKey(contacts[0].key);
     }
-  }, [contacts.length, selectedKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts.length]);
 
   const showList = !selectedKey;
   const showPane = !!selectedKey;
 
   return (
     <AppLayout role="client" businessName={user?.businessName}>
-      <div className="flex h-[calc(100vh-56px)] -m-6 lg:-m-8 overflow-hidden border-t border-border flex-col">
+      <div className="flex h-[calc(100vh-56px)] -m-4 lg:-m-8 overflow-hidden border-t border-border flex-col">
         {/* Stats bar — full width at top */}
         <StatsBar contacts={contacts} />
 

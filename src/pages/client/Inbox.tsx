@@ -44,12 +44,16 @@ export default function Inbox() {
     setLocalConvs(null);
   }, [conversations]);
 
-  // Auto-select first conversation on load (desktop UX)
+  // Auto-select first conversation on desktop only.
+  // Deps intentionally exclude selectedId — we don't re-select when the user
+  // taps back (clears selection) on mobile.
   useEffect(() => {
+    if (window.innerWidth < 1024) return;
     if (conversations.length > 0 && !selectedId) {
       setSelectedId(conversations[0].id);
     }
-  }, [conversations.length, selectedId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversations.length]);
 
   const handleApprove = (convId: string, msgId: string, content: string) => {
     setLocalConvs(prev => (prev ?? conversations).map(c =>
@@ -137,7 +141,7 @@ export default function Inbox() {
   return (
     <AppLayout role="client" businessName={user?.businessName}>
       {/* Full-height split pane that bleeds past the AppLayout padding */}
-      <div className="flex h-[calc(100vh-56px)] -m-6 lg:-m-8 overflow-hidden border-t border-border">
+      <div className="flex h-[calc(100vh-56px)] -m-4 lg:-m-8 overflow-hidden border-t border-border">
 
         {/* Left panel — full width on mobile (list only), fixed 320px on desktop */}
         <div className={cn(

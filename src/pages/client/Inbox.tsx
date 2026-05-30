@@ -33,7 +33,10 @@ export default function Inbox() {
 
   // Local optimistic state
   const [localConvs, setLocalConvs] = useState<Conversation[] | null>(null);
-  const displayed = localConvs ?? conversations;
+  // SMS and phone_call are handled by the Phone page — exclude them here
+  const displayed = (localConvs ?? conversations).filter(
+    c => c.channel !== "sms" && c.channel !== "phone_call"
+  );
   const selectedConv = displayed.find(c => c.id === selectedId) ?? null;
 
   // Reset local overrides whenever fresh server data arrives

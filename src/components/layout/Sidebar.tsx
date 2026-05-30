@@ -20,7 +20,10 @@ interface SidebarProps {
 
 function UnreadBadge() {
   const { data = [] } = useConversations();
-  const count = data.reduce((s, c) => s + c.unreadCount, 0);
+  // Only count social channels — SMS/calls have their own Phone page
+  const count = data
+    .filter(c => c.channel !== "sms" && c.channel !== "phone_call")
+    .reduce((s, c) => s + c.unreadCount, 0);
   if (count === 0) return null;
   return (
     <span className="ml-auto w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
@@ -48,7 +51,7 @@ const CLIENT_NAV_GROUPS: NavGroup[] = [
       { label: "Content",   href: "/content",    icon: CalendarDays },
       { label: "Inbox",     href: "/inbox",       icon: Inbox, badge: true },
       { label: "Comments",  href: "/comments",   icon: MessageSquare },
-      { label: "Calls",     href: "/calls",      icon: Phone },
+      { label: "Phone",     href: "/phone",      icon: Phone },
     ],
   },
   {

@@ -270,6 +270,28 @@ export const calls = pgTable("calls", {
   createdAt:    timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── Automation Rules ─────────────────────────────────────────────────────────
+
+export const automationTriggerEnum = pgEnum("automation_trigger", [
+  "contains_word", "is_question", "sentiment_positive", "sentiment_negative", "new_follower",
+]);
+export const automationActionEnum = pgEnum("automation_action", [
+  "auto_send", "skip_review", "escalate", "assign_to",
+]);
+
+export const automationRules = pgTable("automation_rules", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:         text("name").notNull(),
+  trigger:      automationTriggerEnum("trigger").notNull(),
+  triggerValue: text("trigger_value"),
+  action:       automationActionEnum("action").notNull(),
+  actionValue:  text("action_value"),
+  channels:     text("channels").notNull().default("[]"),  // JSON array of channel strings
+  active:       boolean("active").notNull().default(true),
+  createdAt:    timestamp("created_at").notNull().defaultNow(),
+});
+
 // ── Social Comments ───────────────────────────────────────────────────────────
 
 export const comments = pgTable("comments", {

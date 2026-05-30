@@ -9,6 +9,7 @@ import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, makePhoneCall, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
+import { evaluateRules, ruleActionToReplyStatus } from "../lib/automationRules.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -256,10 +257,20 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
   }
 
   // Apply 3-tier confidence system
-  const replyStatus =
-    confidence >= 85 ? "auto_sent"  as const :
-    confidence >= 50 ? "pending"    as const :
-                       "escalated"  as const;
+  let replyStatus: "auto_sent" | "pending" | "escalated" =
+    confidence >= 85 ? "auto_sent"  :
+    confidence >= 50 ? "pending"    :
+                       "escalated"  ;
+
+  // Automation rules can override the confidence-based tier
+  const ruleMatch = await evaluateRules(user.sub, lastInbound.content, conv.channel);
+  if (ruleMatch) {
+    const overrideStatus = ruleActionToReplyStatus(ruleMatch.action);
+    if (overrideStatus) {
+      replyStatus = overrideStatus;
+      console.log(`[conversations] rule "${ruleMatch.ruleName}" → ${overrideStatus}`);
+    }
+  }
 
   // Create outbound message with the AI reply
   const [newMsg] = await db

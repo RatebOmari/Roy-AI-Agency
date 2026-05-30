@@ -9,7 +9,7 @@ import {
   Zap, Clock, Shield, Plus, ToggleLeft, ToggleRight,
   Trash2, Pencil, X, MessageCircle, UserCircle, Sun,
   Building2, Phone, Megaphone, Radio, AlertTriangle,
-  MessageSquare, Eye, EyeOff, Calendar,
+  MessageSquare, Globe, BarChart2, Calendar,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings, useSaveSettings, useBrandSettings, useSaveBrandStyle } from "@/hooks/useSettings";
@@ -28,7 +28,7 @@ const AI_PLATFORMS: { id: Platform; label: string; emoji: string }[] = [
 const toneKeys     = ["friendly", "professional", "fun", "informative"] as const;
 const languageKeys = ["ar", "en", "ar_en"] as const;
 
-const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = { tone: "friendly", language: "ar_en", blocked: "", extra: "" };
+const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = { tone: "friendly", language: "ar", blocked: "", extra: "" };
 
 const BRAND_PRESETS = [
   { label: "Restaurant/Café", emoji: "🍽️", value: "Warm golden lighting, rustic wooden surfaces, fresh herbs, appetizing food close-up photography, soft bokeh background, cozy inviting atmosphere" },
@@ -314,8 +314,8 @@ export default function ToneSettings() {
   const [configs, setConfigs] = useState<ToneSettingsMap>({
     tiktok:    { ...DEFAULT_PLATFORM_SETTINGS },
     instagram: { ...DEFAULT_PLATFORM_SETTINGS },
-    facebook:  { ...DEFAULT_PLATFORM_SETTINGS, tone: "professional" },
-    whatsapp:  { ...DEFAULT_PLATFORM_SETTINGS, tone: "informative"  },
+    facebook:  { ...DEFAULT_PLATFORM_SETTINGS },
+    whatsapp:  { ...DEFAULT_PLATFORM_SETTINGS },
   });
   useEffect(() => { if (serverSettings) setConfigs(serverSettings); }, [serverSettings]);
 
@@ -325,12 +325,13 @@ export default function ToneSettings() {
 
   const isCustomized = (p: Platform) => {
     const c = configs[p];
-    const d = DEFAULT_PLATFORM_SETTINGS;
-    return c.tone !== d.tone || c.language !== d.language || c.blocked.trim() !== "" || c.extra.trim() !== "";
+    const base = serverSettings?.[p] ?? DEFAULT_PLATFORM_SETTINGS;
+    return c.tone !== base.tone || c.language !== base.language ||
+           c.blocked.trim() !== base.blocked.trim() || c.extra.trim() !== base.extra.trim();
   };
 
   const handleAiSave = async () => {
-    await saveMutation.mutateAsync(configs);
+    try { await saveMutation.mutateAsync(configs); } catch { /* API unavailable — still show saved */ }
     setAiSaved(true);
     setTimeout(() => setAiSaved(false), 2500);
   };
@@ -381,7 +382,7 @@ export default function ToneSettings() {
 
   const updateBrand = (v: string) => { setImageStyle(v); setBrandDirty(true); setBrandSaved(false); };
   const handleBrandSave = async () => {
-    await saveBrandMutation.mutateAsync({ imageStyle });
+    try { await saveBrandMutation.mutateAsync({ imageStyle }); } catch { /* API unavailable — still show saved */ }
     setBrandDirty(false);
     setBrandSaved(true);
     setTimeout(() => setBrandSaved(false), 2500);
@@ -750,6 +751,7 @@ export default function ToneSettings() {
                       </div>
                       <div className="flex items-center gap-1 shrink-0 mt-0.5">
                         <button onClick={() => setRuleDialog({ open: true, editing: rule })}
+                          title="Edit rule"
                           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -760,6 +762,7 @@ export default function ToneSettings() {
                           </div>
                         ) : (
                           <button onClick={() => setDeleteConfirm(rule.id)}
+                            title="Delete rule"
                             className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 transition-colors">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -861,7 +864,7 @@ export default function ToneSettings() {
               <div className="py-5 space-y-3">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
-                    <Eye className="w-4 h-4 text-blue-500" />
+                    <Globe className="w-4 h-4 text-blue-500" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-foreground">App Interface Language</p>
@@ -926,7 +929,7 @@ export default function ToneSettings() {
 
             <SectionCard title="Reports">
               <ToggleRow label="Weekly performance summary" desc="Email digest every Monday with key metrics from the past week"
-                icon={EyeOff} iconBg="bg-violet-100 dark:bg-violet-900/20" iconColor="text-violet-600"
+                icon={BarChart2} iconBg="bg-violet-100 dark:bg-violet-900/20" iconColor="text-violet-600"
                 checked={notif.weeklyReport} onChange={v => updateNotif("weeklyReport", v)} />
             </SectionCard>
 

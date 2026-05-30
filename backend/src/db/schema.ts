@@ -113,10 +113,11 @@ export const scheduledPosts = pgTable("scheduled_posts", {
   platforms:   text("platforms").array().notNull().default(sql`'{}'::text[]`),
   content:     text("content").notNull().default(""),
   mediaUrl:    text("media_url"),
-  scheduledAt: timestamp("scheduled_at"),
-  status:      postStatusEnum("status").notNull().default("draft"),
-  aiGenerated: boolean("ai_generated").notNull().default(false),
-  createdAt:   timestamp("created_at").notNull().defaultNow(),
+  scheduledAt:  timestamp("scheduled_at"),
+  publishedAt:  timestamp("published_at"),
+  status:       postStatusEnum("status").notNull().default("draft"),
+  aiGenerated:  boolean("ai_generated").notNull().default(false),
+  createdAt:    timestamp("created_at").notNull().defaultNow(),
 });
 
 // ── Resources / Knowledge Base ────────────────────────────────────────────────

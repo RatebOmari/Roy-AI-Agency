@@ -2,6 +2,7 @@ import { db } from "../db/index.js";
 import { scheduledPosts } from "../db/schema.js";
 import { eq, and, lte, isNotNull } from "drizzle-orm";
 import { logDelivery } from "./platformDelivery.js";
+import { recordInitialMetrics, refreshRecentMetrics } from "./metricsFetcher.js";
 
 const INTERVAL_MS = 60_000; // check every 60 seconds
 
@@ -11,6 +12,7 @@ async function publishDuePosts(): Promise<void> {
   const due = await db
     .select({
       id:        scheduledPosts.id,
+      userId:    scheduledPosts.userId,
       platforms: scheduledPosts.platforms,
       content:   scheduledPosts.content,
     })
@@ -56,10 +58,15 @@ async function publishDuePosts(): Promise<void> {
         }
       }
 
+      const publishedAt = new Date();
       await db
         .update(scheduledPosts)
-        .set({ status: "published" })
+        .set({ status: "published", publishedAt })
         .where(eq(scheduledPosts.id, post.id));
+
+      // Record initial engagement metrics for this post (non-blocking)
+      recordInitialMetrics(post.id, post.userId, post.platforms, publishedAt)
+        .catch(err => console.error(`[scheduler] metrics recording failed for ${post.id}:`, err));
 
       console.log(`[scheduler] Post ${post.id} published → ${post.platforms.join(", ")} [${deliveryResults.join(", ")}]`);
     } catch (err) {
@@ -73,6 +80,8 @@ async function publishDuePosts(): Promise<void> {
   }
 }
 
+const METRICS_INTERVAL_MS = 6 * 3_600_000; // refresh metrics every 6 hours
+
 export function startScheduler(): void {
   // Run once immediately in case posts were due while the server was down
   publishDuePosts().catch(err => console.error("[scheduler] Initial run error:", err));
@@ -82,5 +91,13 @@ export function startScheduler(): void {
     INTERVAL_MS
   );
 
+  // Refresh post metrics for recently published posts
+  refreshRecentMetrics().catch(err => console.error("[scheduler] metrics refresh error:", err));
+  setInterval(
+    () => refreshRecentMetrics().catch(err => console.error("[scheduler] metrics refresh error:", err)),
+    METRICS_INTERVAL_MS
+  );
+
   console.log(`[scheduler] Post publisher started — checking every ${INTERVAL_MS / 1000}s`);
+  console.log(`[scheduler] Metrics refresher started — running every ${METRICS_INTERVAL_MS / 3_600_000}h`);
 }

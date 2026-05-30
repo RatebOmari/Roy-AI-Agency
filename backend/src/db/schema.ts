@@ -328,6 +328,20 @@ export const automationRules = pgTable("automation_rules", {
 
 // ── Social Comments ───────────────────────────────────────────────────────────
 
+// ── Flow Sessions (persisted multi-turn chatbot state) ────────────────────────
+
+export const flowSessions = pgTable("flow_sessions", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  conversationId:  uuid("conversation_id").notNull().unique().references(() => conversations.id, { onDelete: "cascade" }),
+  flowId:          uuid("flow_id").notNull().references(() => chatbotFlows.id, { onDelete: "cascade" }),
+  userId:          uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  channel:         text("channel").notNull(),
+  recipientHandle: text("recipient_handle").notNull().default(""),
+  stepIndex:       integer("step_index").notNull().default(0),
+  collectedValues: text("collected_values").notNull().default("{}"),
+  updatedAt:       timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const comments = pgTable("comments", {
   id:                uuid("id").primaryKey().defaultRandom(),
   userId:            uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

@@ -12,6 +12,7 @@
 import { db } from "../db/index.js";
 import { platformCredentials } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
+import { decryptToken } from "./crypto.js";
 
 type DeliveryResult =
   | { ok: true; sid?: string }
@@ -36,7 +37,7 @@ async function getToken(
       )
     )
     .limit(1);
-  return cred?.token ?? null;
+  return cred?.token ? decryptToken(cred.token) : null;
 }
 
 // ── WhatsApp Business Cloud API ───────────────────────────────────────────────

@@ -7,6 +7,7 @@ import { teamMembers, internalNotes } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { requireAdmin, requireNotViewer } from "../middleware/teamRole.js";
+import { sendInviteEmail } from "../lib/email.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -45,6 +46,16 @@ app.post("/members", requireAdmin, zValidator("json", memberSchema), async (c) =
       status: "invited",
     })
     .returning();
+
+  // Fire-and-forget invite email — failure must not block the response
+  sendInviteEmail({
+    to:           body.email,
+    recipientName: body.name,
+    role:         body.role ?? "agent",
+    memberId:     row.id,
+    businessName: user.businessName,
+  }).catch(err => console.error("[team] invite email failed:", err));
+
   return c.json(row, 201);
 });
 

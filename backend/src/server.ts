@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { startScheduler } from "./lib/scheduler.js";
 import { cors } from "hono/cors";
@@ -41,6 +42,9 @@ app.use("*", logger());
 // Health check
 app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
 
+// Serve uploaded files (documents from Knowledge Base)
+app.use("/uploads/*", serveStatic({ root: "./" }));
+
 const api = new Hono();
 
 api.route("/auth",           authRoutes);
@@ -78,6 +82,12 @@ if (!process.env.JWT_SECRET) {
 }
 if (!process.env.DATABASE_URL) {
   console.warn("⚠️  DATABASE_URL is not set — database operations will fail.");
+}
+if (!process.env.ENCRYPTION_KEY) {
+  console.warn("⚠️  ENCRYPTION_KEY is not set — platform credentials will be stored unencrypted.");
+}
+if (!process.env.RESEND_API_KEY) {
+  console.warn("⚠️  RESEND_API_KEY is not set — team invite emails will be logged to console only.");
 }
 
 const port = Number(process.env.PORT ?? 3001);

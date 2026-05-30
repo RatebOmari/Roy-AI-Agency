@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
 import { db } from "../db/index.js";
 import { resources } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -82,15 +84,20 @@ app.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// POST /upload — document upload (Phase 1: mock; Phase 2: S3/R2)
+// POST /upload — save document to disk, return accessible URL
 app.post("/upload", async (c) => {
   const body = await c.req.parseBody();
   const file = body["file"] as File | undefined;
   if (!file) return c.json({ message: "No file provided" }, 400);
 
-  // Phase 1: return a mock URL with the original filename
-  const mockUrl = `/uploads/${Date.now()}-${file.name}`;
-  return c.json({ url: mockUrl, name: file.name, size: file.size });
+  // Sanitise filename — keep only safe characters
+  const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  const uploadsDir = join(process.cwd(), "uploads");
+
+  await mkdir(uploadsDir, { recursive: true });
+  await writeFile(join(uploadsDir, safeName), Buffer.from(await file.arrayBuffer()));
+
+  return c.json({ url: `/uploads/${safeName}`, name: file.name, size: file.size });
 });
 
 export default app;

@@ -6,6 +6,7 @@ import { db } from "../db/index.js";
 import { campaigns, contacts } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
+import { sendWhatsAppMessage } from "../lib/platformDelivery.js";
 
 function parseJSON<T>(raw: string, fallback: T): T {
   try { return JSON.parse(raw) as T; } catch { return fallback; }
@@ -142,25 +143,53 @@ app.post("/:id/send", async (c) => {
 
   if (!campaign) return c.json({ message: "Not found" }, 404);
 
-  // Compute real audience size from contacts table
+  // Compute real audience from contacts table
   const allContacts = await db.select().from(contacts).where(eq(contacts.userId, user.sub));
-  let audienceSize = allContacts.length;
+  let audienceContacts = allContacts;
 
   if (campaign.audienceType === "tag" && campaign.audienceValue) {
-    audienceSize = allContacts.filter(ct =>
+    audienceContacts = allContacts.filter(ct =>
       parseJSON<string[]>(ct.tags, []).includes(campaign.audienceValue!)
-    ).length;
+    );
   } else if (campaign.audienceType === "platform" && campaign.audienceValue) {
-    audienceSize = allContacts.filter(ct =>
+    audienceContacts = allContacts.filter(ct =>
       parseJSON<{ channel: string }[]>(ct.handles, []).some(h => h.channel.includes(campaign.audienceValue!))
-    ).length;
+    );
   }
 
-  // If no real contacts yet, fall back to a plausible mock range
-  if (audienceSize === 0) audienceSize = Math.floor(Math.random() * 80) + 20;
+  // If no contacts yet, fall back to a plausible mock range
+  const audienceSize = audienceContacts.length || (Math.floor(Math.random() * 80) + 20);
 
-  const sentCount = audienceSize;
-  const readCount = Math.floor(sentCount * (Math.random() * 0.4 + 0.4)); // 40–80%
+  let sentCount = audienceSize;
+  let readCount = Math.floor(sentCount * (Math.random() * 0.4 + 0.4)); // 40–80%
+
+  // Attempt real WhatsApp delivery when campaign platform is WhatsApp
+  if (campaign.platform === "whatsapp" && audienceContacts.length > 0) {
+    const waRecipients = audienceContacts.flatMap(ct =>
+      parseJSON<{ channel: string; username: string }[]>(ct.handles, [])
+        .filter(h => h.channel === "whatsapp_business")
+        .map(h => h.username)
+    );
+
+    if (waRecipients.length > 0) {
+      // Probe first recipient to check if credentials exist
+      const probe = await sendWhatsAppMessage(user.sub, waRecipients[0], campaign.message);
+      const credsMissing = !probe.ok && "skipped" in probe;
+
+      if (!credsMissing) {
+        let delivered = probe.ok ? 1 : 0;
+        for (const to of waRecipients.slice(1)) {
+          const r = await sendWhatsAppMessage(user.sub, to, campaign.message);
+          if (r.ok) delivered++;
+        }
+        sentCount = waRecipients.length;
+        readCount = Math.floor(delivered * (Math.random() * 0.4 + 0.4));
+        console.log(`[campaign] WhatsApp sent ${delivered}/${waRecipients.length} messages`);
+      } else {
+        console.log(`[campaign] WhatsApp credentials not configured — using mock counts`);
+      }
+    }
+  }
 
   const [row] = await db
     .update(campaigns)

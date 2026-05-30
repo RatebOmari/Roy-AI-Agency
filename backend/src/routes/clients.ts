@@ -5,6 +5,7 @@ import { eq, and, count, inArray, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { encryptToken } from "../lib/crypto.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -272,14 +273,14 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
     if (existing) {
       await db
         .update(platformCredentials)
-        .set({ accessTokenEnc: accessToken, connectedAt: new Date() })
+        .set({ accessTokenEnc: encryptToken(accessToken), connectedAt: new Date() })
         .where(eq(platformCredentials.id, existing.id));
     } else {
       await db.insert(platformCredentials).values({
         userId:         clientId,
         platform,
         feature,
-        accessTokenEnc: accessToken, // TODO: encrypt at rest in production
+        accessTokenEnc: encryptToken(accessToken),
       });
     }
 

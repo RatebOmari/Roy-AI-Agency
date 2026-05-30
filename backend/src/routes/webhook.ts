@@ -293,8 +293,8 @@ app.post("/:platform/:userId", async (c) => {
         .catch(err => console.error("[webhook] contactSync failed:", err));
 
       // ── Flow engine ─────────────────────────────────────────────────────────
-      if (hasActiveFlow(conv.id)) {
-        const activeFlowId = getActiveFlowId(conv.id);
+      if (await hasActiveFlow(conv.id)) {
+        const activeFlowId = await getActiveFlowId(conv.id);
         if (activeFlowId) {
           const resumed = await continueFlow(conv.id, event.text, activeFlowId);
           if (resumed) {

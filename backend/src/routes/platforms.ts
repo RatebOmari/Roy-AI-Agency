@@ -6,6 +6,7 @@ import { db } from "../db/index.js";
 import { platformCredentials } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
+import { encryptToken } from "../lib/crypto.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -37,7 +38,7 @@ app.post("/connect", zValidator("json", connectSchema), async (c) => {
       userId:         user.sub,
       platform,
       feature,
-      accessTokenEnc: accessToken,
+      accessTokenEnc: encryptToken(accessToken),
       expiresAt:      expiresAt ? new Date(expiresAt) : null,
       connectedAt:    new Date(),
     });

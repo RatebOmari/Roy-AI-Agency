@@ -5,14 +5,14 @@
  * executeFlow()      — runs a matched flow from step 0.
  * continueFlow()     — resumes a paused flow (after collect_input).
  *
- * Multi-turn state is stored in-memory (correct for single-process deployment).
- * For multi-instance deployments, replace `activeFlowStates` with Redis.
+ * Multi-turn state is persisted in the `flow_sessions` DB table so it
+ * survives server restarts and scales across multiple instances.
  */
 
 import { eq, and } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { chatbotFlows, conversations, messages } from "../db/schema.js";
+import { chatbotFlows, conversations, messages, flowSessions } from "../db/schema.js";
 import { deliverReply, type DeliveryChannel } from "./platformDelivery.js";
 
 type DBFlow         = InferSelectModel<typeof chatbotFlows>;
@@ -40,7 +40,7 @@ function parseSteps(raw: string): FlowStep[] {
   }
 }
 
-// ── In-memory flow state ──────────────────────────────────────────────────────
+// ── In-memory flow state shape (working state during a single run) ────────────
 
 interface FlowState {
   flowId:          string;
@@ -51,7 +51,55 @@ interface FlowState {
   collectedValues: Record<string, string>;
 }
 
-const activeFlowStates = new Map<string, FlowState>();
+// ── DB persistence helpers ────────────────────────────────────────────────────
+
+async function saveFlowSession(conversationId: string, state: FlowState): Promise<void> {
+  await db
+    .insert(flowSessions)
+    .values({
+      conversationId,
+      flowId:          state.flowId,
+      userId:          state.userId,
+      channel:         state.channel,
+      recipientHandle: state.recipientHandle,
+      stepIndex:       state.stepIndex,
+      collectedValues: JSON.stringify(state.collectedValues),
+      updatedAt:       new Date(),
+    })
+    .onConflictDoUpdate({
+      target: flowSessions.conversationId,
+      set: {
+        stepIndex:       state.stepIndex,
+        collectedValues: JSON.stringify(state.collectedValues),
+        updatedAt:       new Date(),
+      },
+    });
+}
+
+async function clearFlowSession(conversationId: string): Promise<void> {
+  await db
+    .delete(flowSessions)
+    .where(eq(flowSessions.conversationId, conversationId));
+}
+
+async function loadFlowSession(conversationId: string): Promise<FlowState | null> {
+  const [row] = await db
+    .select()
+    .from(flowSessions)
+    .where(eq(flowSessions.conversationId, conversationId))
+    .limit(1);
+
+  if (!row) return null;
+
+  return {
+    flowId:          row.flowId,
+    userId:          row.userId,
+    channel:         row.channel as DeliveryChannel,
+    recipientHandle: row.recipientHandle,
+    stepIndex:       row.stepIndex,
+    collectedValues: JSON.parse(row.collectedValues) as Record<string, string>,
+  };
+}
 
 // ── Trigger matching helpers ──────────────────────────────────────────────────
 
@@ -69,12 +117,36 @@ function keywordMatches(text: string, triggerValue: string | null): boolean {
     .some((kw) => lowerText.includes(kw));
 }
 
-// ── Check for an active resume-state first, then trigger-match ───────────────
+// ── Public state checks ───────────────────────────────────────────────────────
+
+/**
+ * Returns true if there is a paused flow session in the DB for this conversation.
+ * Check this BEFORE checkFlowTrigger.
+ */
+export async function hasActiveFlow(conversationId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: flowSessions.id })
+    .from(flowSessions)
+    .where(eq(flowSessions.conversationId, conversationId))
+    .limit(1);
+  return !!row;
+}
+
+/** Returns the flowId of the active paused session, or undefined. */
+export async function getActiveFlowId(conversationId: string): Promise<string | undefined> {
+  const [row] = await db
+    .select({ flowId: flowSessions.flowId })
+    .from(flowSessions)
+    .where(eq(flowSessions.conversationId, conversationId))
+    .limit(1);
+  return row?.flowId;
+}
+
+// ── Check for trigger match ───────────────────────────────────────────────────
 
 /**
  * Returns a matching flow for `messageText`, or null if none found.
- * Does NOT return a flow when there is already an active state for this
- * conversation — callers should call `continueFlow()` instead.
+ * Returns null when there is an active session — caller must use continueFlow().
  */
 export async function checkFlowTrigger(
   messageText: string,
@@ -82,8 +154,7 @@ export async function checkFlowTrigger(
   platform: string,
   conversationId: string,
 ): Promise<DBFlow | null> {
-  // Active flow in progress — caller must use continueFlow()
-  if (activeFlowStates.has(conversationId)) return null;
+  if (await hasActiveFlow(conversationId)) return null;
 
   const flows = await db
     .select()
@@ -98,7 +169,6 @@ export async function checkFlowTrigger(
 
   if (flows.length === 0) return null;
 
-  // Priority: keyword > greeting > order > inquiry > fallback
   return (
     flows.find((f) => f.trigger === "keyword"  && keywordMatches(messageText, f.triggerValue)) ??
     flows.find((f) => f.trigger === "greeting" && GREETING_RE.test(messageText)) ??
@@ -107,19 +177,6 @@ export async function checkFlowTrigger(
     flows.find((f) => f.trigger === "fallback") ??
     null
   );
-}
-
-/**
- * Returns true if there is a paused flow awaiting input for this conversation.
- * Callers should check this BEFORE checkFlowTrigger.
- */
-export function hasActiveFlow(conversationId: string): boolean {
-  return activeFlowStates.has(conversationId);
-}
-
-/** Returns the flowId of the active paused flow, if any. */
-export function getActiveFlowId(conversationId: string): string | undefined {
-  return activeFlowStates.get(conversationId)?.flowId;
 }
 
 // ── Step execution helpers ────────────────────────────────────────────────────
@@ -138,11 +195,11 @@ async function sendFlowMessage(state: FlowState, text: string): Promise<void> {
 
 async function recordOutbound(conversationId: string, text: string): Promise<void> {
   await db.insert(messages).values({
-    convId:     conversationId,
-    direction:  "outbound",
-    content:    text,
-    sentBy:     "ai",
-    timestamp:  new Date(),
+    convId:    conversationId,
+    direction: "outbound",
+    content:   text,
+    sentBy:    "ai",
+    timestamp: new Date(),
   });
 }
 
@@ -174,19 +231,17 @@ async function runStepsFrom(
       }
 
       case "collect_input": {
-        // Send the question, then pause and wait for the customer's reply
         const question = step.content ?? (step.inputLabel ?? "");
         await sendFlowMessage(state, question);
         await recordOutbound(conversationId, question);
         state.stepIndex = i + 1;
-        activeFlowStates.set(conversationId, state);
+        await saveFlowSession(conversationId, state);
         return; // ← paused; resumed by continueFlow()
       }
 
       case "condition": {
-        const stored = state.collectedValues[step.conditionKey ?? ""] ?? "";
+        const stored   = state.collectedValues[step.conditionKey ?? ""] ?? "";
         const expected = (step.conditionValue ?? "").toLowerCase();
-        // If condition is false, skip to the next non-condition step
         if (stored.toLowerCase() !== expected) continue;
         break;
       }
@@ -200,7 +255,7 @@ async function runStepsFrom(
           .update(conversations)
           .set({ status: "open" })
           .where(eq(conversations.id, conversationId));
-        activeFlowStates.delete(conversationId);
+        await clearFlowSession(conversationId);
         console.log(`[flowEngine] handoff → conv ${conversationId} is now open`);
         return;
       }
@@ -208,7 +263,7 @@ async function runStepsFrom(
   }
 
   // All steps complete
-  activeFlowStates.delete(conversationId);
+  await clearFlowSession(conversationId);
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -245,14 +300,14 @@ export async function executeFlow(
 /**
  * Resume a paused flow for a conversation where collect_input was waiting.
  * Stores the customer's reply in collectedValues[inputKey], then continues.
- * Returns true if a flow was resumed, false if there was no active state.
+ * Returns true if a flow was resumed, false if there was no active session.
  */
 export async function continueFlow(
   conversationId: string,
   incomingText: string,
   flowId: string,
 ): Promise<boolean> {
-  const state = activeFlowStates.get(conversationId);
+  const state = await loadFlowSession(conversationId);
   if (!state || state.flowId !== flowId) return false;
 
   const [flow] = await db
@@ -262,11 +317,11 @@ export async function continueFlow(
     .limit(1);
 
   if (!flow) {
-    activeFlowStates.delete(conversationId);
+    await clearFlowSession(conversationId);
     return false;
   }
 
-  const steps = parseSteps(flow.steps);
+  const steps       = parseSteps(flow.steps);
   const waitingStep = steps[state.stepIndex - 1];
 
   if (waitingStep?.type === "collect_input" && waitingStep.inputKey) {

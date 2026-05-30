@@ -68,6 +68,18 @@ app.route("/webhook", webhookRoutes);
 
 app.route("/api", api);
 
+// ── Startup environment checks ────────────────────────────────────────────────
+
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.warn("⚠️  ANTHROPIC_API_KEY is not set — AI reply generation will use demo fallback responses.");
+}
+if (!process.env.JWT_SECRET) {
+  console.warn("⚠️  JWT_SECRET is not set — authentication will fail in production.");
+}
+if (!process.env.DATABASE_URL) {
+  console.warn("⚠️  DATABASE_URL is not set — database operations will fail.");
+}
+
 const port = Number(process.env.PORT ?? 3001);
 console.log(`🚀 SocialPilot backend running on port ${port}`);
 

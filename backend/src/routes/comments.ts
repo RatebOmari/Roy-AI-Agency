@@ -9,6 +9,7 @@ import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
+import { AI_FAST_MODEL } from "../lib/constants.js";
 
 function platformToCommentChannel(platform: string): DeliveryChannel {
   if (platform === "instagram") return "instagram_comment";
@@ -181,7 +182,7 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
     try {
       const anthropic = new Anthropic({ apiKey });
       const response = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: AI_FAST_MODEL,
         max_tokens: 256,
         system: systemParts.join("\n"),
         messages: [{ role: "user", content: comment.text }],

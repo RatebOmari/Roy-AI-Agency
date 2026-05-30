@@ -11,6 +11,7 @@ import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, makePhoneCall, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
 import { evaluateRules, ruleActionToReplyStatus } from "../lib/automationRules.js";
 import { requireNotViewer } from "../middleware/teamRole.js";
+import { AI_FAST_MODEL } from "../lib/constants.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -226,7 +227,7 @@ app.post("/generate-reply", requireNotViewer, zValidator("json", generateReplySc
       }));
 
       const response = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: AI_FAST_MODEL,
         max_tokens: 512,
         system: systemParts.join("\n"),
         messages: historyTurns.length > 0

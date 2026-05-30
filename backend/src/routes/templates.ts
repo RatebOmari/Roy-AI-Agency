@@ -6,6 +6,7 @@ import { db } from "../db/index.js";
 import { replyTemplates } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
+import { AI_FAST_MODEL } from "../lib/constants.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -83,7 +84,7 @@ app.post("/generate", zValidator("json", z.object({
   const Anthropic = (await import("@anthropic-ai/sdk")).default;
   const client = new Anthropic();
   const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    model: AI_FAST_MODEL,
     max_tokens: 400,
     messages: [{
       role: "user",

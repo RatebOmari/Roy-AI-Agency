@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -466,6 +466,7 @@ export default function Templates() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sort, setSort]                     = useState<SortKey>("newest");
   const [showSortMenu, setShowSortMenu]     = useState(false);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
   const [dialogOpen, setDialogOpen]         = useState(false);
   const [editTemplate, setEditTemplate]     = useState<ReplyTemplate | null>(null);
   const [copiedId, setCopiedId]             = useState<string | null>(null);
@@ -491,6 +492,18 @@ export default function Templates() {
   const totalUses   = templates.reduce((s, t) => s + (t.usedCount ?? 0), 0);
   const maxUsedCount = Math.max(...templates.map(t => t.usedCount ?? 0), 0);
   const hasUsage = maxUsedCount > 0;
+
+  // Close sort menu on outside click
+  useEffect(() => {
+    if (!showSortMenu) return;
+    function handleClick(e: MouseEvent) {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
+        setShowSortMenu(false);
+      }
+    }
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [showSortMenu]);
 
   const openNew = () => { setEditTemplate(null); setDialogOpen(true); };
   const openEdit = (t: ReplyTemplate) => { setEditTemplate(t); setDialogOpen(true); };
@@ -567,7 +580,7 @@ export default function Templates() {
                 className="w-full h-9 pl-9 pr-3 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
-            <div className="relative">
+            <div className="relative" ref={sortMenuRef}>
               <button
                 onClick={() => setShowSortMenu(v => !v)}
                 className="flex items-center gap-1.5 h-9 px-3 text-xs font-medium border border-border rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -762,6 +775,7 @@ export default function Templates() {
       <AnimatePresence>
         {dialogOpen && (
           <TemplateDialog
+            key={editTemplate?.id ?? "new"}
             initial={editTemplate ?? {}}
             onSave={handleSave}
             onClose={() => setDialogOpen(false)}

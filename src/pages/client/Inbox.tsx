@@ -2,9 +2,17 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ConversationList } from "@/components/inbox/ConversationList";
 import { ConversationPane } from "@/components/inbox/ConversationPane";
-import { useConversations, useReplyToConversation, useGenerateReply, useInitiateCall, useInsertTemplateDraft } from "@/hooks/useConversations";
+import {
+  useConversations,
+  useReplyToConversation,
+  useGenerateReply,
+  useInitiateCall,
+  useInsertTemplateDraft,
+  useUpdateConversationStatus,
+  useSendManualMessage,
+} from "@/hooks/useConversations";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Conversation } from "@/types";
+import type { Conversation, Message } from "@/types";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,22 +24,29 @@ export default function Inbox() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data: conversations = [], isLoading } = useConversations();
-  const replyMutation    = useReplyToConversation();
-  const generateMutation = useGenerateReply();
-  const callMutation     = useInitiateCall();
+  const replyMutation       = useReplyToConversation();
+  const generateMutation    = useGenerateReply();
+  const callMutation        = useInitiateCall();
   const insertDraftMutation = useInsertTemplateDraft();
+  const updateStatusMutation = useUpdateConversationStatus();
+  const sendManualMutation  = useSendManualMessage();
 
   // Local optimistic state
   const [localConvs, setLocalConvs] = useState<Conversation[] | null>(null);
   const displayed = localConvs ?? conversations;
   const selectedConv = displayed.find(c => c.id === selectedId) ?? null;
 
+  // Reset local overrides whenever fresh server data arrives
+  useEffect(() => {
+    setLocalConvs(null);
+  }, [conversations]);
+
   // Auto-select first conversation on load (desktop UX)
   useEffect(() => {
     if (conversations.length > 0 && !selectedId) {
       setSelectedId(conversations[0].id);
     }
-  }, [conversations.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [conversations.length, selectedId]);
 
   const handleApprove = (convId: string, msgId: string, content: string) => {
     setLocalConvs(prev => (prev ?? conversations).map(c =>
@@ -62,6 +77,7 @@ export default function Inbox() {
     setLocalConvs(prev => (prev ?? conversations).map(c =>
       c.id !== convId ? c : { ...c, status: "resolved" as const }
     ));
+    updateStatusMutation.mutate({ id: convId, status: "resolved" });
   };
 
   const handleEdit = (convId: string, msgId: string, content: string) => {
@@ -78,7 +94,37 @@ export default function Inbox() {
   };
 
   const handleInsertTemplate = (convId: string, text: string) => {
+    // Optimistically show the draft message in the thread immediately
+    const draftMsg: Message = {
+      id: "draft-" + Date.now(),
+      conversationId: convId,
+      direction: "outbound",
+      content: text,
+      aiReply: text,
+      replyStatus: "pending",
+      sentBy: "human",
+      timestamp: new Date().toISOString(),
+    };
+    setLocalConvs(prev => (prev ?? conversations).map(c =>
+      c.id !== convId ? c : { ...c, messages: [...c.messages, draftMsg] }
+    ));
     insertDraftMutation.mutate({ conversationId: convId, content: text });
+  };
+
+  const handleSendManual = (convId: string, content: string) => {
+    const sentMsg: Message = {
+      id: "manual-" + Date.now(),
+      conversationId: convId,
+      direction: "outbound",
+      content,
+      replyStatus: "approved",
+      sentBy: "human",
+      timestamp: new Date().toISOString(),
+    };
+    setLocalConvs(prev => (prev ?? conversations).map(c =>
+      c.id !== convId ? c : { ...c, messages: [...c.messages, sentMsg] }
+    ));
+    sendManualMutation.mutate({ conversationId: convId, content });
   };
 
   // On mobile: show list when nothing selected, show pane when selected
@@ -137,6 +183,7 @@ export default function Inbox() {
             onCall={convId => callMutation.mutate(convId)}
             isCalling={callMutation.isPending}
             onInsertTemplate={handleInsertTemplate}
+            onSendManual={handleSendManual}
           />
         </div>
       </div>

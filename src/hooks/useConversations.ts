@@ -211,6 +211,15 @@ export function useInsertTemplateDraft() {
   return useMutation({
     mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) =>
       api.post<{ messageId: string }>(`/conversations/${conversationId}/draft`, { content }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+  });
+}
+
+export function useSendManualMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) =>
+      api.post<{ messageId: string }>(`/conversations/${conversationId}/send`, { content }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
   });
 }

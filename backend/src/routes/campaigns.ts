@@ -3,9 +3,13 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { campaigns } from "../db/schema.js";
+import { campaigns, contacts } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
+
+function parseJSON<T>(raw: string, fallback: T): T {
+  try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -87,6 +91,45 @@ app.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// GET /reach — return real audience counts from contacts table
+app.get("/reach", async (c) => {
+  const user = c.get("user");
+  const allContacts = await db
+    .select()
+    .from(contacts)
+    .where(eq(contacts.userId, user.sub));
+
+  const total = allContacts.length;
+
+  // Tag reach: count contacts that include each tag
+  const tagCounts: Record<string, number> = {};
+  for (const contact of allContacts) {
+    const tags = parseJSON<string[]>(contact.tags, []);
+    for (const tag of tags) {
+      tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+    }
+  }
+
+  // Platform reach: count contacts that have at least one handle on each platform
+  const platformCounts: Record<string, number> = {};
+  for (const contact of allContacts) {
+    const handles = parseJSON<{ channel: string }[]>(contact.handles, []);
+    const platforms = new Set(handles.map(h => {
+      if (h.channel.includes("instagram")) return "instagram";
+      if (h.channel.includes("tiktok"))    return "tiktok";
+      if (h.channel.includes("facebook") || h.channel === "facebook_messenger") return "facebook";
+      if (h.channel === "whatsapp_business") return "whatsapp";
+      if (h.channel === "sms")               return "sms";
+      return null;
+    }).filter(Boolean));
+    for (const pl of platforms) {
+      if (pl) platformCounts[pl] = (platformCounts[pl] ?? 0) + 1;
+    }
+  }
+
+  return c.json({ total, tagCounts, platformCounts });
+});
+
 // POST /:id/send — send campaign (audience-aware mock until WhatsApp API is wired)
 app.post("/:id/send", async (c) => {
   const user = c.get("user");
@@ -99,13 +142,24 @@ app.post("/:id/send", async (c) => {
 
   if (!campaign) return c.json({ message: "Not found" }, 404);
 
-  // Scale audience size by type so stats reflect the actual audience scope
-  const baseRange =
-    campaign.audienceType === "all"      ? { min: 200, max: 500 } :
-    campaign.audienceType === "platform" ? { min: 80,  max: 300 } :
-                                           { min: 20,  max: 120 }; // tag
+  // Compute real audience size from contacts table
+  const allContacts = await db.select().from(contacts).where(eq(contacts.userId, user.sub));
+  let audienceSize = allContacts.length;
 
-  const sentCount = Math.floor(Math.random() * (baseRange.max - baseRange.min + 1)) + baseRange.min;
+  if (campaign.audienceType === "tag" && campaign.audienceValue) {
+    audienceSize = allContacts.filter(ct =>
+      parseJSON<string[]>(ct.tags, []).includes(campaign.audienceValue!)
+    ).length;
+  } else if (campaign.audienceType === "platform" && campaign.audienceValue) {
+    audienceSize = allContacts.filter(ct =>
+      parseJSON<{ channel: string }[]>(ct.handles, []).some(h => h.channel.includes(campaign.audienceValue!))
+    ).length;
+  }
+
+  // If no real contacts yet, fall back to a plausible mock range
+  if (audienceSize === 0) audienceSize = Math.floor(Math.random() * 80) + 20;
+
+  const sentCount = audienceSize;
   const readCount = Math.floor(sentCount * (Math.random() * 0.4 + 0.4)); // 40–80%
 
   const [row] = await db

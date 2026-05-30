@@ -13,6 +13,8 @@ import {
   useUpdateCampaign,
   useDeleteCampaign,
   useSendCampaign,
+  useAudienceReach,
+  type AudienceReach,
 } from "@/hooks/useCampaigns";
 import type { Campaign, CampaignAudienceType, CampaignStatus } from "@/types";
 import { cn } from "@/lib/utils";
@@ -47,29 +49,15 @@ function pct(part: number, total: number) {
   return Math.round((part / total) * 100);
 }
 
-// ── Audience Data ─────────────────────────────────────────────────────────────
+// ── Platform chip styles ─────────────────────────────────────────────────────
 
-const TOTAL_CONTACTS = 89;
-
-const TAG_REACH: Record<string, number> = {
-  vip: 12,
-  regular: 47,
-  complaint: 8,
-  dietary: 23,
-  "purchase-intent": 31,
-  "order-inquiry": 26,
-  appointment: 19,
-  spanish: 15,
+const PLATFORM_CHIP: Record<string, { label: string; chipClass: string }> = {
+  instagram: { label: "Instagram", chipClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white" },
+  whatsapp:  { label: "WhatsApp",  chipClass: "bg-green-500 text-white" },
+  facebook:  { label: "Facebook",  chipClass: "bg-blue-600 text-white" },
+  tiktok:    { label: "TikTok",    chipClass: "bg-zinc-900 text-white dark:bg-zinc-700" },
+  sms:       { label: "SMS",       chipClass: "bg-slate-500 text-white" },
 };
-
-const PLATFORM_REACH: Record<string, { label: string; count: number; chipClass: string }> = {
-  instagram: { label: "Instagram", count: 124, chipClass: "bg-gradient-to-r from-purple-500 to-pink-500 text-white" },
-  whatsapp:  { label: "WhatsApp",  count: 89,  chipClass: "bg-green-500 text-white" },
-  facebook:  { label: "Facebook",  count: 67,  chipClass: "bg-blue-600 text-white" },
-  tiktok:    { label: "TikTok",    count: 43,  chipClass: "bg-zinc-900 text-white dark:bg-zinc-700" },
-};
-
-const ALL_TAGS = Object.keys(TAG_REACH);
 
 // ── WhatsApp Bubble Preview ───────────────────────────────────────────────────
 
@@ -101,9 +89,10 @@ interface CampaignDialogProps {
   onSave: (data: Omit<Campaign, "id" | "createdAt" | "sentCount" | "readCount" | "replyCount">) => void;
   onClose: () => void;
   saving: boolean;
+  reach: AudienceReach;
 }
 
-function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProps) {
+function CampaignDialog({ initial, onSave, onClose, saving, reach }: CampaignDialogProps) {
   const { t } = useTranslation();
   const [name, setName]               = useState(initial?.name ?? "");
   const [message, setMessage]         = useState(initial?.message ?? "");
@@ -116,10 +105,13 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
   const MAX_CHARS = 1024;
   const remaining = MAX_CHARS - message.length;
 
+  const allTags     = Object.keys(reach.tagCounts);
+  const allPlatforms = Object.keys(reach.platformCounts);
+
   const estimatedReach =
-    audienceType === "all"      ? TOTAL_CONTACTS
-    : audienceType === "tag"    ? (audienceValue ? (TAG_REACH[audienceValue] ?? 0) : 0)
-    : audienceType === "platform" ? (audienceValue ? (PLATFORM_REACH[audienceValue]?.count ?? 0) : 0)
+    audienceType === "all"        ? reach.total
+    : audienceType === "tag"      ? (audienceValue ? (reach.tagCounts[audienceValue] ?? 0) : 0)
+    : audienceType === "platform" ? (audienceValue ? (reach.platformCounts[audienceValue] ?? 0) : 0)
     : 0;
 
   const handleSave = (saveStatus: "draft" | "scheduled") => {
@@ -204,7 +196,9 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
           {/* Tag picker */}
           {audienceType === "tag" && (
             <div className="flex gap-1.5 flex-wrap">
-              {ALL_TAGS.map(tag => (
+              {allTags.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No tagged contacts yet.</p>
+              ) : allTags.map(tag => (
                 <button
                   key={tag}
                   onClick={() => setAudienceValue(tag === audienceValue ? "" : tag)}
@@ -215,7 +209,7 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
                       : "border-border text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  #{tag} <span className="opacity-60 ml-1">{TAG_REACH[tag]}</span>
+                  #{tag} <span className="opacity-60 ml-1">{reach.tagCounts[tag]}</span>
                 </button>
               ))}
             </div>
@@ -224,20 +218,25 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
           {/* Platform picker */}
           {audienceType === "platform" && (
             <div className="flex gap-1.5 flex-wrap">
-              {Object.entries(PLATFORM_REACH).map(([key, { label, count, chipClass }]) => (
-                <button
-                  key={key}
-                  onClick={() => setAudienceValue(key === audienceValue ? "" : key)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-full text-xs font-semibold transition-all",
-                    audienceValue === key
-                      ? chipClass + " ring-2 ring-offset-1 ring-primary"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {label} <span className="opacity-70 ml-1">{count}</span>
-                </button>
-              ))}
+              {allPlatforms.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No platform contacts yet.</p>
+              ) : allPlatforms.map(key => {
+                const cfg = PLATFORM_CHIP[key] ?? { label: key, chipClass: "bg-muted text-foreground" };
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setAudienceValue(key === audienceValue ? "" : key)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-xs font-semibold transition-all",
+                      audienceValue === key
+                        ? cfg.chipClass + " ring-2 ring-offset-1 ring-primary"
+                        : "bg-muted text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {cfg.label} <span className="opacity-70 ml-1">{reach.platformCounts[key]}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -255,7 +254,7 @@ function CampaignDialog({ initial, onSave, onClose, saving }: CampaignDialogProp
                 : audienceType === "tag" && audienceValue
                   ? t("campaigns.dialog.reachTag", { tag: audienceValue })
                   : audienceType === "platform" && audienceValue
-                    ? t("campaigns.dialog.reachPlatform", { platform: PLATFORM_REACH[audienceValue]?.label ?? audienceValue })
+                    ? t("campaigns.dialog.reachPlatform", { platform: PLATFORM_CHIP[audienceValue]?.label ?? audienceValue })
                     : t("campaigns.dialog.reachSelect")}
             </span>
           </div>
@@ -345,6 +344,7 @@ export default function Campaigns() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { data: campaigns = [], isLoading } = useCampaigns();
+  const { data: reach = { total: 0, tagCounts: {}, platformCounts: {} } } = useAudienceReach();
   const createCampaign = useCreateCampaign();
   const updateCampaign = useUpdateCampaign();
   const deleteCampaign = useDeleteCampaign();
@@ -675,6 +675,7 @@ export default function Campaigns() {
             onSave={handleSave}
             onClose={() => setDialogOpen(false)}
             saving={createCampaign.isPending || updateCampaign.isPending}
+            reach={reach}
           />
         )}
       </AnimatePresence>

@@ -14,14 +14,15 @@ app.use("*", clientContextMiddleware);
 
 const connectSchema = z.object({
   platform:    z.enum(["tiktok", "instagram", "facebook", "whatsapp", "sms", "phone"]),
-  feature:     z.enum(["comments", "messages"]).optional().default("comments"),
+  feature:     z.enum(["comments", "messages", "publishing"]).optional().default("comments"),
   accessToken: z.string().min(1),
+  accountId:   z.string().optional(), // page ID / IG business account ID for publishing
   expiresAt:   z.string().datetime().optional(),
 });
 
 app.post("/connect", zValidator("json", connectSchema), async (c) => {
   const user = c.get("user");
-  const { platform, feature, accessToken, expiresAt } = c.req.valid("json");
+  const { platform, feature, accessToken, accountId, expiresAt } = c.req.valid("json");
 
   // Delete any existing credential for this user/platform/feature, then insert fresh.
   await db
@@ -39,6 +40,7 @@ app.post("/connect", zValidator("json", connectSchema), async (c) => {
       platform,
       feature,
       accessTokenEnc: encryptToken(accessToken),
+      scope:          accountId ? JSON.stringify({ accountId }) : null,
       expiresAt:      expiresAt ? new Date(expiresAt) : null,
       connectedAt:    new Date(),
     });

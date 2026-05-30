@@ -20,7 +20,7 @@ export const channelEnum = pgEnum("channel", [
 ]);
 export const toneEnum = pgEnum("tone", ["friendly", "professional", "fun", "informative"]);
 export const langEnum = pgEnum("lang",  ["ar", "en", "ar_en"]);
-export const featureEnum = pgEnum("feature", ["comments", "messages"]);
+export const featureEnum = pgEnum("feature", ["comments", "messages", "publishing"]);
 
 export const users = pgTable("users", {
   id:           uuid("id").primaryKey().defaultRandom(),

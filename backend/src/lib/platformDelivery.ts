@@ -24,7 +24,7 @@ type DeliveryResult =
 async function getToken(
   userId: string,
   platform: "tiktok" | "instagram" | "facebook" | "whatsapp" | "sms" | "phone",
-  feature: "comments" | "messages"
+  feature: "comments" | "messages" | "publishing"
 ): Promise<string | null> {
   const [cred] = await db
     .select({ token: platformCredentials.accessTokenEnc })
@@ -38,6 +38,29 @@ async function getToken(
     )
     .limit(1);
   return cred?.token ? decryptToken(cred.token) : null;
+}
+
+async function getPublishingCred(
+  userId: string,
+  platform: "instagram" | "facebook"
+): Promise<{ token: string; accountId: string | null } | null> {
+  const [cred] = await db
+    .select({ token: platformCredentials.accessTokenEnc, scope: platformCredentials.scope })
+    .from(platformCredentials)
+    .where(
+      and(
+        eq(platformCredentials.userId, userId),
+        eq(platformCredentials.platform, platform),
+        eq(platformCredentials.feature, "publishing")
+      )
+    )
+    .limit(1);
+  if (!cred?.token) return null;
+  let accountId: string | null = null;
+  if (cred.scope) {
+    try { accountId = (JSON.parse(cred.scope) as { accountId?: string }).accountId ?? null; } catch {}
+  }
+  return { token: decryptToken(cred.token), accountId };
 }
 
 // ── WhatsApp Business Cloud API ───────────────────────────────────────────────
@@ -308,6 +331,125 @@ export async function makePhoneCall(
   const data = await res.json() as { sid: string; status: string };
   console.log(`[call] Initiated SID=${data.sid} → ${phone} status=${data.status}`);
   return { ok: true, sid: data.sid };
+}
+
+// ── Instagram Content Publishing ──────────────────────────────────────────────
+
+export async function publishInstagramPost(
+  userId: string,
+  caption: string,
+  imageUrl?: string | null
+): Promise<DeliveryResult> {
+  const cred = await getPublishingCred(userId, "instagram");
+  if (!cred) return { ok: false, skipped: true, reason: "no_instagram_publishing_credential" };
+
+  // Discover IG Business Account ID if not stored at connect time
+  let igUserId = cred.accountId;
+  if (!igUserId) {
+    const meRes = await fetch(
+      `https://graph.facebook.com/v19.0/me?fields=instagram_business_account&access_token=${cred.token}`
+    );
+    if (!meRes.ok) return { ok: false, error: `Instagram account discovery failed: ${meRes.status}` };
+    const me = await meRes.json() as { instagram_business_account?: { id: string } };
+    igUserId = me.instagram_business_account?.id ?? null;
+  }
+  if (!igUserId) return { ok: false, skipped: true, reason: "no_instagram_business_account_linked" };
+
+  // Step 1: Create media container
+  const containerBody: Record<string, string> = {
+    caption,
+    access_token: cred.token,
+  };
+  if (imageUrl) {
+    containerBody.image_url = imageUrl;
+    containerBody.media_type = "IMAGE";
+  } else {
+    containerBody.media_type = "IMAGE"; // carousel requires image; fallback for text-only
+  }
+
+  const containerRes = await fetch(`https://graph.facebook.com/v19.0/${igUserId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(containerBody),
+  });
+
+  if (!containerRes.ok) {
+    const body = await containerRes.json().catch(() => ({})) as { error?: { message: string } };
+    return { ok: false, error: body?.error?.message ?? `Instagram media create ${containerRes.status}` };
+  }
+
+  const { id: creationId } = await containerRes.json() as { id: string };
+
+  // Step 2: Publish the container
+  const publishRes = await fetch(`https://graph.facebook.com/v19.0/${igUserId}/media_publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creation_id: creationId, access_token: cred.token }),
+  });
+
+  if (!publishRes.ok) {
+    const body = await publishRes.json().catch(() => ({})) as { error?: { message: string } };
+    return { ok: false, error: body?.error?.message ?? `Instagram media_publish ${publishRes.status}` };
+  }
+
+  const { id: postId } = await publishRes.json() as { id: string };
+  console.log(`[publish] Instagram post created: ${postId}`);
+  return { ok: true, sid: postId };
+}
+
+// ── Facebook Page Post Publishing ─────────────────────────────────────────────
+
+export async function publishFacebookPost(
+  userId: string,
+  message: string,
+  imageUrl?: string | null
+): Promise<DeliveryResult> {
+  const cred = await getPublishingCred(userId, "facebook");
+  if (!cred) return { ok: false, skipped: true, reason: "no_facebook_publishing_credential" };
+
+  // Discover Page ID if not stored at connect time
+  let pageId = cred.accountId;
+  let pageToken = cred.token;
+
+  if (!pageId) {
+    const accountsRes = await fetch(
+      `https://graph.facebook.com/v19.0/me/accounts?fields=id,access_token&access_token=${cred.token}`
+    );
+    if (!accountsRes.ok) return { ok: false, error: `Facebook page discovery failed: ${accountsRes.status}` };
+    const accounts = await accountsRes.json() as { data?: { id: string; access_token: string }[] };
+    const page = accounts.data?.[0];
+    if (!page) return { ok: false, skipped: true, reason: "no_facebook_page_found" };
+    pageId = page.id;
+    pageToken = page.access_token;
+  }
+
+  const endpoint = imageUrl
+    ? `https://graph.facebook.com/v19.0/${pageId}/photos`
+    : `https://graph.facebook.com/v19.0/${pageId}/feed`;
+
+  const postBody: Record<string, string> = { access_token: pageToken };
+  if (imageUrl) {
+    postBody.url     = imageUrl;
+    postBody.caption = message;
+  } else {
+    postBody.message = message;
+  }
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(postBody),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: { message: string } };
+    return { ok: false, error: body?.error?.message ?? `Facebook post API ${res.status}` };
+  }
+
+  const result = await res.json() as { id?: string; post_id?: string };
+  const postId = result.post_id ?? result.id ?? "unknown";
+  console.log(`[publish] Facebook post created: ${postId}`);
+  return { ok: true, sid: postId };
 }
 
 // ── Main dispatcher ───────────────────────────────────────────────────────────

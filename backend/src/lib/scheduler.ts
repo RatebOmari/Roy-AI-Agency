@@ -1,7 +1,7 @@
 import { db } from "../db/index.js";
 import { scheduledPosts } from "../db/schema.js";
 import { eq, and, lte, isNotNull } from "drizzle-orm";
-import { logDelivery } from "./platformDelivery.js";
+import { logDelivery, publishInstagramPost, publishFacebookPost } from "./platformDelivery.js";
 import { recordInitialMetrics, refreshRecentMetrics } from "./metricsFetcher.js";
 
 const INTERVAL_MS = 60_000; // check every 60 seconds
@@ -15,6 +15,7 @@ async function publishDuePosts(): Promise<void> {
       userId:    scheduledPosts.userId,
       platforms: scheduledPosts.platforms,
       content:   scheduledPosts.content,
+      mediaUrl:  scheduledPosts.mediaUrl,
     })
     .from(scheduledPosts)
     .where(
@@ -41,19 +42,28 @@ async function publishDuePosts(): Promise<void> {
       const deliveryResults: string[] = [];
 
       for (const platform of post.platforms) {
-        if (platform === "whatsapp") {
-          // WhatsApp: send as a text broadcast (no contacts table yet → log only)
+        if (platform === "instagram") {
+          const r = await publishInstagramPost(post.userId, post.content, post.mediaUrl);
+          logDelivery(r, `post ${post.id} → instagram`);
+          deliveryResults.push(`instagram:${"skipped" in r ? "skipped" : r.ok ? "ok" : "error"}`);
+        } else if (platform === "facebook") {
+          const r = await publishFacebookPost(post.userId, post.content, post.mediaUrl);
+          logDelivery(r, `post ${post.id} → facebook`);
+          deliveryResults.push(`facebook:${"skipped" in r ? "skipped" : r.ok ? "ok" : "error"}`);
+        } else if (platform === "tiktok") {
+          // TikTok Content Posting API requires business app approval — log skip
           logDelivery(
-            { ok: false, skipped: true, reason: "no_contacts_table_yet" },
+            { ok: false, skipped: true, reason: "tiktok_content_api_requires_business_approval" },
+            `post ${post.id} → tiktok`
+          );
+          deliveryResults.push("tiktok:skipped");
+        } else if (platform === "whatsapp") {
+          logDelivery(
+            { ok: false, skipped: true, reason: "whatsapp_broadcast_requires_campaign" },
             `post ${post.id} → whatsapp`
           );
-          deliveryResults.push(`whatsapp:skipped`);
+          deliveryResults.push("whatsapp:skipped");
         } else {
-          // Instagram / Facebook / TikTok: requires media upload API — log as pending
-          logDelivery(
-            { ok: false, skipped: true, reason: `media_posting_not_implemented:${platform}` },
-            `post ${post.id} → ${platform}`
-          );
           deliveryResults.push(`${platform}:skipped`);
         }
       }

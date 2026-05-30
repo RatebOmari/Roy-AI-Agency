@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { createHmac } from "crypto";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { conversations, messages } from "../db/schema.js";
+import { conversations, messages, listeningKeywords, listeningMentions } from "../db/schema.js";
 import type { channelEnum } from "../db/schema.js";
 import type { InferSelectModel } from "drizzle-orm";
 import {
@@ -153,6 +153,43 @@ function parseTikTok(body: Record<string, unknown>): InboundEvent[] {
   }];
 }
 
+// ── Brand listening keyword scan ──────────────────────────────────────────────
+
+async function scanForMentions(userId: string, event: InboundEvent): Promise<void> {
+  const keywords = await db
+    .select()
+    .from(listeningKeywords)
+    .where(and(eq(listeningKeywords.userId, userId), eq(listeningKeywords.active, true)));
+
+  if (keywords.length === 0) return;
+
+  const text = event.text.toLowerCase();
+  const platform = event.channel.split("_")[0]; // "instagram", "facebook", etc.
+
+  for (const kw of keywords) {
+    if (!text.includes(kw.keyword.toLowerCase())) continue;
+
+    const sentiment =
+      /love|great|amazing|best|awesome|delicious|wonderful|excellent|fantastic|perfect/i.test(event.text) ? "positive" :
+      /bad|terrible|awful|horrible|worst|disappoint|issue|problem|hate|never again/i.test(event.text)   ? "negative" :
+      "neutral";
+
+    await db.insert(listeningMentions).values({
+      userId,
+      keywordId: kw.id,
+      keyword:   kw.keyword,
+      platform,
+      username:  event.contactName || event.contactId,
+      content:   event.text,
+      sentiment,
+      handled:   false,
+      timestamp: new Date(),
+    });
+
+    break; // one mention per event (first matching keyword wins)
+  }
+}
+
 // ── Conversation / message upsert ─────────────────────────────────────────────
 
 async function upsertConversation(
@@ -291,6 +328,10 @@ app.post("/:platform/:userId", async (c) => {
       // Update contacts CRM (fire-and-forget; non-blocking)
       syncContact(userId, event.contactId, event.contactName, event.handle, event.channel)
         .catch(err => console.error("[webhook] contactSync failed:", err));
+
+      // Scan message text against active listening keywords (fire-and-forget)
+      scanForMentions(userId, event)
+        .catch(err => console.error("[webhook] mention scan failed:", err));
 
       // ── Flow engine ─────────────────────────────────────────────────────────
       if (await hasActiveFlow(conv.id)) {

@@ -20,6 +20,7 @@ import teamRoutes          from "./routes/team.js";
 import listeningRoutes     from "./routes/listening.js";
 import brandRoutes         from "./routes/brand.js";
 import callsRoutes         from "./routes/calls.js";
+import webhookRoutes       from "./routes/webhook.js";
 
 const app = new Hono();
 
@@ -28,7 +29,7 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5174,ht
 app.use("*", cors({
   origin: (origin) => allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
   allowHeaders:  ["Content-Type", "Authorization", "x-client-id"],
-  allowMethods:  ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowMethods:  ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   credentials:   true,
 }));
 
@@ -55,6 +56,9 @@ api.route("/team",           teamRoutes);
 api.route("/listening",      listeningRoutes);
 api.route("/brand",          brandRoutes);
 api.route("/calls",          callsRoutes);
+
+// Webhook routes are public — signature-verified, not JWT-authenticated
+app.route("/webhook", webhookRoutes);
 
 app.route("/api", api);
 

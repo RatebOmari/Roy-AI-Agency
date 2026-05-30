@@ -47,35 +47,40 @@ interface NavGroup {
 const CLIENT_NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { label: "Dashboard", href: "/dashboard",  icon: LayoutDashboard },
-      { label: "Content",   href: "/content",    icon: CalendarDays },
-      { label: "Inbox",     href: "/inbox",       icon: Inbox, badge: true },
-      { label: "Comments",  href: "/comments",   icon: MessageSquare },
-      { label: "Phone",     href: "/phone",      icon: Phone },
-    ],
-  },
-  {
-    label: "MANAGE",
-    items: [
-      { label: "Contacts",   href: "/contacts",   icon: UserCircle },
-      { label: "Analytics",  href: "/analytics",  icon: BarChart2 },
-      { label: "Resources",  href: "/resources",  icon: BookOpen },
-      { label: "Templates",  href: "/templates",  icon: FileText },
-      { label: "Campaigns",  href: "/campaigns",  icon: Megaphone },
-    ],
-  },
-  {
-    label: "ENGAGE",
-    items: [
-      { label: "Flows",      href: "/flows",      icon: GitBranch },
-      { label: "Team",       href: "/team",       icon: Users },
+      { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
+      { label: "Inbox",      href: "/inbox",       icon: Inbox, badge: true },
+      { label: "Comments",   href: "/comments",   icon: MessageSquare },
+      { label: "Phone",      href: "/phone",      icon: Phone },
       { label: "Listening",  href: "/listening",  icon: Radio },
     ],
   },
   {
-    label: "CONFIG",
+    label: "PUBLISH",
     items: [
-      { label: "Settings", href: "/settings", icon: Settings },
+      { label: "Content",    href: "/content",    icon: CalendarDays },
+      { label: "Campaigns",  href: "/campaigns",  icon: Megaphone },
+    ],
+  },
+  {
+    label: "INSIGHTS",
+    items: [
+      { label: "Analytics",  href: "/analytics",  icon: BarChart2 },
+      { label: "Contacts",   href: "/contacts",   icon: UserCircle },
+    ],
+  },
+  {
+    label: "AUTOMATE",
+    items: [
+      { label: "Flows",      href: "/flows",      icon: GitBranch },
+      { label: "Templates",  href: "/templates",  icon: FileText },
+    ],
+  },
+  {
+    label: "SETUP",
+    items: [
+      { label: "Resources",  href: "/resources",  icon: BookOpen },
+      { label: "Team",       href: "/team",       icon: Users },
+      { label: "Settings",   href: "/settings",   icon: Settings },
     ],
   },
 ];

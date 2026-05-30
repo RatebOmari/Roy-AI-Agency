@@ -16,6 +16,7 @@ import Flows from "./pages/client/Flows";
 import Team from "./pages/client/Team";
 import Listening from "./pages/client/Listening";
 import Phone from "./pages/client/Phone";
+import Automation from "./pages/client/Automation";
 import AgencyDashboard from "./pages/agency/Dashboard";
 import AgencyClients from "./pages/agency/Clients";
 import AgencyAnalytics from "./pages/agency/Analytics";
@@ -89,7 +90,7 @@ export default function App() {
             <Route path="/comments"            element={<ProtectedRoute requiredRole="client"><Comments /></ProtectedRoute>} />
             <Route path="/contacts"            element={<ProtectedRoute requiredRole="client"><Contacts /></ProtectedRoute>} />
             <Route path="/analytics"           element={<ProtectedRoute requiredRole="client"><Analytics /></ProtectedRoute>} />
-            <Route path="/automation"          element={<Navigate to="/settings" replace />} />
+            <Route path="/automation"          element={<ProtectedRoute requiredRole="client"><Automation /></ProtectedRoute>} />
             <Route path="/content"             element={<ProtectedRoute requiredRole="client"><Content /></ProtectedRoute>} />
             <Route path="/resources"           element={<ProtectedRoute requiredRole="client"><Resources /></ProtectedRoute>} />
             <Route path="/templates"           element={<ProtectedRoute requiredRole="client"><Templates /></ProtectedRoute>} />

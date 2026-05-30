@@ -119,6 +119,21 @@ function parseWhatsApp(body: Record<string, unknown>): InboundEvent[] {
   return events;
 }
 
+function parseSms(form: URLSearchParams): InboundEvent[] {
+  const from = form.get("From") ?? "";
+  const body = form.get("Body") ?? "";
+  const sid  = form.get("MessageSid") ?? "";
+  if (!from || !body) return [];
+  return [{
+    contactId:   from,
+    contactName: from,
+    handle:      from,
+    text:        body,
+    channel:     "sms",
+    platformMessageId: sid,
+  }];
+}
+
 function parseTikTok(body: Record<string, unknown>): InboundEvent[] {
   const data = body.data as Record<string, unknown> | undefined;
   const comment = data?.comment as Record<string, unknown> | undefined;
@@ -215,40 +230,50 @@ app.get("/:platform", (c) => {
 // ── POST /:platform/:userId — inbound message from platform ───────────────────
 
 app.post("/:platform/:userId", async (c) => {
-  const platform = c.req.param("platform") as "instagram" | "facebook" | "whatsapp" | "tiktok";
+  const platform = c.req.param("platform") as "instagram" | "facebook" | "whatsapp" | "tiktok" | "sms";
   const userId   = c.req.param("userId");
   const rawBody  = await c.req.text();
 
   // ── Signature verification ──────────────────────────────────────────────────
-  const appSecret = process.env.META_APP_SECRET ?? process.env.TIKTOK_CLIENT_SECRET;
-  if (appSecret) {
-    const sigHeader =
-      c.req.header("x-hub-signature-256") ??
-      c.req.header("x-tiktok-signature") ??
-      "";
-    if (sigHeader && !verifyHmacSha256(appSecret, rawBody, sigHeader)) {
-      console.warn(`[webhook] Signature mismatch for ${platform}/${userId}`);
-      return c.json({ message: "Invalid signature" }, 401);
+  // SMS (Twilio) uses X-Twilio-Signature (HMAC-SHA1) — skip here, handled separately if needed.
+  // For Meta and TikTok verify HMAC-SHA256.
+  if (platform !== "sms") {
+    const appSecret = process.env.META_APP_SECRET ?? process.env.TIKTOK_CLIENT_SECRET;
+    if (appSecret) {
+      const sigHeader =
+        c.req.header("x-hub-signature-256") ??
+        c.req.header("x-tiktok-signature") ??
+        "";
+      if (sigHeader && !verifyHmacSha256(appSecret, rawBody, sigHeader)) {
+        console.warn(`[webhook] Signature mismatch for ${platform}/${userId}`);
+        return c.json({ message: "Invalid signature" }, 401);
+      }
     }
-  }
-
-  // ── Parse body ──────────────────────────────────────────────────────────────
-  let body: Record<string, unknown>;
-  try {
-    body = JSON.parse(rawBody) as Record<string, unknown>;
-  } catch {
-    return c.json({ message: "Invalid JSON" }, 400);
   }
 
   // ── Extract events ──────────────────────────────────────────────────────────
   let events: InboundEvent[] = [];
-  switch (platform) {
-    case "instagram": events = parseInstagram(body); break;
-    case "facebook":  events = parseFacebook(body);  break;
-    case "whatsapp":  events = parseWhatsApp(body);  break;
-    case "tiktok":    events = parseTikTok(body);    break;
-    default:
-      return c.json({ message: "Unsupported platform" }, 400);
+
+  if (platform === "sms") {
+    // Twilio sends application/x-www-form-urlencoded
+    events = parseSms(new URLSearchParams(rawBody));
+  } else {
+    // All other platforms send JSON
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(rawBody) as Record<string, unknown>;
+    } catch {
+      return c.json({ message: "Invalid JSON" }, 400);
+    }
+
+    switch (platform) {
+      case "instagram": events = parseInstagram(body); break;
+      case "facebook":  events = parseFacebook(body);  break;
+      case "whatsapp":  events = parseWhatsApp(body);  break;
+      case "tiktok":    events = parseTikTok(body);    break;
+      default:
+        return c.json({ message: "Unsupported platform" }, 400);
+    }
   }
 
   // ── Process each event ──────────────────────────────────────────────────────

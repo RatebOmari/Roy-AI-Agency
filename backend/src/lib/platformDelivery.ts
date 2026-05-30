@@ -214,6 +214,48 @@ export async function replyToTikTokComment(
   return { ok: true };
 }
 
+// ── Twilio SMS ────────────────────────────────────────────────────────────────
+
+export async function sendSmsMessage(
+  to: string,
+  text: string
+): Promise<DeliveryResult> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken  = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    return { ok: false, skipped: true, reason: "twilio_credentials_not_set" };
+  }
+
+  const digits = to.replace(/\D/g, "");
+  const phone  = digits.startsWith("1") && digits.length === 11 ? `+${digits}` : `+1${digits}`;
+
+  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+  const body = new URLSearchParams({ To: phone, From: fromNumber, Body: text });
+
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${credentials}`,
+      },
+      body: body.toString(),
+    }
+  );
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { message?: string };
+    return { ok: false, error: data?.message ?? `Twilio SMS API ${res.status}` };
+  }
+
+  const data = await res.json() as { sid: string };
+  console.log(`[sms] Sent SID=${data.sid} → ${phone}`);
+  return { ok: true, sid: data.sid };
+}
+
 // ── Twilio Voice Call ─────────────────────────────────────────────────────────
 
 export async function makePhoneCall(
@@ -303,6 +345,9 @@ export async function deliverReply(params: {
 
     case "tiktok_comment":
       return replyToTikTokComment(userId, platformVideoId ?? "", platformCommentId ?? null, text);
+
+    case "sms":
+      return sendSmsMessage(recipientHandle, text);
 
     case "phone_call":
       return makePhoneCall(recipientHandle, text);

@@ -12,7 +12,7 @@ import {
   type PhoneContact, type TimelineItem,
 } from "@/hooks/usePhoneData";
 import { useInitiateOutboundCall, useUpdateCallNotes } from "@/hooks/useCalls";
-import type { Call, CallStatus, CallDirection, Message } from "@/types";
+import type { Call, CallDirection, Message } from "@/types";
 import { cn } from "@/lib/utils";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -44,18 +44,6 @@ function getInitials(name: string): string {
 }
 
 // ── Call status helpers ───────────────────────────────────────────────────────
-
-const STATUS_STYLE: Partial<Record<CallStatus, string>> = {
-  completed:     "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400",
-  "in-progress": "bg-blue-100  dark:bg-blue-900/30  text-blue-700  dark:text-blue-400",
-  ringing:       "bg-blue-100  dark:bg-blue-900/30  text-blue-700  dark:text-blue-400",
-  "no-answer":   "bg-red-100   dark:bg-red-900/30   text-red-700   dark:text-red-400",
-  missed:        "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400",
-  busy:          "bg-red-100   dark:bg-red-900/30   text-red-700   dark:text-red-400",
-  failed:        "bg-red-100   dark:bg-red-900/30   text-red-700   dark:text-red-400",
-  canceled:      "bg-muted text-muted-foreground",
-  initiated:     "bg-muted text-muted-foreground",
-};
 
 const STATUS_LABEL: Record<CallStatus, string> = {
   completed: "Completed", "in-progress": "In Progress", ringing: "Ringing",

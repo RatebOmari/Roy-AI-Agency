@@ -15,7 +15,6 @@ import Campaigns from "./pages/client/Campaigns";
 import Flows from "./pages/client/Flows";
 import Team from "./pages/client/Team";
 import Listening from "./pages/client/Listening";
-import Calls from "./pages/client/Calls";
 import Phone from "./pages/client/Phone";
 import AgencyDashboard from "./pages/agency/Dashboard";
 import AgencyClients from "./pages/agency/Clients";

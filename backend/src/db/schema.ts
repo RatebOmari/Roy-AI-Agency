@@ -270,6 +270,22 @@ export const calls = pgTable("calls", {
   createdAt:    timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── Contacts CRM ─────────────────────────────────────────────────────────────
+
+export const contacts = pgTable("contacts", {
+  id:                 uuid("id").primaryKey().defaultRandom(),
+  userId:             uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:               text("name").notNull(),
+  phone:              text("phone"),
+  email:              text("email"),
+  handles:            text("handles").notNull().default("[]"),   // JSON: [{channel, username}]
+  tags:               text("tags").notNull().default("[]"),      // JSON: string[]
+  notes:              text("notes").notNull().default(""),
+  totalConversations: integer("total_conversations").notNull().default(0),
+  lastSeenAt:         timestamp("last_seen_at").notNull().defaultNow(),
+  createdAt:          timestamp("created_at").notNull().defaultNow(),
+});
+
 // ── Automation Rules ─────────────────────────────────────────────────────────
 
 export const automationTriggerEnum = pgEnum("automation_trigger", [

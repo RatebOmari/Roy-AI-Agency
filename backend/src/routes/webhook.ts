@@ -12,6 +12,7 @@ import {
   executeFlow,
   continueFlow,
 } from "../lib/flowEngine.js";
+import { syncContact } from "../lib/contactSync.js";
 
 type Channel = typeof channelEnum.enumValues[number];
 
@@ -261,6 +262,10 @@ app.post("/:platform/:userId", async (c) => {
         content:   event.text,
         timestamp: new Date(),
       });
+
+      // Update contacts CRM (fire-and-forget; non-blocking)
+      syncContact(userId, event.contactId, event.contactName, event.handle, event.channel)
+        .catch(err => console.error("[webhook] contactSync failed:", err));
 
       // ── Flow engine ─────────────────────────────────────────────────────────
       if (hasActiveFlow(conv.id)) {

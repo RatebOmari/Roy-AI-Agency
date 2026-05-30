@@ -5,6 +5,13 @@ import { db } from "../db/index.js";
 import { conversations, messages } from "../db/schema.js";
 import type { channelEnum } from "../db/schema.js";
 import type { InferSelectModel } from "drizzle-orm";
+import {
+  checkFlowTrigger,
+  hasActiveFlow,
+  getActiveFlowId,
+  executeFlow,
+  continueFlow,
+} from "../lib/flowEngine.js";
 
 type Channel = typeof channelEnum.enumValues[number];
 
@@ -255,12 +262,26 @@ app.post("/:platform/:userId", async (c) => {
         timestamp: new Date(),
       });
 
-      // ── Flow check (wired in FIX 4 — stub returns no match) ────────────────
-      // import { checkFlowTrigger } from "../lib/flowEngine.js";
-      // const flow = await checkFlowTrigger(event.text, userId, platform);
-      // if (flow) { await executeFlow(flow, conv, event); continue; }
+      // ── Flow engine ─────────────────────────────────────────────────────────
+      if (hasActiveFlow(conv.id)) {
+        const activeFlowId = getActiveFlowId(conv.id);
+        if (activeFlowId) {
+          const resumed = await continueFlow(conv.id, event.text, activeFlowId);
+          if (resumed) {
+            console.log(`[webhook] flow resumed for conv ${conv.id}`);
+            continue;
+          }
+        }
+      }
 
-      // No flow matched — conversation stays pending for AI generation
+      const matchedFlow = await checkFlowTrigger(event.text, userId, platform, conv.id);
+      if (matchedFlow) {
+        await executeFlow(matchedFlow, conv, event.handle);
+        console.log(`[webhook] flow "${matchedFlow.name}" triggered for conv ${conv.id}`);
+        continue;
+      }
+
+      // No flow matched — conversation stays pending for AI/human handling
       console.log(`[webhook] ${platform} message from ${event.contactId} → conv ${conv.id}`);
     } catch (err) {
       console.error(`[webhook] Failed to process event:`, err);

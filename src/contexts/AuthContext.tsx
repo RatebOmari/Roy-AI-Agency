@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     registerUnauthorizedHandler(() => {
       setToken(null);
       setUser(null);
+      window.location.replace("/login");
     });
   }, []);
 

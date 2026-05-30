@@ -12,7 +12,7 @@ import {
   type PhoneContact, type TimelineItem,
 } from "@/hooks/usePhoneData";
 import { useInitiateOutboundCall, useUpdateCallNotes } from "@/hooks/useCalls";
-import type { Call, CallDirection, Message } from "@/types";
+import type { Call, CallStatus, CallDirection, Message } from "@/types";
 import { cn } from "@/lib/utils";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

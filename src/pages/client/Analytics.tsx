@@ -273,7 +273,7 @@ export default function Analytics() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard label="Total Messages" value={totalMsgs} icon={MessageCircle}
                 iconBg="bg-primary/10" iconColor="text-primary" trend="+12%" />
-              <KpiCard label="Auto-Sent by AI" value={`${Math.round((MSG_7D.reduce((s,d)=>s+d.autoSent,0)/totalMsgs)*100)||0}%`}
+              <KpiCard label="Auto-Sent by AI" value={`${Math.round((msgData.reduce((s,d)=>s+d.autoSent,0)/totalMsgs)*100)||0}%`}
                 icon={Zap} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600" trend="+9%" sub="of all replies" />
               <KpiCard label="Avg Response Time" value="1.4 min"
                 icon={Clock} iconBg="bg-blue-100 dark:bg-blue-900/20" iconColor="text-blue-600" trend="-0.3m" trendInverse />
@@ -341,7 +341,7 @@ export default function Analytics() {
                 icon={MessageCircle} iconBg="bg-primary/10" iconColor="text-primary" trend="+12%" />
               <KpiCard label="AI Auto-Sent" value={autoSentCount || 6}
                 icon={Zap} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600"
-                trend={`${Math.round(((autoSentCount||6)/((allMsgs.length||9)))*100)}%`} sub="of all replies" />
+                trend="+3" sub={`${Math.round(((autoSentCount||6)/((allMsgs.length||9)))*100)}% of replies`} />
               <KpiCard label="Pending Review" value={pendingCount}
                 icon={Clock} iconBg="bg-yellow-100 dark:bg-yellow-900/20" iconColor="text-yellow-600" />
               <KpiCard label="Escalated" value={escalatedCount || 1}

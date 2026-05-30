@@ -6,12 +6,14 @@ import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
 import { listeningKeywords } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 
 const anthropic = new Anthropic();
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // GET / — list all keywords for user
 app.get("/", async (c) => {

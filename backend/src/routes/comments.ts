@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
 import { comments, toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
 
@@ -19,6 +20,7 @@ function platformToCommentChannel(platform: string): DeliveryChannel {
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // Confidence integer (0–100) → float (0.0–1.0) for frontend
 function toFloat(n: number | null | undefined): number | undefined {

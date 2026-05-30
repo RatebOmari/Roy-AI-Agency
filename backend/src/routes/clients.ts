@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count, inArray, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { agencyClients, users, platformPermissions, platformCredentials } from "../db/schema.js";
+import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 
 const app = new Hono();
@@ -39,6 +39,75 @@ app.get("/", async (c) => {
   }));
 
   return c.json(result);
+});
+
+// ── GET /stats — aggregated metrics across all managed clients ────────────────
+
+app.get("/stats", async (c) => {
+  const user = c.get("user");
+  if (user.role !== "agency") return c.json({ message: "Forbidden" }, 403);
+
+  const clientRows = await db
+    .select({ clientId: agencyClients.clientId })
+    .from(agencyClients)
+    .where(eq(agencyClients.agencyId, user.sub));
+
+  const clientIds = clientRows.map((r) => r.clientId);
+
+  if (clientIds.length === 0) {
+    return c.json({ totalReplies: 0, autoSentRate: 0, activeClients: 0, avgPerClient: 0, weeklyData: [] });
+  }
+
+  const [replyRow] = await db
+    .select({ n: count() })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.convId, conversations.id))
+    .where(
+      and(
+        inArray(conversations.userId, clientIds),
+        sql`${messages.replyStatus} IN ('approved', 'auto_sent', 'edited')`,
+      ),
+    );
+
+  const [autoRow] = await db
+    .select({ n: count() })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.convId, conversations.id))
+    .where(
+      and(
+        inArray(conversations.userId, clientIds),
+        eq(messages.replyStatus, "auto_sent"),
+      ),
+    );
+
+  const totalReplies = replyRow?.n ?? 0;
+  const autoSent = autoRow?.n ?? 0;
+  const autoSentRate = totalReplies > 0 ? Math.round((autoSent / totalReplies) * 100) : 0;
+
+  const weeklyRows = await db
+    .select({
+      day:     sql<string>`to_char(${messages.timestamp}, 'Dy')`,
+      replies: count(),
+    })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.convId, conversations.id))
+    .where(
+      and(
+        inArray(conversations.userId, clientIds),
+        sql`${messages.replyStatus} IN ('approved', 'auto_sent', 'edited')`,
+        sql`${messages.timestamp} >= NOW() - INTERVAL '7 days'`,
+      ),
+    )
+    .groupBy(sql`to_char(${messages.timestamp}, 'Dy'), DATE(${messages.timestamp})`)
+    .orderBy(sql`DATE(${messages.timestamp})`);
+
+  return c.json({
+    totalReplies,
+    autoSentRate,
+    activeClients: clientIds.length,
+    avgPerClient:  clientIds.length > 0 ? Math.round(totalReplies / clientIds.length) : 0,
+    weeklyData:    weeklyRows.map((r) => ({ day: r.day, replies: r.replies })),
+  });
 });
 
 // ── GET /:id/platforms — credential status for a client ───────────────────────

@@ -3,9 +3,11 @@ import { eq, and, count, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { conversations, messages, platformCredentials, platformPermissions } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 const ALL_PLATFORMS = ["tiktok", "instagram", "facebook", "whatsapp", "sms", "phone"] as const;
 

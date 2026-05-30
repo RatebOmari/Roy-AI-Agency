@@ -9,6 +9,10 @@ export function registerUnauthorizedHandler(cb: () => void) {
   _onUnauthorized = cb;
 }
 
+// Set by AgencyClientContext when an agency is acting on behalf of a client
+let _clientId: string | null = null;
+export function setClientId(id: string | null) { _clientId = id; }
+
 class ApiClient {
   private async request<T>(
     path: string,
@@ -21,6 +25,9 @@ class ApiClient {
     };
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (_clientId) {
+      headers["x-client-id"] = _clientId;
     }
 
     const res = await fetch(`${BASE_URL}${path}`, {

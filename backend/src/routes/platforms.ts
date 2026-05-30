@@ -5,9 +5,11 @@ import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { platformCredentials } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 const connectSchema = z.object({
   platform: z.enum(["tiktok", "instagram", "facebook", "whatsapp", "sms", "phone"]),

@@ -6,11 +6,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
 import { conversations, messages, toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, makePhoneCall, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // Map channel string → platform for tone settings lookup
 function channelToPlatform(channel: string): "tiktok" | "instagram" | "facebook" | "whatsapp" {

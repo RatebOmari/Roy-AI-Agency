@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useAgencyClient } from "@/contexts/AgencyClientContext";
 import {
   Users, TrendingUp, CheckCircle, Search, Plus, MoreHorizontal,
   Eye, Settings, Pause, Play, MessageSquare, Loader2, X, MessageCircle, Inbox,
@@ -306,6 +309,9 @@ export default function AgencyClients() {
   const { t } = useTranslation();
   const { data, isLoading } = useClients();
   const statusMutation = useUpdateClientStatus();
+  const { selectClient } = useAgencyClient();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [clients, setClients] = useState<AgencyClient[]>([]);
   const [search, setSearch] = useState("");
@@ -428,8 +434,16 @@ export default function AgencyClients() {
                         </button>
                         {openMenu === c.id && (
                           <div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-lg py-1 w-48">
-                            <button className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted">
-                              <Eye className="w-4 h-4" /> {t("agency.viewDetails")}
+                            <button
+                              onClick={() => {
+                                queryClient.clear();
+                                selectClient(c);
+                                setOpenMenu(null);
+                                navigate("/dashboard");
+                              }}
+                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-primary font-medium"
+                            >
+                              <Eye className="w-4 h-4" /> View as Client
                             </button>
                             <button className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted">
                               <Settings className="w-4 h-4" /> {t("agency.accountSettings")}

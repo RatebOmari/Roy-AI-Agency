@@ -27,7 +27,7 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5174,ht
 
 app.use("*", cors({
   origin: (origin) => allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
-  allowHeaders:  ["Content-Type", "Authorization"],
+  allowHeaders:  ["Content-Type", "Authorization", "x-client-id"],
   allowMethods:  ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials:   true,
 }));

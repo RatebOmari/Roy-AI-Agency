@@ -21,6 +21,7 @@ import AgencyClients from "./pages/agency/Clients";
 import AgencyAnalytics from "./pages/agency/Analytics";
 import AgencySettings from "./pages/agency/Settings";
 import { useAuth } from "@/contexts/AuthContext";
+import { AgencyClientProvider, useAgencyClient } from "@/contexts/AgencyClientContext";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
@@ -28,8 +29,13 @@ const queryClient = new QueryClient({
 
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: "client" | "agency" }) {
   const { isAuthenticated, user } = useAuth();
+  const { selectedClient } = useAgencyClient();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (requiredRole && user?.role !== requiredRole) {
+    // Agency user with a selected client may access client routes
+    if (requiredRole === "client" && user?.role === "agency" && selectedClient) {
+      return <>{children}</>;
+    }
     return <Navigate to={user?.role === "agency" ? "/agency/dashboard" : "/dashboard"} replace />;
   }
   return <>{children}</>;
@@ -70,6 +76,7 @@ class ErrorBoundary extends React.Component<
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <AgencyClientProvider>
       <BrowserRouter>
         <ErrorBoundary>
           <Routes>
@@ -104,6 +111,7 @@ export default function App() {
           </Routes>
         </ErrorBoundary>
       </BrowserRouter>
+      </AgencyClientProvider>
     </QueryClientProvider>
   );
 }

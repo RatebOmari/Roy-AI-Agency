@@ -6,10 +6,12 @@ import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
 import { scheduledPosts, postMetrics } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // GET / — list all posts for user
 app.get("/", async (c) => {

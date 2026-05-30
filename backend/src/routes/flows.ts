@@ -5,9 +5,11 @@ import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { chatbotFlows } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // GET / — list all flows for user, ordered by createdAt desc
 app.get("/", async (c) => {

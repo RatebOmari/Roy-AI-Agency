@@ -5,9 +5,11 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { brandSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 app.get("/", async (c) => {
   const user = c.get("user");

@@ -5,9 +5,11 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { replyTemplates } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // GET / — list all templates for user, ordered by createdAt desc
 app.get("/", async (c) => {

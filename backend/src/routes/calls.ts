@@ -5,6 +5,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { calls, conversations, messages } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { makePhoneCall, logDelivery } from "../lib/platformDelivery.js";
 
 const app = new Hono();
@@ -42,6 +43,7 @@ app.post("/webhook/status", async (c) => {
 // ── All routes below require auth ─────────────────────────────────────────────
 
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // GET /api/calls — list calls for authenticated user
 app.get("/", async (c) => {

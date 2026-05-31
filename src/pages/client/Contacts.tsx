@@ -281,7 +281,7 @@ export default function Contacts() {
 
   return (
     <AppLayout role="client" businessName={user?.businessName}>
-      <div className="flex h-[calc(100vh-56px)] -m-6 lg:-m-8 overflow-hidden border-t border-border">
+      <div className="flex h-[calc(100vh-56px)] -m-4 lg:-m-8 overflow-hidden border-t border-border">
 
         {/* ── Left: Contact list ── */}
         <div className={cn(

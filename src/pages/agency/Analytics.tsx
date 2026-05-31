@@ -88,6 +88,7 @@ export default function AgencyAnalytics() {
           <div className="px-5 py-4 border-b border-border">
             <h3 className="font-semibold text-foreground">Per-Client Breakdown</h3>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
@@ -112,6 +113,7 @@ export default function AgencyAnalytics() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </AppLayout>

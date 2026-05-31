@@ -23,15 +23,15 @@ export default function AgencySettings() {
           <p className="text-sm text-muted-foreground mt-1">Manage your agency account and preferences</p>
         </div>
 
-        <div className="flex gap-6">
-          {/* Left nav */}
-          <div className="w-52 flex-shrink-0">
-            <nav className="space-y-0.5">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          {/* Left nav — horizontal scrollable on mobile, vertical sidebar on md+ */}
+          <div className="md:w-52 md:flex-shrink-0">
+            <nav className="flex gap-1 overflow-x-auto no-scrollbar pb-1 md:pb-0 md:flex-col md:space-y-0.5">
               {SECTIONS.map(s => (
                 <button
                   key={s.key}
                   onClick={() => setActive(s.key)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-colors ${
+                  className={`flex items-center gap-2 px-3 py-2 md:py-2.5 rounded-xl text-sm font-medium whitespace-nowrap shrink-0 md:shrink md:w-full md:text-left transition-colors ${
                     active === s.key
                       ? "bg-primary text-white"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -61,7 +61,7 @@ export default function AgencySettings() {
                       <input
                         type={f.type}
                         placeholder={f.placeholder}
-                        className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                       />
                     </div>
                   ))}

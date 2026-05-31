@@ -348,7 +348,7 @@ function FlowEditor({ flow, onClose, onSave }: FlowEditorProps) {
             </div>
 
             {/* Trigger + Platform */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
                   Trigger
@@ -577,8 +577,8 @@ function FlowEditor({ flow, onClose, onSave }: FlowEditorProps) {
             </div>
           </div>
 
-          {/* Right: Live preview */}
-          <div className="w-72 shrink-0 flex flex-col p-4 gap-3">
+          {/* Right: Live preview — hidden on mobile to keep form usable */}
+          <div className="hidden md:flex w-72 shrink-0 flex-col p-4 gap-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Live Preview
             </p>

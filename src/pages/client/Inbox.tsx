@@ -48,7 +48,7 @@ export default function Inbox() {
   // Deps intentionally exclude selectedId — we don't re-select when the user
   // taps back (clears selection) on mobile.
   useEffect(() => {
-    if (window.innerWidth < 1024) return;
+    if (window.innerWidth < 768) return;
     if (conversations.length > 0 && !selectedId) {
       setSelectedId(conversations[0].id);
     }
@@ -146,8 +146,8 @@ export default function Inbox() {
         {/* Left panel — full width on mobile (list only), fixed 320px on desktop */}
         <div className={cn(
           "flex-shrink-0 border-r border-border bg-card flex flex-col overflow-hidden",
-          "w-full lg:w-80",
-          showList  ? "flex"        : "hidden lg:flex",
+          "w-full md:w-80",
+          showList  ? "flex"        : "hidden md:flex",
         )}>
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
@@ -176,7 +176,7 @@ export default function Inbox() {
         {/* Right panel — hidden on mobile until conversation selected */}
         <div className={cn(
           "flex-1 flex-col bg-background overflow-hidden",
-          showPane ? "flex" : "hidden lg:flex",
+          showPane ? "flex" : "hidden md:flex",
         )}>
           <ConversationPane
             conversation={selectedConv}

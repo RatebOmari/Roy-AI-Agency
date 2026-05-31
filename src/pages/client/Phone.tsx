@@ -523,7 +523,7 @@ export default function PhonePage() {
   // Deps intentionally exclude selectedKey — we don't re-select when the user
   // taps back (clears selection) on mobile.
   useEffect(() => {
-    if (window.innerWidth < 1024) return;
+    if (window.innerWidth < 768) return;
     if (contacts.length > 0 && !selectedKey) {
       setSelectedKey(contacts[0].key);
     }
@@ -542,8 +542,8 @@ export default function PhonePage() {
         <div className="flex flex-1 overflow-hidden">
           {/* Left panel */}
           <div className={cn(
-            "flex-shrink-0 border-r border-border bg-card flex flex-col overflow-hidden w-full lg:w-80",
-            showList ? "flex" : "hidden lg:flex"
+            "flex-shrink-0 border-r border-border bg-card flex flex-col overflow-hidden w-full md:w-80",
+            showList ? "flex" : "hidden md:flex"
           )}>
             {/* New Call button */}
             <div className="px-4 pt-3 pb-2 flex justify-end border-b border-border">
@@ -575,7 +575,7 @@ export default function PhonePage() {
           {/* Right panel */}
           <div className={cn(
             "flex-1 flex-col bg-background overflow-hidden",
-            showPane ? "flex" : "hidden lg:flex"
+            showPane ? "flex" : "hidden md:flex"
           )}>
             {selectedContact ? (
               <ContactDetail

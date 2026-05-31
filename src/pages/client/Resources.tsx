@@ -293,14 +293,14 @@ function WorkingHoursSection({ resource }: { resource?: Resource }) {
               <>
                 <input
                   type="time"
-                  className="flex-1 min-w-0 bg-background border border-border rounded-lg px-1.5 sm:px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="flex-1 min-w-0 bg-background border border-border rounded-lg px-1.5 sm:px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                   value={row.from}
                   onChange={e => setHours(h => h.map((x, j) => j === i ? { ...x, from: e.target.value } : x))}
                 />
                 <span className="text-xs text-muted-foreground flex-shrink-0">–</span>
                 <input
                   type="time"
-                  className="flex-1 min-w-0 bg-background border border-border rounded-lg px-1.5 sm:px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="flex-1 min-w-0 bg-background border border-border rounded-lg px-1.5 sm:px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                   value={row.to}
                   onChange={e => setHours(h => h.map((x, j) => j === i ? { ...x, to: e.target.value } : x))}
                 />

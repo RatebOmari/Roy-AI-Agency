@@ -8,7 +8,7 @@ import { useAgencyClient } from "@/contexts/AgencyClientContext";
 import {
   Users, TrendingUp, CheckCircle, Search, Plus, MoreHorizontal,
   Eye, Settings, Pause, Play, MessageSquare, Loader2, X, MessageCircle, Inbox,
-  Link2, Link2Off, CheckCircle2,
+  Link2, Link2Off, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import type { AgencyClient, ClientStatus, ExtendedPlatform, PlatformFeatureType } from "@/types";
 import {
@@ -305,6 +305,38 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
   );
 }
 
+// ── Health Score ──────────────────────────────────────────────────────────────
+
+const DEMO_HEALTH: Record<string, number> = {
+  "1": 88, // active, high replies
+  "2": 74, // active, moderate replies
+  "3": 52, // paused, moderate replies
+  "4": 65, // active, lower replies
+  "5": 28, // setup, no replies
+};
+
+function computeHealthScore(client: AgencyClient): number {
+  if (client.id in DEMO_HEALTH) return DEMO_HEALTH[client.id];
+  let score = 50;
+  if (client.status === "active") score += 15;
+  if (client.status === "setup")  score -= 25;
+  score += Math.min(25, Math.floor(client.replies / 15));
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function HealthBadge({ score }: { score: number }) {
+  const color =
+    score >= 80 ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800" :
+    score >= 50 ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800" :
+                  "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800";
+  return (
+    <div className={cn("inline-flex flex-col items-center px-2.5 py-1 rounded-xl border text-xs font-bold leading-none gap-0.5", color)}>
+      <span>{score}</span>
+      <span className="text-[9px] font-normal opacity-70 uppercase tracking-wider">Health</span>
+    </div>
+  );
+}
+
 export default function AgencyClients() {
   const { t } = useTranslation();
   const { data, isLoading } = useClients();
@@ -317,16 +349,20 @@ export default function AgencyClients() {
   const [search, setSearch] = useState("");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [permClient, setPermClient] = useState<AgencyClient | null>(null);
+  const [needsAttention, setNeedsAttention] = useState(false);
 
   useEffect(() => {
     if (data) setClients(data);
   }, [data]);
 
-  const filtered = clients.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.owner.toLowerCase().includes(search.toLowerCase()) ||
-    c.email.includes(search.toLowerCase())
-  );
+  const filtered = clients.filter(c => {
+    const matchSearch =
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.owner.toLowerCase().includes(search.toLowerCase()) ||
+      c.email.includes(search.toLowerCase());
+    const matchAttention = !needsAttention || computeHealthScore(c) < 60;
+    return matchSearch && matchAttention;
+  });
 
   const toggle = (id: string) => {
     const client = clients.find(c => c.id === id);
@@ -380,14 +416,28 @@ export default function AgencyClients() {
           ))}
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={t("agency.searchPlaceholder")}
-            className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-card shadow-sm"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={t("agency.searchPlaceholder")}
+              className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-card shadow-sm"
+            />
+          </div>
+          <button
+            onClick={() => setNeedsAttention(n => !n)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-colors whitespace-nowrap",
+              needsAttention
+                ? "bg-red-50 border-red-300 text-red-600 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            <span className="hidden sm:inline">Needs Attention</span>
+          </button>
         </div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
@@ -405,12 +455,13 @@ export default function AgencyClients() {
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.client")}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.replies")}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.status")}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Health</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center py-8 text-muted-foreground">{t("agency.noResults")}</td></tr>
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t("agency.noResults")}</td></tr>
                   ) : filtered.map(c => (
                     <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3">
@@ -427,6 +478,9 @@ export default function AgencyClients() {
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusCls[c.status]}`}>
                           {t(`agency.statuses.${c.status}`)}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <HealthBadge score={computeHealthScore(c)} />
                       </td>
                       <td className="px-4 py-3 relative">
                         <button

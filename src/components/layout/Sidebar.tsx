@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Inbox, Users, BarChart2, Zap,
   Settings, LogOut, ChevronRight, Menu, X, UserCircle,
   CalendarDays, BookOpen, FileText, Megaphone, GitBranch, Radio, MessageSquare, Phone,
+  Siren,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -88,8 +89,9 @@ const CLIENT_NAV_GROUPS: NavGroup[] = [
 const AGENCY_NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { label: "Dashboard", href: "/agency/dashboard", icon: LayoutDashboard },
-      { label: "Clients",   href: "/agency/clients",   icon: Users },
+      { label: "Dashboard",       href: "/agency/dashboard", icon: LayoutDashboard },
+      { label: "Command Center",  href: "/agency/command",   icon: Siren },
+      { label: "Clients",         href: "/agency/clients",   icon: Users },
     ],
   },
   {

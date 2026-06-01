@@ -21,6 +21,7 @@ import AgencyDashboard from "./pages/agency/Dashboard";
 import AgencyClients from "./pages/agency/Clients";
 import AgencyAnalytics from "./pages/agency/Analytics";
 import AgencySettings from "./pages/agency/Settings";
+import AgencyCommandCenter from "./pages/agency/CommandCenter";
 import { useAuth } from "@/contexts/AuthContext";
 import { AgencyClientProvider, useAgencyClient } from "@/contexts/AgencyClientContext";
 
@@ -107,6 +108,7 @@ export default function App() {
             <Route path="/agency/clients"      element={<ProtectedRoute requiredRole="agency"><AgencyClients /></ProtectedRoute>} />
             <Route path="/agency/analytics"    element={<ProtectedRoute requiredRole="agency"><AgencyAnalytics /></ProtectedRoute>} />
             <Route path="/agency/settings"     element={<ProtectedRoute requiredRole="agency"><AgencySettings /></ProtectedRoute>} />
+            <Route path="/agency/command"      element={<ProtectedRoute requiredRole="agency"><AgencyCommandCenter /></ProtectedRoute>} />
 
             <Route path="*"                    element={<Navigate to="/login" replace />} />
           </Routes>

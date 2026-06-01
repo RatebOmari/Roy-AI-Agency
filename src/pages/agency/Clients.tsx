@@ -16,6 +16,7 @@ import {
   useClientPlatforms, useSetClientPlatformCredential, useRevokeClientPlatformCredential,
 } from "@/hooks/useClients";
 import { cn } from "@/lib/utils";
+import { computeHealthScore } from "@/hooks/useHealthScore";
 
 type PlatformPerms = Record<ExtendedPlatform, { comments: boolean; messages: boolean }>;
 
@@ -305,24 +306,7 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
   );
 }
 
-// ── Health Score ──────────────────────────────────────────────────────────────
-
-const DEMO_HEALTH: Record<string, number> = {
-  "1": 88, // active, high replies
-  "2": 74, // active, moderate replies
-  "3": 52, // paused, moderate replies
-  "4": 65, // active, lower replies
-  "5": 28, // setup, no replies
-};
-
-function computeHealthScore(client: AgencyClient): number {
-  if (client.id in DEMO_HEALTH) return DEMO_HEALTH[client.id];
-  let score = 50;
-  if (client.status === "active") score += 15;
-  if (client.status === "setup")  score -= 25;
-  score += Math.min(25, Math.floor(client.replies / 15));
-  return Math.max(0, Math.min(100, Math.round(score)));
-}
+// ── Health Badge ──────────────────────────────────────────────────────────────
 
 function HealthBadge({ score }: { score: number }) {
   const color =

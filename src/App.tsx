@@ -1,6 +1,6 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/client/Dashboard";
 import Inbox from "./pages/client/Inbox";
@@ -24,6 +24,7 @@ import AgencySettings from "./pages/agency/Settings";
 import AgencyCommandCenter from "./pages/agency/CommandCenter";
 import ClientOnboarding from "./pages/agency/ClientOnboarding";
 import AcceptInvite from "./pages/AcceptInvite";
+import TeamLogin from "./pages/TeamLogin";
 import { useAuth } from "@/contexts/AuthContext";
 import { AgencyClientProvider, useAgencyClient } from "@/contexts/AgencyClientContext";
 
@@ -31,16 +32,34 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
 });
 
+/** The one place that decides where a user belongs after login or on bad URL. */
+function homeRoute(user: { role: string; teamRole?: string }): string {
+  if (user.role === "agency")          return "/agency/dashboard";
+  if (user.teamRole === "agent")       return "/inbox";
+  if (user.teamRole === "viewer")      return "/analytics";
+  return "/dashboard"; // client admin or no teamRole
+}
+
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: "client" | "agency" }) {
   const { isAuthenticated, user } = useAuth();
   const { selectedClient } = useAgencyClient();
+  const location = useLocation();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  // Team role enforcement — agents see only /inbox, viewers see only /analytics
+  if (user?.teamRole === "agent" && !location.pathname.startsWith("/inbox")) {
+    return <Navigate to="/inbox" replace />;
+  }
+  if (user?.teamRole === "viewer" && !location.pathname.startsWith("/analytics")) {
+    return <Navigate to="/analytics" replace />;
+  }
+
   if (requiredRole && user?.role !== requiredRole) {
     // Agency user with a selected client may access client routes
     if (requiredRole === "client" && user?.role === "agency" && selectedClient) {
       return <>{children}</>;
     }
-    return <Navigate to={user?.role === "agency" ? "/agency/dashboard" : "/dashboard"} replace />;
+    return <Navigate to={homeRoute(user!)} replace />;
   }
   return <>{children}</>;
 }
@@ -50,7 +69,7 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
 function SmartFallback() {
   const { isAuthenticated, user } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <Navigate to={user?.role === "agency" ? "/agency/dashboard" : "/dashboard"} replace />;
+  return <Navigate to={homeRoute(user!)} replace />;
 }
 
 class ErrorBoundary extends React.Component<
@@ -95,6 +114,7 @@ export default function App() {
             <Route path="/"                    element={<Navigate to="/login" replace />} />
             <Route path="/login"               element={<Login />} />
             <Route path="/accept-invite/:token" element={<AcceptInvite />} />
+            <Route path="/team-login/:memberId"  element={<TeamLogin />} />
 
             {/* Client */}
             <Route path="/dashboard"           element={<ProtectedRoute requiredRole="client"><Dashboard /></ProtectedRoute>} />

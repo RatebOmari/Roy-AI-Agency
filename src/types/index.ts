@@ -30,6 +30,7 @@ export interface User {
   id: string;
   email: string;
   role: "client" | "agency";
+  teamRole?: "admin" | "agent" | "viewer";
   name: string;
   businessName: string;
   platformPermissions?: Record<ExtendedPlatform, { comments: boolean; messages: boolean }>;

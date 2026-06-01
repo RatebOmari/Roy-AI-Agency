@@ -352,7 +352,10 @@ export default function AgencyClients() {
             <h1 className="text-2xl font-bold text-foreground">{t("agency.title")}</h1>
             <p className="text-sm text-muted-foreground">{t("agency.subtitle")}</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+          <button
+            onClick={() => navigate("/agency/clients/new")}
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
             <Plus className="w-4 h-4" /> {t("agency.addClient")}
           </button>
         </motion.div>

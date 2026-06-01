@@ -8,7 +8,7 @@ interface AuthContextValue {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string, roleHint?: "client" | "agency") => Promise<User>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -39,7 +39,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (
     email: string,
     password: string,
-    roleHint: "client" | "agency" = "client"
   ): Promise<User> => {
     setIsLoading(true);
 
@@ -75,23 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name: demo.name,
           businessName: demo.businessName,
           platformPermissions: demo.role === "client" ? DEMO_PLATFORM_PERMISSIONS : undefined,
-        };
-        const demoToken = "demo_token_" + Date.now();
-        authStorage.setToken(demoToken);
-        authStorage.setUser(demoUser);
-        setToken(demoToken);
-        setUser(demoUser);
-        return demoUser;
-      }
-      // No backend configured and no demo match — allow any credentials in pure demo mode
-      if (!import.meta.env.VITE_API_URL) {
-        const demoUser: User = {
-          id: "demo-1",
-          email,
-          role: roleHint,
-          name: roleHint === "agency" ? "Roy Agency" : "Demo Business",
-          businessName: roleHint === "agency" ? "Roy AI Agency" : "My Business",
-          platformPermissions: roleHint === "client" ? DEMO_PLATFORM_PERMISSIONS : undefined,
         };
         const demoToken = "demo_token_" + Date.now();
         authStorage.setToken(demoToken);

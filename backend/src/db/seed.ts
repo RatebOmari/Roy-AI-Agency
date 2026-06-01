@@ -4,6 +4,9 @@ import { db } from "./index.js";
 import { users, agencyClients, conversations, messages, platformPermissions } from "./schema.js";
 import { eq } from "drizzle-orm";
 
+// Fixed UUID for Roy AI Agency — single-agency platform
+const AGENCY_ID = "00000000-0000-0000-0000-000000000001";
+
 async function seed() {
   console.log("🌱 Seeding database...");
 
@@ -28,6 +31,7 @@ async function seed() {
   let [agencyUser] = await db.select().from(users).where(eq(users.email, agencyEmail)).limit(1);
   if (!agencyUser) {
     [agencyUser] = await db.insert(users).values({
+      id:           AGENCY_ID,
       email:        agencyEmail,
       passwordHash: await hash("demo123"),
       role:         "agency",

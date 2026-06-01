@@ -2,8 +2,10 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, count, inArray, sql } from "drizzle-orm";
+import { randomBytes } from "crypto";
+import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
-import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages } from "../db/schema.js";
+import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages, clientInvites } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { encryptToken } from "../lib/crypto.js";
 
@@ -143,6 +145,56 @@ app.get("/:id/platforms", async (c) => {
       connectedAt: cr.connectedAt,
     }))
   );
+});
+
+// ── POST /create — agency creates a new client + one-time invite link ────────
+
+const createClientSchema = z.object({
+  name:         z.string().min(1),
+  owner:        z.string().min(1),
+  email:        z.string().email(),
+  businessType: z.string().optional(),
+  description:  z.string().optional(),
+  platforms:    z.array(z.string()).optional(),
+});
+
+app.post("/create", zValidator("json", createClientSchema), async (c) => {
+  const user = c.get("user");
+  if (user.role !== "agency") return c.json({ message: "Forbidden" }, 403);
+
+  const { name, owner, email } = c.req.valid("json");
+
+  const [existing] = await db.select({ id: users.id }).from(users)
+    .where(eq(users.email, email.toLowerCase())).limit(1);
+  if (existing) return c.json({ message: "A user with this email already exists" }, 409);
+
+  // Create client user with a randomised password — client sets their own via the invite link
+  const tempHash = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
+  const [newClient] = await db.insert(users).values({
+    email:        email.toLowerCase(),
+    passwordHash: tempHash,
+    role:         "client",
+    name:         owner,
+    businessName: name,
+  }).returning({ id: users.id });
+
+  await db.insert(agencyClients).values({
+    agencyId: user.sub,
+    clientId: newClient.id,
+    status:   "setup",
+  });
+
+  // 7-day invite token
+  const token     = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await db.insert(clientInvites).values({
+    token,
+    clientId:  newClient.id,
+    agencyId:  user.sub,
+    expiresAt,
+  });
+
+  return c.json({ clientId: newClient.id, token });
 });
 
 // ── POST /action — agency actions on clients ──────────────────────────────────

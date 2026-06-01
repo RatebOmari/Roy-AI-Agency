@@ -342,6 +342,18 @@ export const flowSessions = pgTable("flow_sessions", {
   updatedAt:       timestamp("updated_at").notNull().defaultNow(),
 });
 
+// ── Client Invites (one-time setup links issued by agency) ───────────────────
+
+export const clientInvites = pgTable("client_invites", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  token:     text("token").notNull().unique(),
+  clientId:  uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  agencyId:  uuid("agency_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt:    timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const comments = pgTable("comments", {
   id:                uuid("id").primaryKey().defaultRandom(),
   userId:            uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

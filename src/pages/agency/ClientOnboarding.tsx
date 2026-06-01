@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import {
   Building2, Globe, ListChecks, Zap, CheckCircle2,
   ArrowLeft, ArrowRight, Save, Send, Loader2,
-  Check,
+  Check, Copy, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -614,6 +614,8 @@ export default function ClientOnboarding() {
   const [data, setDataRaw] = useState<WizardData>(loadDraft);
   const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const setData = (d: WizardData) => {
     setDataRaw(d);
@@ -645,21 +647,31 @@ export default function ClientOnboarding() {
   const handleComplete = async () => {
     setSubmitting(true);
     try {
-      await api.post("/clients/create", {
-        name: data.businessName,
-        owner: data.ownerName,
-        email: data.email,
-        platforms: data.platforms,
+      const res = await api.post<{ clientId: string; token: string }>("/clients/create", {
+        name:         data.businessName,
+        owner:        data.ownerName,
+        email:        data.email,
+        platforms:    data.platforms,
         businessType: data.businessType,
-        description: data.description,
+        description:  data.description,
       });
-    } catch {
-      // Backend may not have this endpoint yet — proceed optimistically
-    } finally {
       localStorage.removeItem(DRAFT_KEY);
+      const url = `${window.location.origin}/accept-invite/${res.token}`;
+      setInviteUrl(url);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to create client";
+      alert(msg);
+    } finally {
       setSubmitting(false);
-      navigate("/agency/clients");
     }
+  };
+
+  const handleCopyInvite = () => {
+    if (!inviteUrl) return;
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
   };
 
   const isLastStep = step === STEPS.length - 1;
@@ -671,6 +683,55 @@ export default function ClientOnboarding() {
     <Step4 data={data} setData={setData} />,
     <Step5 data={data} setData={setData} />,
   ];
+
+  // ── Invite success screen ────────────────────────────────────────────────────
+  if (inviteUrl) {
+    return (
+      <AppLayout role="agency">
+        <div className="max-w-lg mx-auto mt-12 space-y-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-green-100 dark:bg-green-900/20 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Client Created!</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Share this invite link with <strong>{data.ownerName || data.email}</strong> so they can set their password and log in.
+            </p>
+          </div>
+
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-3 text-left">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Invite Link (expires in 7 days)</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-lg break-all text-foreground">{inviteUrl}</code>
+              <button
+                onClick={handleCopyInvite}
+                className={cn(
+                  "shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors",
+                  copied
+                    ? "border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-muted",
+                )}
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">The client must open this link to set their password before they can log in.</p>
+          </div>
+
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => navigate("/agency/clients")}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Go to Clients
+            </button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout role="agency">

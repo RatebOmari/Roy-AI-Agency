@@ -23,6 +23,7 @@ import AgencyAnalytics from "./pages/agency/Analytics";
 import AgencySettings from "./pages/agency/Settings";
 import AgencyCommandCenter from "./pages/agency/CommandCenter";
 import ClientOnboarding from "./pages/agency/ClientOnboarding";
+import AcceptInvite from "./pages/AcceptInvite";
 import { useAuth } from "@/contexts/AuthContext";
 import { AgencyClientProvider, useAgencyClient } from "@/contexts/AgencyClientContext";
 
@@ -85,6 +86,7 @@ export default function App() {
           <Routes>
             <Route path="/"                    element={<Navigate to="/login" replace />} />
             <Route path="/login"               element={<Login />} />
+            <Route path="/accept-invite/:token" element={<AcceptInvite />} />
 
             {/* Client */}
             <Route path="/dashboard"           element={<ProtectedRoute requiredRole="client"><Dashboard /></ProtectedRoute>} />

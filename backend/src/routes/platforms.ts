@@ -22,6 +22,7 @@ const connectSchema = z.object({
 
 app.post("/connect", zValidator("json", connectSchema), async (c) => {
   const user = c.get("user");
+  if (user.role === "client") return c.json({ message: "Platform credentials are managed by your agency" }, 403);
   const { platform, feature, accessToken, accountId, expiresAt } = c.req.valid("json");
 
   // Delete any existing credential for this user/platform/feature, then insert fresh.
@@ -50,6 +51,7 @@ app.post("/connect", zValidator("json", connectSchema), async (c) => {
 
 app.post("/disconnect", zValidator("json", connectSchema), async (c) => {
   const user = c.get("user");
+  if (user.role === "client") return c.json({ message: "Platform credentials are managed by your agency" }, 403);
   const { platform, feature } = c.req.valid("json");
 
   await db

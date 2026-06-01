@@ -5,7 +5,7 @@ import { eq, and, count, inArray, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
-import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages, clientInvites } from "../db/schema.js";
+import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages, clientInvites, toneSettings, replyTemplates } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { encryptToken } from "../lib/crypto.js";
 
@@ -231,11 +231,17 @@ const revokeCredentialSchema = z.object({
   feature:  z.enum(["comments", "messages"]),
 });
 
+const resetAiSettingsSchema = z.object({
+  action:   z.literal("resetAiSettings"),
+  clientId: z.string().uuid(),
+});
+
 const actionSchema = z.discriminatedUnion("action", [
   updateStatusSchema,
   updatePermissionsSchema,
   setPlatformCredentialSchema,
   revokeCredentialSchema,
+  resetAiSettingsSchema,
 ]);
 
 app.post("/action", zValidator("json", actionSchema), async (c) => {
@@ -362,7 +368,52 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
     return c.json({ ok: true });
   }
 
+  // ── Reset client AI settings to defaults ───────────────────────────────────
+
+  if (body.action === "resetAiSettings") {
+    const { clientId } = body;
+    const [rel] = await db.select({ id: agencyClients.id }).from(agencyClients)
+      .where(and(eq(agencyClients.agencyId, user.sub), eq(agencyClients.clientId, clientId))).limit(1);
+    if (!rel) return c.json({ message: "Client not found" }, 404);
+    await db.delete(toneSettings).where(eq(toneSettings.userId, clientId));
+    return c.json({ ok: true });
+  }
+
   return c.json({ message: "Unknown action" }, 400);
+});
+
+// ── POST /push-template — copy a template to one or more clients ─────────────
+
+app.post("/push-template", zValidator("json", z.object({
+  clientIds: z.array(z.string().uuid()).min(1),
+  title:     z.string().min(1),
+  content:   z.string().min(1),
+  platforms: z.array(z.string()),
+  language:  z.string().default("en"),
+  category:  z.string().default(""),
+})), async (c) => {
+  const user = c.get("user");
+  if (user.role !== "agency") return c.json({ message: "Forbidden" }, 403);
+
+  const { clientIds, title, content, platforms, language, category } = c.req.valid("json");
+
+  const rows = await db.select({ clientId: agencyClients.clientId })
+    .from(agencyClients)
+    .where(and(eq(agencyClients.agencyId, user.sub), inArray(agencyClients.clientId, clientIds)));
+
+  const allowedIds = new Set(rows.map(r => r.clientId));
+
+  let pushed = 0;
+  for (const clientId of clientIds) {
+    if (allowedIds.has(clientId)) {
+      await db.insert(replyTemplates).values({
+        userId: clientId, title, content, platforms, language, active: true, category,
+      });
+      pushed++;
+    }
+  }
+
+  return c.json({ ok: true, pushed });
 });
 
 export default app;

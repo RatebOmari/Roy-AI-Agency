@@ -113,3 +113,23 @@ export function useRevokeClientPlatformCredential() {
     },
   });
 }
+
+export function useResetClientAiSettings() {
+  return useMutation({
+    mutationFn: (clientId: string) =>
+      api.post<void>("/clients/action", { action: "resetAiSettings", clientId }),
+  });
+}
+
+export function usePushTemplate() {
+  return useMutation({
+    mutationFn: (vars: {
+      clientIds: string[];
+      title: string;
+      content: string;
+      platforms: string[];
+      language: string;
+      category: string;
+    }) => api.post<{ ok: boolean; pushed: number }>("/clients/push-template", vars),
+  });
+}

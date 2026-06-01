@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Globe, Bell, Shield } from "lucide-react";
+import { Globe, Bell, Shield, Brain } from "lucide-react";
 import { AGENCY_NAME } from "@/lib/constants";
+import { useAgencyConfig, useUpdateAgencyConfig } from "@/hooks/useAgencyConfig";
 
 const SECTIONS = [
   { key: "contact",       label: "Contact Info",  icon: Globe  },
+  { key: "ai",            label: "AI Control",    icon: Brain  },
   { key: "notifications", label: "Notifications", icon: Bell   },
   { key: "security",      label: "Security",      icon: Shield },
 ] as const;
@@ -13,6 +15,9 @@ type Section = (typeof SECTIONS)[number]["key"];
 
 export default function AgencySettings() {
   const [active, setActive] = useState<Section>("contact");
+  const { data: config } = useAgencyConfig();
+  const updateConfig = useUpdateAgencyConfig();
+  const [blocked, setBlocked] = useState("");
 
   return (
     <AppLayout role="agency">
@@ -77,6 +82,37 @@ export default function AgencySettings() {
                 </div>
                 <button className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors">
                   Save Changes
+                </button>
+              </div>
+            )}
+
+            {active === "ai" && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="font-semibold text-foreground">AI Control</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Global settings applied to all clients' AI behaviour.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Global Blocked Words</label>
+                  <p className="text-xs text-muted-foreground">
+                    Comma-separated. The AI will never use these words in replies across all client accounts.
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={blocked || config?.globalBlocked || ""}
+                    onChange={e => setBlocked(e.target.value)}
+                    placeholder="e.g. competitor, free, discount, guaranteed"
+                    className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                  />
+                </div>
+                <button
+                  onClick={() => updateConfig.mutate({ globalBlocked: blocked || config?.globalBlocked || "" })}
+                  disabled={updateConfig.isPending}
+                  className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60"
+                >
+                  {updateConfig.isPending ? "Saving…" : "Save"}
                 </button>
               </div>
             )}

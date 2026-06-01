@@ -342,6 +342,15 @@ export const flowSessions = pgTable("flow_sessions", {
   updatedAt:       timestamp("updated_at").notNull().defaultNow(),
 });
 
+// ── Agency-wide Configuration ─────────────────────────────────────────────────
+
+export const agencyConfig = pgTable("agency_config", {
+  id:            uuid("id").primaryKey().defaultRandom(),
+  agencyId:      uuid("agency_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  globalBlocked: text("global_blocked").notNull().default(""),
+  updatedAt:     timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ── Client Invites (one-time setup links issued by agency) ───────────────────
 
 export const clientInvites = pgTable("client_invites", {

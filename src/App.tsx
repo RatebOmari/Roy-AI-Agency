@@ -45,6 +45,14 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
   return <>{children}</>;
 }
 
+// Authenticated users hitting an unknown URL land on their own dashboard.
+// Unauthenticated users go to login.
+function SmartFallback() {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <Navigate to={user?.role === "agency" ? "/agency/dashboard" : "/dashboard"} replace />;
+}
+
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { error: Error | null }
@@ -106,15 +114,16 @@ export default function App() {
             <Route path="/phone"               element={<ProtectedRoute requiredRole="client"><Phone /></ProtectedRoute>} />
             <Route path="/settings"            element={<ProtectedRoute requiredRole="client"><ToneSettings /></ProtectedRoute>} />
 
-            {/* Agency */}
+            {/* Agency — exactly 6 routes for the single-agency platform */}
+            <Route path="/agency"              element={<ProtectedRoute requiredRole="agency"><Navigate to="/agency/dashboard" replace /></ProtectedRoute>} />
             <Route path="/agency/dashboard"    element={<ProtectedRoute requiredRole="agency"><AgencyDashboard /></ProtectedRoute>} />
+            <Route path="/agency/clients/new"  element={<ProtectedRoute requiredRole="agency"><ClientOnboarding /></ProtectedRoute>} />
             <Route path="/agency/clients"      element={<ProtectedRoute requiredRole="agency"><AgencyClients /></ProtectedRoute>} />
             <Route path="/agency/analytics"    element={<ProtectedRoute requiredRole="agency"><AgencyAnalytics /></ProtectedRoute>} />
             <Route path="/agency/settings"     element={<ProtectedRoute requiredRole="agency"><AgencySettings /></ProtectedRoute>} />
             <Route path="/agency/command"      element={<ProtectedRoute requiredRole="agency"><AgencyCommandCenter /></ProtectedRoute>} />
-            <Route path="/agency/clients/new"  element={<ProtectedRoute requiredRole="agency"><ClientOnboarding /></ProtectedRoute>} />
 
-            <Route path="*"                    element={<Navigate to="/login" replace />} />
+            <Route path="*"                    element={<SmartFallback />} />
           </Routes>
         </ErrorBoundary>
       </BrowserRouter>

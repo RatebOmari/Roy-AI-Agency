@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversations } from "@/hooks/useConversations";
+import { AGENCY_NAME } from "@/lib/constants";
 
 type Role = "agency" | "client";
 
@@ -180,7 +181,9 @@ export function Sidebar({ role, businessName }: SidebarProps) {
               <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
                 <Zap className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="font-bold text-foreground">SocialPilot</span>
+              <span className="font-bold text-foreground">
+                {role === "agency" ? AGENCY_NAME : "SocialPilot"}
+              </span>
             </div>
           )}
           <button
@@ -228,7 +231,9 @@ export function Sidebar({ role, businessName }: SidebarProps) {
           <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
             <Zap className="w-3 h-3 text-white" />
           </div>
-          <span className="font-bold text-foreground text-sm">SocialPilot</span>
+          <span className="font-bold text-foreground text-sm">
+            {role === "agency" ? AGENCY_NAME : "SocialPilot"}
+          </span>
         </div>
         <div className="w-9" /> {/* spacer to center logo */}
       </div>

@@ -1,4 +1,4 @@
-import type { AgencyClient } from "./useClients";
+import type { AgencyClient } from "@/types";
 
 const DEMO_HEALTH: Record<string, number> = {
   "1": 88,

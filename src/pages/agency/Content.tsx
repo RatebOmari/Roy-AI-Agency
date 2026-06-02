@@ -2,13 +2,13 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
-  Clock4, CheckCircle, XCircle, Loader2, ChevronRight,
+  Clock4, CheckCircle, Loader2,
   AlertCircle, Filter, Users, Calendar, Sparkles,
   ArrowRight, MessageSquare, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  useAgencyContent, useOverridePublish, useApprovePost, useRequestChanges,
+  useAgencyContent, useOverridePublish, useApprovePost,
 } from "@/hooks/useContent";
 import type { ScheduledPost, Platform, PostStatus } from "@/types";
 import { cn } from "@/lib/utils";

@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, MessageCircle, Zap, Clock, Users, Heart, Eye, Share2,
-  Radio, Megaphone, GitBranch, CheckCircle2, Phone, MessageSquare,
+  Radio, Megaphone, GitBranch, CheckCircle2, MessageSquare,
   BarChart2, TrendingDown, Send,
 } from "lucide-react";
 import { usePostMetrics } from "@/hooks/useContent";

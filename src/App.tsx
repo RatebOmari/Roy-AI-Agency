@@ -11,7 +11,6 @@ import Contacts from "./pages/client/Contacts";
 import Content from "./pages/client/Content";
 import Resources from "./pages/client/Resources";
 import Templates from "./pages/client/Templates";
-import Campaigns from "./pages/client/Campaigns";
 import Outreach from "./pages/client/Outreach";
 import AgencyOutreach from "./pages/agency/Outreach";
 import Flows from "./pages/client/Flows";

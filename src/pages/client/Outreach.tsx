@@ -6,7 +6,7 @@ import {
   MessageSquare, Mail, Phone as PhoneIcon, Megaphone,
   ChevronLeft, ChevronRight, Sparkles, AlertCircle,
   CheckCircle2, Clock, Users, BarChart3, XCircle,
-  Upload, Image, Calendar, Eye, RefreshCw,
+  Upload, Calendar, RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {

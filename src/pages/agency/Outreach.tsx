@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAgencyOutreach } from "@/hooks/useOutreach";
 import {
   Send, Eye, MessageCircle, Users, MessageSquare, Mail, Phone,
-  Megaphone, TrendingUp, BarChart2, Filter,
+  Megaphone, BarChart2, Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OutreachChannel, OutreachStatus } from "@/types";

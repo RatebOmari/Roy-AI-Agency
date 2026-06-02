@@ -17,7 +17,7 @@ import {
   useResetClientAiSettings, usePushTemplate,
 } from "@/hooks/useClients";
 import { cn } from "@/lib/utils";
-import { computeHealthScore } from "@/hooks/useHealthScore";
+import { computeHealthScore, healthColor } from "@/hooks/useHealthScore";
 
 type PlatformPerms = Record<ExtendedPlatform, { comments: boolean; messages: boolean }>;
 
@@ -309,13 +309,15 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
 
 // ── Health Badge ──────────────────────────────────────────────────────────────
 
+const HEALTH_BADGE_COLOR: Record<"green" | "amber" | "red", string> = {
+  green: "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
+  amber: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+  red:   "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+};
+
 function HealthBadge({ score }: { score: number }) {
-  const color =
-    score >= 80 ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800" :
-    score >= 50 ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800" :
-                  "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800";
   return (
-    <div className={cn("inline-flex flex-col items-center px-2.5 py-1 rounded-xl border text-xs font-bold leading-none gap-0.5", color)}>
+    <div className={cn("inline-flex flex-col items-center px-2.5 py-1 rounded-xl border text-xs font-bold leading-none gap-0.5", HEALTH_BADGE_COLOR[healthColor(score)])}>
       <span>{score}</span>
       <span className="text-[9px] font-normal opacity-70 uppercase tracking-wider">Health</span>
     </div>

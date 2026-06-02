@@ -9,7 +9,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<User>;
-  teamLogin: (memberId: string) => Promise<User>;
+  teamLogin: (inviteToken: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -89,10 +89,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const teamLogin = useCallback(async (memberId: string): Promise<User> => {
+  const teamLogin = useCallback(async (inviteToken: string): Promise<User> => {
     setIsLoading(true);
     try {
-      const data = await api.post<LoginResponse>("/auth/team-login", { memberId });
+      const data = await api.post<LoginResponse>("/auth/team-login", { inviteToken });
       authStorage.setToken(data.token);
       authStorage.setUser(data.user);
       setToken(data.token);

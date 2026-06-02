@@ -61,30 +61,17 @@ app.get("/stats", async (c) => {
     return c.json({ totalReplies: 0, autoSentRate: 0, activeClients: 0, avgPerClient: 0, weeklyData: [] });
   }
 
-  const [replyRow] = await db
-    .select({ n: count() })
+  const [counts] = await db
+    .select({
+      total:    sql<number>`count(*) filter (where ${messages.replyStatus} in ('approved', 'auto_sent', 'edited'))`,
+      autoSent: sql<number>`count(*) filter (where ${messages.replyStatus} = 'auto_sent')`,
+    })
     .from(messages)
     .innerJoin(conversations, eq(messages.convId, conversations.id))
-    .where(
-      and(
-        inArray(conversations.userId, clientIds),
-        sql`${messages.replyStatus} IN ('approved', 'auto_sent', 'edited')`,
-      ),
-    );
+    .where(inArray(conversations.userId, clientIds));
 
-  const [autoRow] = await db
-    .select({ n: count() })
-    .from(messages)
-    .innerJoin(conversations, eq(messages.convId, conversations.id))
-    .where(
-      and(
-        inArray(conversations.userId, clientIds),
-        eq(messages.replyStatus, "auto_sent"),
-      ),
-    );
-
-  const totalReplies = replyRow?.n ?? 0;
-  const autoSent = autoRow?.n ?? 0;
+  const totalReplies = Number(counts?.total ?? 0);
+  const autoSent     = Number(counts?.autoSent ?? 0);
   const autoSentRate = totalReplies > 0 ? Math.round((autoSent / totalReplies) * 100) : 0;
 
   const weeklyRows = await db
@@ -403,17 +390,15 @@ app.post("/push-template", zValidator("json", z.object({
 
   const allowedIds = new Set(rows.map(r => r.clientId));
 
-  let pushed = 0;
-  for (const clientId of clientIds) {
-    if (allowedIds.has(clientId)) {
-      await db.insert(replyTemplates).values({
-        userId: clientId, title, content, platforms, language, active: true, category,
-      });
-      pushed++;
-    }
+  const toInsert = clientIds
+    .filter(id => allowedIds.has(id))
+    .map(clientId => ({ userId: clientId, title, content, platforms, language, active: true, category }));
+
+  if (toInsert.length > 0) {
+    await db.insert(replyTemplates).values(toInsert);
   }
 
-  return c.json({ ok: true, pushed });
+  return c.json({ ok: true, pushed: toInsert.length });
 });
 
 export default app;

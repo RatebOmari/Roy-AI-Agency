@@ -27,18 +27,12 @@ import AcceptInvite from "./pages/AcceptInvite";
 import TeamLogin from "./pages/TeamLogin";
 import { useAuth } from "@/contexts/AuthContext";
 import { AgencyClientProvider, useAgencyClient } from "@/contexts/AgencyClientContext";
+import { homeRoute } from "@/lib/routing";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
 });
 
-/** The one place that decides where a user belongs after login or on bad URL. */
-function homeRoute(user: { role: string; teamRole?: string }): string {
-  if (user.role === "agency")          return "/agency/dashboard";
-  if (user.teamRole === "agent")       return "/inbox";
-  if (user.teamRole === "viewer")      return "/analytics";
-  return "/dashboard"; // client admin or no teamRole
-}
 
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: "client" | "agency" }) {
   const { isAuthenticated, user } = useAuth();
@@ -114,7 +108,7 @@ export default function App() {
             <Route path="/"                    element={<Navigate to="/login" replace />} />
             <Route path="/login"               element={<Login />} />
             <Route path="/accept-invite/:token" element={<AcceptInvite />} />
-            <Route path="/team-login/:memberId"  element={<TeamLogin />} />
+            <Route path="/team-login/:token"      element={<TeamLogin />} />
 
             {/* Client */}
             <Route path="/dashboard"           element={<ProtectedRoute requiredRole="client"><Dashboard /></ProtectedRoute>} />

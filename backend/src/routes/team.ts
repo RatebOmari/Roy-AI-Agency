@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import { db } from "../db/index.js";
 import { teamMembers, internalNotes } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -36,24 +37,30 @@ const memberSchema = z.object({
 app.post("/members", requireAdmin, zValidator("json", memberSchema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
+
+  const inviteToken    = randomBytes(32).toString("hex");
+  const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
   const [row] = await db
     .insert(teamMembers)
     .values({
-      userId: user.sub,
-      name:   body.name,
-      email:  body.email,
-      role:   body.role ?? "agent",
-      status: "invited",
+      userId:          user.sub,
+      name:            body.name,
+      email:           body.email,
+      role:            body.role ?? "agent",
+      status:          "invited",
+      inviteToken,
+      inviteExpiresAt,
     })
     .returning();
 
   // Fire-and-forget invite email — failure must not block the response
   sendInviteEmail({
-    to:           body.email,
+    to:            body.email,
     recipientName: body.name,
-    role:         body.role ?? "agent",
-    memberId:     row.id,
-    businessName: user.businessName,
+    role:          body.role ?? "agent",
+    inviteToken,
+    businessName:  user.businessName,
   }).catch(err => console.error("[team] invite email failed:", err));
 
   return c.json(row, 201);

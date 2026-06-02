@@ -3,31 +3,22 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Zap, Users, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import type { User } from "@/types";
-
-function landingRoute(user: User): string {
-  if (user.role === "agency")          return "/agency/dashboard";
-  if (user.teamRole === "agent")       return "/inbox";
-  if (user.teamRole === "viewer")      return "/analytics";
-  return "/dashboard";
-}
+import { homeRoute } from "@/lib/routing";
 
 export default function TeamLogin() {
-  const { memberId } = useParams<{ memberId: string }>();
+  const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { teamLogin, isLoading } = useAuth();
 
   const [error, setError] = useState("");
   const [name, setName]   = useState("");
 
-  // Auto-login as soon as the page mounts — the memberId IS the credential
   useEffect(() => {
-    if (!memberId) { setError("Invalid invite link — no member ID found."); return; }
-    teamLogin(memberId)
-      .then(user => { setName(user.name); setTimeout(() => navigate(landingRoute(user)), 1200); })
-      .catch(() => setError("This invite link is invalid or has been disabled."));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!token) { setError("Invalid invite link — no token found."); return; }
+    teamLogin(token)
+      .then(user => { setName(user.name); setTimeout(() => navigate(homeRoute(user)), 1200); })
+      .catch(() => setError("This invite link is invalid, expired, or has been disabled."));
+  }, [token, teamLogin, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-muted flex items-center justify-center p-4">

@@ -196,13 +196,15 @@ export const teamRoleEnum         = pgEnum("team_role",          ["admin","agent
 export const teamMemberStatusEnum = pgEnum("team_member_status", ["active","invited","disabled"]);
 
 export const teamMembers = pgTable("team_members", {
-  id:        uuid("id").primaryKey().defaultRandom(),
-  userId:    uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name:      text("name").notNull(),
-  email:     text("email").notNull(),
-  role:      teamRoleEnum("role").notNull().default("agent"),
-  status:    teamMemberStatusEnum("status").notNull().default("invited"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  id:              uuid("id").primaryKey().defaultRandom(),
+  userId:          uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:            text("name").notNull(),
+  email:           text("email").notNull(),
+  role:            teamRoleEnum("role").notNull().default("agent"),
+  status:          teamMemberStatusEnum("status").notNull().default("invited"),
+  inviteToken:     text("invite_token").unique(),
+  inviteExpiresAt: timestamp("invite_expires_at"),
+  createdAt:       timestamp("created_at").notNull().defaultNow(),
 });
 
 export const internalNotes = pgTable("internal_notes", {

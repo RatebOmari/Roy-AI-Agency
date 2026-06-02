@@ -47,21 +47,26 @@ app.post("/login", zValidator("json", loginSchema), async (c) => {
 });
 
 // POST /team-login — team member login via invite token
-// The invite token is the team member's record ID (UUID) — sent in the invite email.
-// In production, add a separate short-lived invite_token column + expiry.
+// inviteToken is a 64-char hex secret generated at invite time; it is NOT the row ID.
+// First login (invited → active) extends the token expiry by 30 days.
+// Expired tokens return 401 — admin must delete and re-invite the member.
 app.post("/team-login", zValidator("json", z.object({
-  memberId: z.string().uuid(),
+  inviteToken: z.string().min(64),
 })), async (c) => {
-  const { memberId } = c.req.valid("json");
+  const { inviteToken } = c.req.valid("json");
 
   const [member] = await db
     .select()
     .from(teamMembers)
-    .where(eq(teamMembers.id, memberId))
+    .where(eq(teamMembers.inviteToken, inviteToken))
     .limit(1);
 
   if (!member || member.status === "disabled") {
-    return c.json({ message: "Invalid or expired invite" }, 401);
+    return c.json({ message: "Invalid or expired invite link" }, 401);
+  }
+
+  if (!member.inviteExpiresAt || new Date() > member.inviteExpiresAt) {
+    return c.json({ message: "This invite link has expired. Ask your admin for a new one." }, 401);
   }
 
   // Fetch owner's business info so the token looks the same as an owner token
@@ -71,7 +76,7 @@ app.post("/team-login", zValidator("json", z.object({
     .where(eq(users.id, member.userId))
     .limit(1);
 
-  const token = signToken({
+  const jwtToken = signToken({
     sub:          member.id,
     role:         owner?.role ?? "client",
     name:         member.name,
@@ -80,16 +85,18 @@ app.post("/team-login", zValidator("json", z.object({
     ownerId:      member.userId,
   });
 
-  // Mark member as active on first login
-  if (member.status === "invited") {
-    await db
-      .update(teamMembers)
-      .set({ status: "active" })
-      .where(eq(teamMembers.id, member.id));
-  }
+  // First login: activate + extend expiry 30 days. Re-login: refresh expiry.
+  const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  await db
+    .update(teamMembers)
+    .set({
+      status:          "active",
+      inviteExpiresAt: newExpiry,
+    })
+    .where(eq(teamMembers.id, member.id));
 
   return c.json({
-    token,
+    token: jwtToken,
     user: {
       id:           member.id,
       name:         member.name,

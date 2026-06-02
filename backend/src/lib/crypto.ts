@@ -55,8 +55,11 @@ export function decryptToken(stored: string): string {
       decipher.update(Buffer.from(dataHex, "hex")).toString("utf8") +
       decipher.final("utf8")
     );
-  } catch {
-    // Decryption failed — likely a plaintext row from before encryption was enabled
-    return stored;
+  } catch (err) {
+    // The string looked encrypted (had 3 segments) but decryption failed.
+    // This means a wrong or rotated key — surface it loudly rather than
+    // silently returning garbage as if it were a valid plaintext token.
+    console.error("[crypto] decryptToken failed — check ENCRYPTION_KEY rotation:", err);
+    return "";
   }
 }

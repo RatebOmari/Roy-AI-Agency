@@ -9,17 +9,17 @@
  */
 
 interface InviteParams {
-  to:           string;
+  to:            string;
   recipientName: string;
-  role:         string;
-  memberId:     string;
-  businessName: string;
+  role:          string;
+  inviteToken:   string;
+  businessName:  string;
 }
 
 export async function sendInviteEmail(params: InviteParams): Promise<void> {
-  const { to, recipientName, role, memberId, businessName } = params;
-  const appUrl   = (process.env.APP_URL ?? "http://localhost:5174").replace(/\/$/, "");
-  const loginUrl = `${appUrl}/login`;
+  const { to, recipientName, role, inviteToken, businessName } = params;
+  const appUrl    = (process.env.APP_URL ?? "http://localhost:5174").replace(/\/$/, "");
+  const inviteUrl = `${appUrl}/team-login/${inviteToken}`;
 
   const subject = `You're invited to join ${businessName} on SocialPilot`;
 
@@ -28,10 +28,10 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
     ``,
     `You've been invited to join ${businessName} on SocialPilot as a ${role}.`,
     ``,
-    `Your login ID: ${memberId}`,
-    `Login at: ${loginUrl}`,
+    `Click the link below to set up your account (expires in 7 days):`,
+    inviteUrl,
     ``,
-    `Keep this ID private — it grants access to your account.`,
+    `Keep this link private — it grants access to your account.`,
   ].join("\n");
 
   const html = `
@@ -40,14 +40,13 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
   <p>Hi ${recipientName},</p>
   <p>You've been invited to join <strong>${businessName}</strong> as a <strong>${role}</strong>.</p>
   <p style="margin:20px 0">
-    <strong>Your login ID:</strong><br>
-    <code style="display:inline-block;background:#f4f4f5;padding:8px 14px;border-radius:6px;font-size:15px;letter-spacing:0.02em">${memberId}</code>
+    <a href="${inviteUrl}" style="display:inline-block;background:#6366f1;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600">
+      Accept Invite
+    </a>
   </p>
-  <a href="${loginUrl}" style="display:inline-block;background:#6366f1;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600">
-    Log in to SocialPilot
-  </a>
+  <p style="color:#666;font-size:14px">This link expires in 7 days. If it stops working, ask your admin to send a new invite.</p>
   <p style="margin-top:24px;font-size:12px;color:#999">
-    Keep your login ID private — it grants full access to your account.
+    Keep this link private — it grants access to your account.
   </p>
 </div>`;
 
@@ -81,7 +80,7 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
 
   // No provider configured — log so the invite can be shared manually
   console.log(`[invite] ─────────────────────────────────────────────────────`);
-  console.log(`[invite] No email provider configured. Send this to ${to}:`);
-  console.log(text);
+  console.log(`[invite] No email provider configured. Send this link to ${to}:`);
+  console.log(`[invite] ${inviteUrl}`);
   console.log(`[invite] ─────────────────────────────────────────────────────`);
 }

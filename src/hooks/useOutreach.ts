@@ -143,7 +143,10 @@ export function useOutreachReach(channel: OutreachChannel, filter: OutreachAudie
   });
 }
 
-type CreateOutreachPayload = Omit<OutreachMessage, "id" | "createdAt" | "actualReach" | "sentCount" | "deliveredCount" | "openedCount" | "clickedCount" | "repliedCount" | "failedCount" | "sentAt">;
+type CreateOutreachPayload = Omit<OutreachMessage, "id" | "createdAt" | "actualReach" | "sentCount" | "deliveredCount" | "openedCount" | "clickedCount" | "repliedCount" | "failedCount" | "sentAt" | "audienceFilter" | "quickReplies"> & {
+  audienceFilter?: OutreachAudienceFilter;
+  quickReplies?:   string[];
+};
 
 export function useCreateOutreach() {
   const queryClient = useQueryClient();

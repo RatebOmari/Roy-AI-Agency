@@ -347,14 +347,14 @@ export default function Dashboard() {
                   <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
                 </Link>
                 <Link
-                  to="/campaigns"
+                  to="/outreach"
                   className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-sm hover:bg-muted transition-colors group"
                 >
                   <div className="flex items-center gap-2.5 text-foreground">
                     <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center">
                       <Megaphone className="w-3.5 h-3.5 text-orange-500" />
                     </div>
-                    New Campaign
+                    New Outreach
                   </div>
                   <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
                 </Link>
@@ -400,9 +400,16 @@ export default function Dashboard() {
                     <div key={p.platform} className="flex items-center gap-2.5">
                       <span className={`w-2 h-2 rounded-full shrink-0 ${connected ? PLATFORM_DOT[p.platform] ?? "bg-muted" : "bg-muted-foreground/20"}`} />
                       <span className="text-xs text-foreground capitalize flex-1">{CHANNEL_LABEL[p.platform] ?? p.platform}</span>
-                      <span className={`text-xs ${connected ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
-                        {connected ? "Connected" : "Not connected"}
-                      </span>
+                      {connected ? (
+                        <span className="text-xs text-green-600 dark:text-green-400">Connected</span>
+                      ) : (
+                        <button
+                          onClick={() => setPlatformsExpanded(true)}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Connect →
+                        </button>
+                      )}
                     </div>
                   );
                 })}

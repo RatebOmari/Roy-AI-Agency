@@ -261,7 +261,7 @@ export default function Analytics() {
                 key={r}
                 onClick={() => setRange(r)}
                 className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
+                  "min-h-[40px] px-3 py-2 text-xs font-medium rounded-lg transition-colors",
                   range === r
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -281,14 +281,14 @@ export default function Analytics() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                "flex items-center gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 tab === t.id
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
               <t.icon className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">{t.label}</span>
+              <span>{t.label}</span>
             </button>
           ))}
         </div>

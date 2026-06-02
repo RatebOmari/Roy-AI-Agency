@@ -189,7 +189,7 @@
       "fullPreview": "Full preview"
     },
     "section": {
-      "empty": "Empty",
+      "empty": "Not filled in",
       "items_one": "{{count}} item",
       "items_other": "{{count}} items"
     },

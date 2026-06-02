@@ -346,9 +346,18 @@ export default function Contacts() {
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm gap-2">
-                <Users className="w-6 h-6 opacity-30" />
-                {t("contacts.noResults")}
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center gap-3">
+                <Users className="w-10 h-10 text-muted-foreground opacity-20" />
+                {allContacts.length === 0 ? (
+                  <>
+                    <p className="text-sm font-medium text-foreground">No contacts yet</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Contacts appear automatically as customers message you on connected platforms.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t("contacts.noResults")}</p>
+                )}
               </div>
             ) : filtered.map(contact => {
               const isSelected = contact.id === selectedId;

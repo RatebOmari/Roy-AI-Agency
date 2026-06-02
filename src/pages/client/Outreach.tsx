@@ -843,29 +843,29 @@ function OutreachCard({ msg, onEdit, onDelete, onSend, onCancel, onDuplicate }: 
         <div className="flex items-center gap-1.5 pt-1 flex-wrap">
           {canSend && (
             <button onClick={() => onSend(msg.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-xl hover:bg-primary/90 transition-colors">
+              className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-xs font-medium rounded-xl hover:bg-primary/90 transition-colors">
               <Send className="w-3 h-3" /> Send Now
             </button>
           )}
           {canEdit && (
             <button onClick={() => onEdit(msg)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium rounded-xl hover:bg-muted transition-colors text-foreground">
+              className="flex items-center gap-1.5 px-3 py-2 border border-border text-xs font-medium rounded-xl hover:bg-muted transition-colors text-foreground">
               Edit
             </button>
           )}
           {canCancel && (
             <button onClick={() => onCancel(msg.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium rounded-xl hover:bg-muted transition-colors text-muted-foreground">
+              className="flex items-center gap-1.5 px-3 py-2 border border-border text-xs font-medium rounded-xl hover:bg-muted transition-colors text-muted-foreground">
               <XCircle className="w-3 h-3" /> Cancel
             </button>
           )}
           <button onClick={() => onDuplicate(msg.id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium rounded-xl hover:bg-muted transition-colors text-muted-foreground">
+            className="flex items-center gap-1.5 px-3 py-2 border border-border text-xs font-medium rounded-xl hover:bg-muted transition-colors text-muted-foreground">
             <Copy className="w-3 h-3" /> Duplicate
           </button>
           {canDelete && (
             <button onClick={() => onDelete(msg.id)}
-              className="ml-auto p-1.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-500 transition-colors">
+              className="ml-auto min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-500 transition-colors">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
@@ -923,7 +923,7 @@ export default function Outreach() {
               <p className="text-sm text-muted-foreground mt-1">Send multi-channel messages to your contacts</p>
             </div>
             <button onClick={openNew}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors">
+              className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors">
               <Plus className="w-4 h-4" /> New Outreach
             </button>
           </div>
@@ -955,7 +955,7 @@ export default function Outreach() {
           <div className="flex bg-muted p-1 rounded-xl gap-0.5">
             {STATUS_TABS.map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
-                className={cn("px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors",
+                className={cn("min-h-[40px] px-3 py-2 rounded-lg text-xs font-medium capitalize transition-colors",
                   statusFilter === s ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}>
                 {s === "all" ? `All (${messages.length})` : s}
@@ -968,7 +968,7 @@ export default function Outreach() {
               const cfg = ch !== "all" ? CHANNEL_CONFIG[ch] : null;
               return (
                 <button key={ch} onClick={() => setChannelFilter(ch)}
-                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                  className={cn("flex items-center gap-1.5 min-h-[40px] px-3 py-2 rounded-full text-xs font-medium border transition-colors",
                     channelFilter === ch ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary/50"
                   )}>
                   {cfg && <div className={cn("w-2 h-2 rounded-full", cfg.color)} />}

@@ -355,7 +355,7 @@ export default function Listening() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Social Listening</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Track brand mentions and respond instantly
+              Track brand mentions and get alerted instantly
             </p>
           </div>
         </div>

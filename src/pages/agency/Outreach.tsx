@@ -194,7 +194,7 @@ export default function AgencyOutreach() {
                 key={ch}
                 onClick={() => setChannelFilter(ch)}
                 className={cn(
-                  "px-2.5 py-1 text-xs font-medium rounded-lg transition-colors capitalize",
+                  "min-h-[40px] px-2.5 py-2 text-xs font-medium rounded-lg transition-colors capitalize",
                   channelFilter === ch
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -212,7 +212,7 @@ export default function AgencyOutreach() {
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={cn(
-                  "px-2.5 py-1 text-xs font-medium rounded-lg transition-colors capitalize",
+                  "min-h-[40px] px-2.5 py-2 text-xs font-medium rounded-lg transition-colors capitalize",
                   statusFilter === s
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"

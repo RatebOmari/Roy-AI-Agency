@@ -680,7 +680,7 @@ export default function Templates() {
                         <button
                           onClick={() => setPreviewTemplate(t)}
                           title="Preview"
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
@@ -688,7 +688,7 @@ export default function Templates() {
                         <button
                           onClick={() => handleCopy(t)}
                           title={copiedId === t.id ? "Copied!" : "Copy content"}
-                          className={cn("p-1.5 rounded-lg transition-colors text-muted-foreground",
+                          className={cn("p-2 rounded-lg transition-colors text-muted-foreground",
                             copiedId === t.id ? "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20" : "hover:bg-muted hover:text-foreground")}
                         >
                           {copiedId === t.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -697,12 +697,12 @@ export default function Templates() {
                         <button
                           onClick={() => handleDuplicate(t)}
                           title="Duplicate"
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         >
                           <CopyPlus className="w-3.5 h-3.5" />
                         </button>
                         {/* Edit button */}
-                        <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                        <button onClick={() => openEdit(t)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         {/* Delete button */}
@@ -712,7 +712,7 @@ export default function Templates() {
                             <button onClick={() => setDeleteConfirmId(null)} className="text-[11px] px-2 py-1 bg-muted text-muted-foreground rounded-lg hover:text-foreground transition-colors">No</button>
                           </div>
                         ) : (
-                          <button onClick={() => setDeleteConfirmId(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 transition-colors">
+                          <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 transition-colors">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}

@@ -23,6 +23,14 @@ export interface AnalyticsData {
     readRate:  number;
     replyRate: number;
   };
+  outreach?: {
+    sent:        number;
+    opened:      number;
+    replied:     number;
+    openRate:    number;
+    replyRate:   number;
+    byChannel:   { channel: string; sent: number; opened: number }[];
+  };
 }
 
 export function useAnalytics(range: AnalyticsRange) {

@@ -26,6 +26,7 @@ import brandRoutes         from "./routes/brand.js";
 import callsRoutes         from "./routes/calls.js";
 import webhookRoutes       from "./routes/webhook.js";
 import agencyRoutes        from "./routes/agency.js";
+import outreachRoutes      from "./routes/outreach.js";
 
 const app = new Hono();
 
@@ -68,6 +69,7 @@ api.route("/listening",      listeningRoutes);
 api.route("/brand",          brandRoutes);
 api.route("/calls",          callsRoutes);
 api.route("/agency",         agencyRoutes);
+api.route("/outreach",       outreachRoutes);
 
 // Webhook routes are public — signature-verified, not JWT-authenticated
 app.route("/webhook", webhookRoutes);

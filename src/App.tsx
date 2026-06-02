@@ -12,6 +12,8 @@ import Content from "./pages/client/Content";
 import Resources from "./pages/client/Resources";
 import Templates from "./pages/client/Templates";
 import Campaigns from "./pages/client/Campaigns";
+import Outreach from "./pages/client/Outreach";
+import AgencyOutreach from "./pages/agency/Outreach";
 import Flows from "./pages/client/Flows";
 import Team from "./pages/client/Team";
 import Listening from "./pages/client/Listening";
@@ -121,7 +123,8 @@ export default function App() {
             <Route path="/content"             element={<ProtectedRoute requiredRole="client"><Content /></ProtectedRoute>} />
             <Route path="/resources"           element={<ProtectedRoute requiredRole="client"><Resources /></ProtectedRoute>} />
             <Route path="/templates"           element={<ProtectedRoute requiredRole="client"><Templates /></ProtectedRoute>} />
-            <Route path="/campaigns"           element={<ProtectedRoute requiredRole="client"><Campaigns /></ProtectedRoute>} />
+            <Route path="/campaigns"           element={<Navigate to="/outreach" replace />} />
+            <Route path="/outreach"            element={<ProtectedRoute requiredRole="client"><Outreach /></ProtectedRoute>} />
             <Route path="/flows"               element={<ProtectedRoute requiredRole="client"><Flows /></ProtectedRoute>} />
             <Route path="/team"                element={<ProtectedRoute requiredRole="client"><Team /></ProtectedRoute>} />
             <Route path="/listening"           element={<ProtectedRoute requiredRole="client"><Listening /></ProtectedRoute>} />
@@ -138,6 +141,7 @@ export default function App() {
             <Route path="/agency/settings"     element={<ProtectedRoute requiredRole="agency"><AgencySettings /></ProtectedRoute>} />
             <Route path="/agency/command"      element={<ProtectedRoute requiredRole="agency"><AgencyCommandCenter /></ProtectedRoute>} />
             <Route path="/agency/content"     element={<ProtectedRoute requiredRole="agency"><AgencyContent /></ProtectedRoute>} />
+            <Route path="/agency/outreach"    element={<ProtectedRoute requiredRole="agency"><AgencyOutreach /></ProtectedRoute>} />
 
             <Route path="*"                    element={<SmartFallback />} />
           </Routes>

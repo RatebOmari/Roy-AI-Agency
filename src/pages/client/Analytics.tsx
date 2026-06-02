@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { usePostMetrics } from "@/hooks/useContent";
 import { useConversations } from "@/hooks/useConversations";
-import { useCampaigns } from "@/hooks/useCampaigns";
+import { useOutreachMessages } from "@/hooks/useOutreach";
 import { useFlows } from "@/hooks/useFlows";
 import { useMentions } from "@/hooks/useListening";
 import { useAnalytics } from "@/hooks/useAnalytics";
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tab = "overview" | "inbox" | "content" | "listening" | "campaigns";
+type Tab = "overview" | "inbox" | "content" | "listening" | "outreach";
 type DateRange = "7d" | "30d" | "90d";
 
 // ── Static chart data (mock — replace with API when available) ────────────────
@@ -169,7 +169,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "inbox",      label: "Inbox",      icon: MessageSquare },
   { id: "content",    label: "Content",    icon: Eye },
   { id: "listening",  label: "Listening",  icon: Radio },
-  { id: "campaigns",  label: "Campaigns",  icon: Megaphone },
+  { id: "outreach",   label: "Outreach",   icon: Megaphone },
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ export default function Analytics() {
 
   const { data: analytics }      = useAnalytics(range);
   const { data: conversations = [] } = useConversations();
-  const { data: campaigns     = [] } = useCampaigns();
+  const { data: outreachMsgs  = [] } = useOutreachMessages();
   const { data: flows         = [] } = useFlows();
   const { data: mentions      = [] } = useMentions();
   const { data: postMetrics   = [] } = usePostMetrics();
@@ -206,20 +206,34 @@ export default function Analytics() {
     { name: "Escalated (<50%)",  value: escalatedCount  || 1, color: "#ef4444" },
   ];
 
-  const sentCampaigns = campaigns.filter(c => c.status === "sent");
-  const totalCampSent = sentCampaigns.reduce((s, c) => s + c.sentCount, 0);
+  const sentOutreach    = outreachMsgs.filter(m => m.status === "sent");
+  const totalCampSent   = sentOutreach.reduce((s, m) => s + m.sentCount, 0);
+  const totalCampOpened = sentOutreach.reduce((s, m) => s + m.openedCount, 0);
+  const totalCampReplied = sentOutreach.reduce((s, m) => s + m.repliedCount, 0);
 
   const campStats  = analytics?.campaigns;
   const readRate   = campStats?.readRate  ?? (
-    totalCampSent > 0
-      ? Math.round(sentCampaigns.reduce((s, c) => s + c.readCount, 0) / totalCampSent * 100)
-      : 0
+    totalCampSent > 0 ? Math.round((totalCampOpened  / totalCampSent) * 100) : 0
   );
   const replyRate  = campStats?.replyRate ?? (
-    totalCampSent > 0
-      ? Math.round(sentCampaigns.reduce((s, c) => s + c.replyCount, 0) / totalCampSent * 100)
-      : 0
+    totalCampSent > 0 ? Math.round((totalCampReplied / totalCampSent) * 100) : 0
   );
+
+  // Channel breakdown for outreach tab
+  const outreachByChannel = (["whatsapp", "sms", "email"] as const).map(ch => {
+    const msgs    = sentOutreach.filter(m => m.channel === ch);
+    const sent    = msgs.reduce((s, m) => s + m.sentCount, 0);
+    const opened  = msgs.reduce((s, m) => s + m.openedCount, 0);
+    const replied = msgs.reduce((s, m) => s + m.repliedCount, 0);
+    return {
+      channel: ch,
+      sent,
+      opened,
+      replied,
+      openRate:  sent > 0 ? Math.round((opened  / sent) * 100) : 0,
+      replyRate: sent > 0 ? Math.round((replied / sent) * 100) : 0,
+    };
+  });
 
   const activeFlows   = flows.filter(f => f.active).length;
   const totalTriggers = flows.reduce((s, f) => s + f.triggerCount, 0);
@@ -298,8 +312,8 @@ export default function Analytics() {
                 icon={Eye} iconBg="bg-orange-100 dark:bg-orange-900/20" iconColor="text-orange-600" trend="+3" />
               <KpiCard label="Brand Mentions" value={mentions.length}
                 icon={Radio} iconBg="bg-pink-100 dark:bg-pink-900/20" iconColor="text-pink-600" trend="+8%" />
-              <KpiCard label="Campaigns Sent" value={totalCampSent.toLocaleString()}
-                icon={Megaphone} iconBg="bg-amber-100 dark:bg-amber-900/20" iconColor="text-amber-600" sub={`${readRate}% read rate`} />
+              <KpiCard label="Outreach Sent" value={totalCampSent.toLocaleString()}
+                icon={Megaphone} iconBg="bg-amber-100 dark:bg-amber-900/20" iconColor="text-amber-600" sub={`${readRate}% open rate`} />
               <KpiCard label="Active Flows" value={activeFlows}
                 icon={GitBranch} iconBg="bg-violet-100 dark:bg-violet-900/20" iconColor="text-violet-600" sub={`${totalTriggers} total triggers`} />
             </div>
@@ -593,44 +607,77 @@ export default function Analytics() {
           </div>
         )}
 
-        {/* ══ CAMPAIGNS ═════════════════════════════════════════════════════ */}
-        {tab === "campaigns" && (
+        {/* ══ OUTREACH ══════════════════════════════════════════════════════ */}
+        {tab === "outreach" && (
           <div className="space-y-5">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard label="Total Sent" value={totalCampSent.toLocaleString()}
                 icon={Send} iconBg="bg-primary/10" iconColor="text-primary" trend="+854" />
-              <KpiCard label="Read Rate" value={`${readRate}%`}
+              <KpiCard label="Open Rate" value={`${readRate}%`}
                 icon={Eye} iconBg="bg-blue-100 dark:bg-blue-900/20" iconColor="text-blue-600" trend="+3%" />
               <KpiCard label="Reply Rate" value={`${replyRate}%`}
                 icon={MessageCircle} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600" trend="+2%" />
-              <KpiCard label="Active Flows" value={activeFlows}
-                icon={GitBranch} iconBg="bg-violet-100 dark:bg-violet-900/20" iconColor="text-violet-600"
-                sub={`${totalTriggers} triggers total`} />
+              <KpiCard label="Broadcasts" value={outreachMsgs.length}
+                icon={Megaphone} iconBg="bg-violet-100 dark:bg-violet-900/20" iconColor="text-violet-600"
+                sub={`${sentOutreach.length} sent`} />
             </div>
 
-            {/* Campaign breakdown */}
-            <ChartCard title="Campaign Performance" icon={Megaphone}>
-              {sentCampaigns.length > 0 ? (
+            {/* Channel breakdown */}
+            <ChartCard title="Performance by Channel" icon={BarChart2}>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {outreachByChannel.map(ch => (
+                  <div key={ch.channel} className="p-4 rounded-xl bg-muted/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-foreground capitalize">{ch.channel}</p>
+                      <span className="text-xs text-muted-foreground">{ch.sent.toLocaleString()} sent</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-10 shrink-0">Open</span>
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${ch.openRate}%` }} />
+                        </div>
+                        <span className="text-xs font-medium text-foreground w-8 text-right">{ch.openRate}%</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-10 shrink-0">Reply</span>
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-green-500 rounded-full" style={{ width: `${ch.replyRate}%` }} />
+                        </div>
+                        <span className="text-xs font-medium text-foreground w-8 text-right">{ch.replyRate}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ChartCard>
+
+            {/* Outreach breakdown */}
+            <ChartCard title="Broadcast Performance" icon={Megaphone}>
+              {sentOutreach.length > 0 ? (
                 <div className="space-y-3">
-                  {sentCampaigns.map(c => {
-                    const rr = c.sentCount > 0 ? Math.round((c.readCount  / c.sentCount) * 100) : 0;
-                    const rpr = c.sentCount > 0 ? Math.round((c.replyCount / c.sentCount) * 100) : 0;
+                  {sentOutreach.map(m => {
+                    const or  = m.sentCount > 0 ? Math.round((m.openedCount  / m.sentCount) * 100) : 0;
+                    const rpr = m.sentCount > 0 ? Math.round((m.repliedCount / m.sentCount) * 100) : 0;
                     return (
-                      <div key={c.id} className="p-3 rounded-xl bg-muted/40 space-y-2">
+                      <div key={m.id} className="p-3 rounded-xl bg-muted/40 space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-foreground">{c.name}</p>
-                          <span className="text-xs text-muted-foreground">{c.sentCount.toLocaleString()} sent</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{m.title}</p>
+                            <span className="text-[10px] text-muted-foreground capitalize px-2 py-0.5 bg-muted rounded-full shrink-0">{m.channel}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0 ml-2">{m.sentCount.toLocaleString()} sent</span>
                         </div>
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground w-12 shrink-0">Read</span>
+                            <span className="text-xs text-muted-foreground w-12 shrink-0">Opened</span>
                             <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${rr}%` }} />
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${or}%` }} />
                             </div>
-                            <span className="text-xs font-medium text-foreground w-8 text-right">{rr}%</span>
+                            <span className="text-xs font-medium text-foreground w-8 text-right">{or}%</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground w-12 shrink-0">Reply</span>
+                            <span className="text-xs text-muted-foreground w-12 shrink-0">Replied</span>
                             <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                               <div className="h-full bg-green-500 rounded-full" style={{ width: `${rpr}%` }} />
                             </div>
@@ -642,40 +689,9 @@ export default function Analytics() {
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No campaigns sent yet.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">No outreach sent yet.</p>
               )}
             </ChartCard>
-
-            {/* Flows */}
-            <ChartCard title="Chatbot Flows" icon={GitBranch}>
-              {flows.length > 0 ? (
-                <div className="space-y-2">
-                  {flows.map(f => (
-                    <div key={f.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/40">
-                      <span className={cn("w-2 h-2 rounded-full shrink-0", f.active ? "bg-green-500" : "bg-muted-foreground/30")} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{f.name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{f.trigger} · {f.platform} · {f.steps.length} steps</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-foreground">{f.triggerCount}</p>
-                        <p className="text-[10px] text-muted-foreground">triggers</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No flows created yet.</p>
-              )}
-            </ChartCard>
-
-            {/* Phone summary */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard label="SMS Sent"        value="128"  icon={Phone}         iconBg="bg-orange-100 dark:bg-orange-900/20" iconColor="text-orange-600" trend="+12%" />
-              <KpiCard label="SMS Received"    value="94"   icon={MessageSquare} iconBg="bg-blue-100 dark:bg-blue-900/20"   iconColor="text-blue-600"   trend="+8%" />
-              <KpiCard label="Calls Made"      value="34"   icon={Phone}         iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600"  trend="+3" />
-              <KpiCard label="Missed Calls"    value="5"    icon={TrendingDown}  iconBg="bg-red-100 dark:bg-red-900/20"    iconColor="text-red-600"    trend="-2" trendInverse />
-            </div>
           </div>
         )}
       </div>

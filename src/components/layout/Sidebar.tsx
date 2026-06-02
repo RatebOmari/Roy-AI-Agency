@@ -72,7 +72,7 @@ const CLIENT_NAV_GROUPS: NavGroup[] = [
     label: "PUBLISH",
     items: [
       { label: "Content",    href: "/content",    icon: CalendarDays },
-      { label: "Campaigns",  href: "/campaigns",  icon: Megaphone },
+      { label: "Outreach",   href: "/outreach",   icon: Megaphone },
     ],
   },
   {
@@ -111,6 +111,7 @@ const AGENCY_NAV_GROUPS: NavGroup[] = [
     label: "MANAGE",
     items: [
       { label: "Content",   href: "/agency/content",   icon: CalendarDays, badge: true },
+      { label: "Outreach",  href: "/agency/outreach",  icon: Megaphone },
       { label: "Analytics", href: "/agency/analytics", icon: BarChart2 },
     ],
   },

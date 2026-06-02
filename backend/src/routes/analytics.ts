@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { conversations, messages, campaigns } from "../db/schema.js";
+import { conversations, messages, outreachMessages as campaigns } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 
@@ -140,15 +140,15 @@ app.get("/", async (c) => {
     .sort((a, b) => b[1] - a[1])
     .map(([channel, count]) => ({ channel, count }));
 
-  // ── Campaigns ────────────────────────────────────────────────────────────
+  // ── Outreach (formerly Campaigns) ────────────────────────────────────────
 
   const userCampaigns = await db
     .select({
-      sentCount:  campaigns.sentCount,
-      readCount:  campaigns.readCount,
-      replyCount: campaigns.replyCount,
-      status:     campaigns.status,
-      createdAt:  campaigns.createdAt,
+      sentCount:   campaigns.sentCount,
+      openedCount: campaigns.openedCount,
+      repliedCount: campaigns.repliedCount,
+      status:      campaigns.status,
+      createdAt:   campaigns.createdAt,
     })
     .from(campaigns)
     .where(
@@ -158,9 +158,9 @@ app.get("/", async (c) => {
       )
     );
 
-  const campSent  = userCampaigns.reduce((s, c) => s + c.sentCount,  0);
-  const campRead  = userCampaigns.reduce((s, c) => s + c.readCount,  0);
-  const campReply = userCampaigns.reduce((s, c) => s + c.replyCount, 0);
+  const campSent  = userCampaigns.reduce((s, c) => s + c.sentCount,   0);
+  const campRead  = userCampaigns.reduce((s, c) => s + c.openedCount, 0);
+  const campReply = userCampaigns.reduce((s, c) => s + c.repliedCount, 0);
 
   return c.json({
     range,

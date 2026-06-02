@@ -169,26 +169,49 @@ export const replyTemplates = pgTable("reply_templates", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// ── Campaigns ─────────────────────────────────────────────────────────────────
+// ── Outreach (multi-channel broadcast messages) ───────────────────────────────
 
-export const campaignStatusEnum   = pgEnum("campaign_status",   ["draft","scheduled","sending","sent","failed"]);
-export const campaignAudienceEnum = pgEnum("campaign_audience", ["all","tag","platform"]);
+export const outreachChannelEnum = pgEnum("outreach_channel", ["whatsapp", "sms", "email"]);
+export const outreachStatusEnum  = pgEnum("outreach_status",  ["draft", "scheduled", "sending", "sent", "failed"]);
 
-export const campaigns = pgTable("campaigns", {
-  id:            uuid("id").primaryKey().defaultRandom(),
-  userId:        uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name:          text("name").notNull(),
-  message:       text("message").notNull(),
-  mediaUrl:      text("media_url"),
-  platform:      text("platform").notNull().default("whatsapp"),
-  audienceType:  campaignAudienceEnum("audience_type").notNull().default("all"),
-  audienceValue: text("audience_value"),
-  scheduledAt:   timestamp("scheduled_at"),
-  status:        campaignStatusEnum("status").notNull().default("draft"),
-  sentCount:     integer("sent_count").notNull().default(0),
-  readCount:     integer("read_count").notNull().default(0),
-  replyCount:    integer("reply_count").notNull().default(0),
-  createdAt:     timestamp("created_at").notNull().defaultNow(),
+export const outreachMessages = pgTable("outreach_messages", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  userId:          uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdBy:       uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  title:           text("title").notNull(),
+  channel:         outreachChannelEnum("channel").notNull(),
+  messageBody:     text("message_body").notNull(),
+  subject:         text("subject"),                                        // email only
+  imageUrl:        text("image_url"),                                       // optional
+  quickReplies:    text("quick_replies").notNull().default("[]"),           // JSON: string[], WA only, max 3
+  audienceFilter:  text("audience_filter").notNull().default("{}"),         // JSON: { type, tagValue, platformValue, activeDays }
+  estimatedReach:  integer("estimated_reach").notNull().default(0),
+  actualReach:     integer("actual_reach").notNull().default(0),
+  sentCount:       integer("sent_count").notNull().default(0),
+  deliveredCount:  integer("delivered_count").notNull().default(0),
+  openedCount:     integer("opened_count").notNull().default(0),
+  clickedCount:    integer("clicked_count").notNull().default(0),
+  repliedCount:    integer("replied_count").notNull().default(0),
+  failedCount:     integer("failed_count").notNull().default(0),
+  status:          outreachStatusEnum("status").notNull().default("draft"),
+  scheduledAt:     timestamp("scheduled_at"),
+  sentAt:          timestamp("sent_at"),
+  createdAt:       timestamp("created_at").notNull().defaultNow(),
+});
+
+export const outreachResults = pgTable("outreach_results", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  outreachId:     uuid("outreach_id").notNull().references(() => outreachMessages.id, { onDelete: "cascade" }),
+  contactId:      uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  channel:        outreachChannelEnum("channel").notNull(),
+  sentAt:         timestamp("sent_at"),
+  deliveredAt:    timestamp("delivered_at"),
+  openedAt:       timestamp("opened_at"),
+  clickedAt:      timestamp("clicked_at"),
+  replied:        boolean("replied").notNull().default(false),
+  failed:         boolean("failed").notNull().default(false),
+  failureReason:  text("failure_reason"),
+  createdAt:      timestamp("created_at").notNull().defaultNow(),
 });
 
 // ── Chatbot Flows ─────────────────────────────────────────────────────────────

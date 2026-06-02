@@ -33,11 +33,12 @@ export const users = pgTable("users", {
 });
 
 export const agencyClients = pgTable("agency_clients", {
-  id:        uuid("id").primaryKey().defaultRandom(),
-  agencyId:  uuid("agency_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  clientId:  uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  status:    clientStatusEnum("status").notNull().default("active"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  id:                      uuid("id").primaryKey().defaultRandom(),
+  agencyId:                uuid("agency_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId:                uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status:                  clientStatusEnum("status").notNull().default("active"),
+  contentApprovalEnabled:  boolean("content_approval_enabled").notNull().default(true),
+  createdAt:               timestamp("created_at").notNull().defaultNow(),
 });
 
 export const platformPermissions = pgTable("platform_permissions", {
@@ -105,19 +106,36 @@ export const messages = pgTable("messages", {
 
 // ── Content Scheduler ─────────────────────────────────────────────────────────
 
-export const postStatusEnum = pgEnum("post_status", ["draft", "scheduled", "published", "failed"]);
+export const postStatusEnum = pgEnum("post_status", [
+  "draft", "scheduled", "published", "failed",
+  "pending_approval", "changes_requested",
+]);
+
+export const approvalStatusEnum = pgEnum("approval_status", [
+  "not_required", "pending", "approved", "changes_requested",
+]);
 
 export const scheduledPosts = pgTable("scheduled_posts", {
   id:          uuid("id").primaryKey().defaultRandom(),
   userId:      uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdBy:   uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   platforms:   text("platforms").array().notNull().default(sql`'{}'::text[]`),
   content:     text("content").notNull().default(""),
   mediaUrl:    text("media_url"),
-  scheduledAt:  timestamp("scheduled_at"),
-  publishedAt:  timestamp("published_at"),
-  status:       postStatusEnum("status").notNull().default("draft"),
-  aiGenerated:  boolean("ai_generated").notNull().default(false),
-  createdAt:    timestamp("created_at").notNull().defaultNow(),
+  scheduledAt: timestamp("scheduled_at"),
+  publishedAt: timestamp("published_at"),
+  status:      postStatusEnum("status").notNull().default("draft"),
+  aiGenerated: boolean("ai_generated").notNull().default(false),
+  createdAt:   timestamp("created_at").notNull().defaultNow(),
+
+  // ── Approval flow ─────────────────────────────────────────────────────────
+  approvalRequired:        boolean("approval_required").notNull().default(true),
+  approvalStatus:          approvalStatusEnum("approval_status").notNull().default("not_required"),
+  submittedForApprovalAt:  timestamp("submitted_for_approval_at"),
+  approvedAt:              timestamp("approved_at"),
+  approvalFeedback:        text("approval_feedback"),
+  overridePublished:       boolean("override_published").notNull().default(false),
+  overridePublishedBy:     uuid("override_published_by").references(() => users.id, { onDelete: "set null" }),
 });
 
 // ── Resources / Knowledge Base ────────────────────────────────────────────────
@@ -363,6 +381,17 @@ export const clientInvites = pgTable("client_invites", {
   expiresAt: timestamp("expires_at").notNull(),
   usedAt:    timestamp("used_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Email Reminders (approval flow) ──────────────────────────────────────────
+
+export const emailReminders = pgTable("email_reminders", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  postId:         uuid("post_id").notNull().references(() => scheduledPosts.id, { onDelete: "cascade" }),
+  clientId:       uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reminderNumber: integer("reminder_number").notNull(), // 1 | 2 | 3
+  sentAt:         timestamp("sent_at").notNull().defaultNow(),
+  emailAddress:   text("email_address").notNull(),
 });
 
 export const comments = pgTable("comments", {

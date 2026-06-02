@@ -334,7 +334,7 @@ app.post("/action", requireNotViewer, zValidator("json", actionSchema), async (c
       .limit(1);
 
     if (!conv) return c.json({ message: "Not found" }, 404);
-    await db.update(conversations).set({ status: body.status }).where(eq(conversations.id, body.id));
+    await db.update(conversations).set({ status: body.status }).where(and(eq(conversations.id, body.id), eq(conversations.userId, user.sub)));
     return c.json({ ok: true });
   }
 

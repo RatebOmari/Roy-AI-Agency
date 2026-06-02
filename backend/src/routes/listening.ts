@@ -179,7 +179,7 @@ app.patch("/mentions/:id/unhandle", async (c) => {
 
 // POST /generate-reply — AI-suggested reply for a mention
 app.post("/generate-reply", zValidator("json", z.object({
-  content:  z.string().min(1),
+  content:  z.string().min(1).max(5000),
   platform: z.string(),
   username: z.string().optional(),
   keyword:  z.string().optional(),

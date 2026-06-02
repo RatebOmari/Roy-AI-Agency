@@ -126,7 +126,7 @@ const createSchema = z.object({
 const updateSchema = createSchema.partial();
 
 const generateSchema = z.object({
-  prompt:  z.string().min(1),
+  prompt:  z.string().min(1).max(2000),
   channel: z.enum(["whatsapp", "sms", "email"]),
   tone:    z.enum(["friendly", "professional", "fun", "informative"]).optional().default("friendly"),
 });

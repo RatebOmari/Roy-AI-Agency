@@ -76,7 +76,7 @@ app.put("/:id", zValidator("json", templateSchema.partial()), async (c) => {
 
 // POST /generate — AI-generate a template (must be before /:id routes)
 app.post("/generate", zValidator("json", z.object({
-  description: z.string().min(1),
+  description: z.string().min(1).max(2000),
   platforms: z.array(z.string()).optional(),
   language: z.string().optional(),
 })), async (c) => {

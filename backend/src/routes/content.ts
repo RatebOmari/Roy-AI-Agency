@@ -260,7 +260,7 @@ app.post("/:id/override-publish", agencyOnly, async (c) => {
       approvalStatus:      "approved",
       approvedAt:          new Date(),
     })
-    .where(eq(scheduledPosts.id, id))
+    .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.userId, user.sub)))
     .returning();
 
   if (!post) return c.json({ message: "Not found" }, 404);
@@ -270,7 +270,7 @@ app.post("/:id/override-publish", agencyOnly, async (c) => {
 // ── AI caption / image generation (agency only) ───────────────────────────────
 
 const generateSchema = z.object({
-  prompt:   z.string().min(1),
+  prompt:   z.string().min(1).max(2000),
   platform: z.string().optional(),
   tone:     z.enum(["friendly", "professional", "fun", "informative"]).optional(),
 });
@@ -330,7 +330,7 @@ app.post("/generate", agencyOnly, zValidator("json", generateSchema), async (c) 
 });
 
 const generateImageSchema = z.object({
-  prompt:     z.string().min(1),
+  prompt:     z.string().min(1).max(2000),
   caption:    z.string().optional(),
   platform:   z.string().optional(),
   brandStyle: z.string().optional(),

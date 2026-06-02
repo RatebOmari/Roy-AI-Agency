@@ -143,7 +143,7 @@ app.put("/:id/notes", zValidator("json", z.object({ notes: z.string() })), async
     .limit(1);
 
   if (!call) return c.json({ message: "Not found" }, 404);
-  await db.update(calls).set({ notes }).where(eq(calls.id, id));
+  await db.update(calls).set({ notes }).where(and(eq(calls.id, id), eq(calls.userId, user.sub)));
   return c.json({ ok: true });
 });
 

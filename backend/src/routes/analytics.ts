@@ -47,32 +47,6 @@ app.get("/", async (c) => {
 
   // ── Messages (outbound, auto_sent/manual/escalated) ───────────────────────
 
-  const outboundMsgs = await db
-    .select({
-      timestamp:   messages.timestamp,
-      replyStatus: messages.replyStatus,
-    })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.direction, "outbound"),
-        gte(messages.timestamp, since),
-      )
-    );
-
-  // Also scope to user's conversations
-  const userConvIds = new Set(
-    (await db
-      .select({ id: conversations.id })
-      .from(conversations)
-      .where(eq(conversations.userId, user.sub)))
-      .map(r => r.id)
-  );
-
-  const userMsgs = outboundMsgs.filter(m =>
-    userConvIds.has(m.timestamp.toISOString()) // placeholder — real filter below
-  );
-
   // Get messages joined to user conversations
   const userOutbound = await db
     .select({

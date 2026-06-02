@@ -206,9 +206,20 @@ export default function Analytics() {
     { name: "Escalated (<50%)",  value: escalatedCount  || 1, color: "#ef4444" },
   ];
 
+  const sentCampaigns = campaigns.filter(c => c.status === "sent");
+  const totalCampSent = sentCampaigns.reduce((s, c) => s + c.sentCount, 0);
+
   const campStats  = analytics?.campaigns;
-  const readRate   = campStats?.readRate  ?? 0;
-  const replyRate  = campStats?.replyRate ?? 0;
+  const readRate   = campStats?.readRate  ?? (
+    totalCampSent > 0
+      ? Math.round(sentCampaigns.reduce((s, c) => s + c.readCount, 0) / totalCampSent * 100)
+      : 0
+  );
+  const replyRate  = campStats?.replyRate ?? (
+    totalCampSent > 0
+      ? Math.round(sentCampaigns.reduce((s, c) => s + c.replyCount, 0) / totalCampSent * 100)
+      : 0
+  );
 
   const activeFlows   = flows.filter(f => f.active).length;
   const totalTriggers = flows.reduce((s, f) => s + f.triggerCount, 0);
@@ -216,9 +227,6 @@ export default function Analytics() {
   const posMentions = mentions.filter(m => m.sentiment === "positive").length;
   const negMentions = mentions.filter(m => m.sentiment === "negative").length;
   const posRate     = mentions.length > 0 ? Math.round((posMentions / mentions.length) * 100) : 0;
-
-  const sentCampaigns = campaigns.filter(c => c.status === "sent");
-  const totalCampSent = sentCampaigns.reduce((s, c) => s + c.sentCount, 0);
   const allMsgs       = conversations;
 
   return (

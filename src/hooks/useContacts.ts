@@ -16,9 +16,10 @@ export function useContacts(filters?: ContactFilters) {
 
   const qs = params.toString();
   return useQuery({
-    queryKey: ["contacts", filters],
+    queryKey: ["contacts", filters?.search ?? "", filters?.tag ?? "", filters?.platform ?? ""],
     queryFn:  () => api.get<Contact[]>(`/contacts${qs ? `?${qs}` : ""}`),
-    staleTime: 30_000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 

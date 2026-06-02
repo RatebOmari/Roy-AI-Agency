@@ -156,7 +156,7 @@ function PostCard({ post, onOverride, onApprove }: {
         <div className="flex gap-3">
           {post.mediaUrl && (
             <div className="w-12 h-12 rounded-lg overflow-hidden border border-border flex-shrink-0">
-              <img src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
+              <img loading="lazy" src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
             </div>
           )}
           <p className="text-sm text-foreground leading-relaxed line-clamp-2 flex-1">{post.content}</p>

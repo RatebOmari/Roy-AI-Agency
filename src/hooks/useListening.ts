@@ -106,11 +106,12 @@ export function useDeleteKeyword() {
   });
 }
 
-export function useMentions() {
+export function useMentions(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["mentions"],
     queryFn: () => api.get<Mention[]>("/listening/mentions"),
     staleTime: 30_000,
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -145,7 +145,7 @@ const MOCK_CONVERSATIONS: Conversation[] = [
 
 export function useConversations(filter?: { status?: ConversationStatus | "all"; channel?: string }) {
   return useQuery({
-    queryKey: ["conversations", filter],
+    queryKey: ["conversations", filter?.status ?? "all", filter?.channel ?? "all"],
     queryFn: async () => {
       try {
         const result = await api.get<Conversation[]>("/conversations");

@@ -253,7 +253,7 @@ function Step2Compose({ channel, state, onChange }: {
           <div className="mt-1.5">
             {state.imageUrl ? (
               <div className="relative w-32 h-24 rounded-xl overflow-hidden border border-border">
-                <img src={state.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                <img loading="lazy" src={state.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                 <button onClick={() => onChange({ imageUrl: null })}
                   className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80">
                   <X className="w-3 h-3" />

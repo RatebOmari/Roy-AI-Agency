@@ -246,7 +246,7 @@ const MOCK_METRICS: PostMetricsWithContent[] = [
   { postId: "p4", postContent: "New weekend hours: We're now open until 11 PM on Fridays and Saturdays! Come enjoy a late dinner with us 🌟", postPlatforms: ["whatsapp", "facebook"], likes: 94, comments: 11, reach: 1400, shares: 18, recordedAt: past(5) },
 ];
 
-export function usePostMetrics() {
+export function usePostMetrics(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["postMetrics"],
     queryFn: async () => {
@@ -258,5 +258,6 @@ export function usePostMetrics() {
       }
     },
     staleTime: 60_000,
+    enabled: options?.enabled ?? true,
   });
 }

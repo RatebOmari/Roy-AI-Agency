@@ -155,7 +155,7 @@ function InstagramCard({ post, businessName }: PreviewCardProps) {
       </div>
       <div className="w-full aspect-square bg-gradient-to-br from-purple-400 via-pink-400 to-orange-300 overflow-hidden">
         {post.mediaUrl ? (
-          <img src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
+          <img loading="lazy" src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center opacity-30">
             <Image className="w-16 h-16 text-white" />
@@ -187,7 +187,7 @@ function TikTokCard({ post, businessName }: PreviewCardProps) {
         {STATUS_LABEL[post.status]}
       </span>
       {post.mediaUrl ? (
-        <img src={post.mediaUrl} alt="Post" className="absolute inset-0 w-full h-full object-cover" />
+        <img loading="lazy" src={post.mediaUrl} alt="Post" className="absolute inset-0 w-full h-full object-cover" />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950" />
       )}
@@ -243,7 +243,7 @@ function FacebookCard({ post, businessName }: PreviewCardProps) {
       </div>
       <p className="px-3 pb-2 text-xs text-zinc-800 dark:text-zinc-200 line-clamp-3">{post.content}</p>
       {post.mediaUrl ? (
-        <img src={post.mediaUrl} alt="Post" className="w-full aspect-video object-cover" />
+        <img loading="lazy" src={post.mediaUrl} alt="Post" className="w-full aspect-video object-cover" />
       ) : (
         <div className="w-full aspect-video bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
           <Image className="w-12 h-12 text-white opacity-30" />
@@ -275,7 +275,7 @@ function WhatsAppCard({ post }: PreviewCardProps) {
       </span>
       <div className="mt-6 ml-auto max-w-[90%] bg-[#005c4b] rounded-2xl rounded-tr-sm overflow-hidden shadow">
         {post.mediaUrl && (
-          <img src={post.mediaUrl} alt="Post" className="w-full aspect-video object-cover rounded-t-2xl" />
+          <img loading="lazy" src={post.mediaUrl} alt="Post" className="w-full aspect-video object-cover rounded-t-2xl" />
         )}
         <div className="px-3 py-2">
           <p className="text-white text-xs leading-relaxed line-clamp-4">{post.content}</p>
@@ -394,7 +394,7 @@ function PostDialog({ initial, onSave, onClose, saving }: PostDialogProps) {
           <p className="text-xs font-medium text-muted-foreground mb-2">Image (optional)</p>
           {mediaUrl ? (
             <div className="relative rounded-xl overflow-hidden border border-border w-32 h-32">
-              <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+              <img loading="lazy" src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
               <button onClick={() => setMediaUrl(undefined)}
                 className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors">
                 <X className="w-3 h-3" />
@@ -599,7 +599,7 @@ function ClientQueueTab({ posts }: { posts: ScheduledPost[] }) {
                       </div>
                       {post.mediaUrl && (
                         <div className="w-14 h-14 rounded-xl overflow-hidden border border-border flex-shrink-0">
-                          <img src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
+                          <img loading="lazy" src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
                         </div>
                       )}
                     </div>
@@ -726,7 +726,7 @@ function AgencyQueueTab({ posts, onEdit, onDelete, onNew, businessName }: {
                       <div className="flex flex-col items-end justify-between gap-3 flex-shrink-0 self-stretch">
                         {post.mediaUrl && (
                           <div className="w-14 h-14 rounded-xl overflow-hidden border border-border flex-shrink-0">
-                            <img src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
+                            <img loading="lazy" src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
                           </div>
                         )}
                         <div className="flex items-center gap-0.5 mt-auto">
@@ -899,7 +899,7 @@ function PendingTab({ posts }: { posts: ScheduledPost[] }) {
               <div className="flex gap-3">
                 {post.mediaUrl && (
                   <div className="w-16 h-16 rounded-xl overflow-hidden border border-border flex-shrink-0">
-                    <img src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
+                    <img loading="lazy" src={post.mediaUrl} alt="Post" className="w-full h-full object-cover" />
                   </div>
                 )}
                 <p className="text-sm text-foreground leading-relaxed flex-1">{post.content}</p>
@@ -1131,7 +1131,7 @@ function CalendarTab({ posts, onNew, onEdit, businessName, isAgency }: {
                     <div className="flex gap-1 flex-shrink-0">
                       {p.platforms.map(pl => <span key={pl} className={cn("w-2 h-2 rounded-full flex-shrink-0", PLATFORM_COLOR[pl])} />)}
                     </div>
-                    {p.mediaUrl && <img src={p.mediaUrl} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />}
+                    {p.mediaUrl && <img loading="lazy" src={p.mediaUrl} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />}
                     <p className="text-xs text-foreground line-clamp-1 flex-1 min-w-0">{p.content}</p>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full hidden sm:inline", STATUS_STYLE[p.status])}>
@@ -1282,7 +1282,7 @@ function GenerateTab({ onAddToQueue }: {
                     <span className="text-xs">Creating image…</span>
                   </div>
                 ) : imageResult ? (
-                  <img src={imageResult} alt="AI Generated" className="w-full h-full object-cover" />
+                  <img loading="lazy" src={imageResult} alt="AI Generated" className="w-full h-full object-cover" />
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground p-6">
                     <Image className="w-10 h-10 opacity-20" />

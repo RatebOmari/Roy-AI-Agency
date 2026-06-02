@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import type { AgencyClient } from "@/types";
 import { setClientId } from "@/lib/api";
 
@@ -12,13 +12,18 @@ const AgencyClientContext = createContext<AgencyClientContextValue | null>(null)
 export function AgencyClientProvider({ children }: { children: React.ReactNode }) {
   const [selectedClient, setSelectedClient] = useState<AgencyClient | null>(null);
 
-  const selectClient = (client: AgencyClient | null) => {
+  const selectClient = useCallback((client: AgencyClient | null) => {
     setSelectedClient(client);
     setClientId(client?.id ?? null);
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({ selectedClient, selectClient }),
+    [selectedClient, selectClient]
+  );
 
   return (
-    <AgencyClientContext.Provider value={{ selectedClient, selectClient }}>
+    <AgencyClientContext.Provider value={value}>
       {children}
     </AgencyClientContext.Provider>
   );

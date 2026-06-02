@@ -71,7 +71,8 @@ export function useResources() {
         return MOCK_RESOURCES;
       }
     },
-    staleTime: 60_000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 }
 

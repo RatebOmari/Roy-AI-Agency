@@ -62,7 +62,7 @@ const MOCK_COMMENTS: Comment[] = [
 
 export function useComments(filter: CommentsFilter = {}) {
   return useQuery({
-    queryKey: ["comments", filter],
+    queryKey: ["comments", filter.platform ?? "all", filter.status ?? "all"],
     queryFn: async () => {
       try {
         const params = new URLSearchParams();

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -179,69 +179,89 @@ export default function Analytics() {
   const [tab, setTab] = useState<Tab>("overview");
   const [range, setRange] = useState<DateRange>("7d");
 
-  const { data: analytics }      = useAnalytics(range);
+  // Mentions and post metrics are only needed on their specific tabs — defer
+  // until those tabs are first visited so page load only fires 4 queries.
+  const [visitedTabs, setVisitedTabs] = useState<Set<Tab>>(new Set(["overview"]));
+  const handleTabChange = (t: Tab) => {
+    setTab(t);
+    setVisitedTabs(prev => { const next = new Set(prev); next.add(t); return next; });
+  };
+
+  const { data: analytics }          = useAnalytics(range);
   const { data: conversations = [] } = useConversations();
   const { data: outreachMsgs  = [] } = useOutreachMessages();
   const { data: flows         = [] } = useFlows();
-  const { data: mentions      = [] } = useMentions();
-  const { data: postMetrics   = [] } = usePostMetrics();
+  const { data: mentions      = [] } = useMentions({ enabled: visitedTabs.has("listening") });
+  const { data: postMetrics   = [] } = usePostMetrics({ enabled: visitedTabs.has("content") });
 
-  // ── Real data from analytics endpoint (falls back to mock when empty) ──────
+  // ── Memoized derived values ────────────────────────────────────────────────
 
-  const summary    = analytics?.summary;
-  const msgData    = (analytics?.msgChart?.length ?? 0) > 0
-    ? analytics!.msgChart
-    : (range === "7d" ? MSG_7D : range === "30d" ? MSG_30D : MSG_90D);
-  const totalMsgs  = summary?.totalMessages
-    ?? msgData.reduce((s, d) => s + d.autoSent + d.manual + d.escalated, 0);
+  const summary = analytics?.summary;
+
+  const msgData = useMemo(
+    () => (analytics?.msgChart?.length ?? 0) > 0
+      ? analytics!.msgChart
+      : (range === "7d" ? MSG_7D : range === "30d" ? MSG_30D : MSG_90D),
+    [analytics, range]
+  );
+
+  const totalMsgs = useMemo(
+    () => summary?.totalMessages ?? msgData.reduce((s, d) => s + d.autoSent + d.manual + d.escalated, 0),
+    [summary, msgData]
+  );
 
   const autoSentCount  = summary?.totalAutoSent  ?? 6;
   const manualCount    = summary?.totalManual    ?? 2;
   const escalatedCount = summary?.totalEscalated ?? 1;
   const pendingCount   = summary?.pendingConversations ?? 0;
 
-  const confidencePie = [
+  const confidencePie = useMemo(() => [
     { name: "Auto-sent (≥85%)",  value: autoSentCount  || 6, color: "#22c55e" },
     { name: "Reviewed (50–84%)", value: manualCount     || 2, color: "#eab308" },
     { name: "Escalated (<50%)",  value: escalatedCount  || 1, color: "#ef4444" },
-  ];
+  ], [autoSentCount, manualCount, escalatedCount]);
 
-  const sentOutreach    = outreachMsgs.filter(m => m.status === "sent");
-  const totalCampSent   = sentOutreach.reduce((s, m) => s + m.sentCount, 0);
-  const totalCampOpened = sentOutreach.reduce((s, m) => s + m.openedCount, 0);
-  const totalCampReplied = sentOutreach.reduce((s, m) => s + m.repliedCount, 0);
-
-  const campStats  = analytics?.campaigns;
-  const readRate   = campStats?.readRate  ?? (
-    totalCampSent > 0 ? Math.round((totalCampOpened  / totalCampSent) * 100) : 0
-  );
-  const replyRate  = campStats?.replyRate ?? (
-    totalCampSent > 0 ? Math.round((totalCampReplied / totalCampSent) * 100) : 0
-  );
-
-  // Channel breakdown for outreach tab
-  const outreachByChannel = (["whatsapp", "sms", "email"] as const).map(ch => {
-    const msgs    = sentOutreach.filter(m => m.channel === ch);
-    const sent    = msgs.reduce((s, m) => s + m.sentCount, 0);
-    const opened  = msgs.reduce((s, m) => s + m.openedCount, 0);
-    const replied = msgs.reduce((s, m) => s + m.repliedCount, 0);
+  const { sentOutreach, totalCampSent, readRate, replyRate } = useMemo(() => {
+    const sent    = outreachMsgs.filter(m => m.status === "sent");
+    const campSent    = sent.reduce((s, m) => s + m.sentCount, 0);
+    const campOpened  = sent.reduce((s, m) => s + m.openedCount, 0);
+    const campReplied = sent.reduce((s, m) => s + m.repliedCount, 0);
+    const campStats   = analytics?.campaigns;
     return {
-      channel: ch,
-      sent,
-      opened,
-      replied,
-      openRate:  sent > 0 ? Math.round((opened  / sent) * 100) : 0,
-      replyRate: sent > 0 ? Math.round((replied / sent) * 100) : 0,
+      sentOutreach:   sent,
+      totalCampSent:  campSent,
+      readRate:  campStats?.readRate  ?? (campSent > 0 ? Math.round((campOpened  / campSent) * 100) : 0),
+      replyRate: campStats?.replyRate ?? (campSent > 0 ? Math.round((campReplied / campSent) * 100) : 0),
     };
-  });
+  }, [outreachMsgs, analytics]);
 
-  const activeFlows   = flows.filter(f => f.active).length;
-  const totalTriggers = flows.reduce((s, f) => s + f.triggerCount, 0);
+  const outreachByChannel = useMemo(
+    () => (["whatsapp", "sms", "email"] as const).map(ch => {
+      const msgs    = sentOutreach.filter(m => m.channel === ch);
+      const sent    = msgs.reduce((s, m) => s + m.sentCount, 0);
+      const opened  = msgs.reduce((s, m) => s + m.openedCount, 0);
+      const replied = msgs.reduce((s, m) => s + m.repliedCount, 0);
+      return {
+        channel: ch, sent, opened, replied,
+        openRate:  sent > 0 ? Math.round((opened  / sent) * 100) : 0,
+        replyRate: sent > 0 ? Math.round((replied / sent) * 100) : 0,
+      };
+    }),
+    [sentOutreach]
+  );
 
-  const posMentions = mentions.filter(m => m.sentiment === "positive").length;
-  const negMentions = mentions.filter(m => m.sentiment === "negative").length;
-  const posRate     = mentions.length > 0 ? Math.round((posMentions / mentions.length) * 100) : 0;
-  const allMsgs       = conversations;
+  const { activeFlows, totalTriggers } = useMemo(() => ({
+    activeFlows:   flows.filter(f => f.active).length,
+    totalTriggers: flows.reduce((s, f) => s + f.triggerCount, 0),
+  }), [flows]);
+
+  const { posMentions, negMentions, posRate } = useMemo(() => {
+    const pos = mentions.filter(m => m.sentiment === "positive").length;
+    const neg = mentions.filter(m => m.sentiment === "negative").length;
+    return { posMentions: pos, negMentions: neg, posRate: mentions.length > 0 ? Math.round((pos / mentions.length) * 100) : 0 };
+  }, [mentions]);
+
+  const allMsgs = conversations;
 
   return (
     <AppLayout role="client" businessName={user?.businessName}>
@@ -279,7 +299,7 @@ export default function Analytics() {
           {TABS.map(t => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => handleTabChange(t.id)}
               className={cn(
                 "flex items-center gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 tab === t.id

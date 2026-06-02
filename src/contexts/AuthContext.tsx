@@ -5,7 +5,6 @@ import type { User, LoginResponse } from "@/types";
 
 interface AuthContextValue {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<User>;
@@ -17,21 +16,10 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(authStorage.getUser());
-  const [token, setToken] = useState<string | null>(authStorage.getToken());
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const savedToken = authStorage.getToken();
-    const savedUser = authStorage.getUser();
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(savedUser);
-    }
-  }, []);
-
-  useEffect(() => {
     registerUnauthorizedHandler(() => {
-      setToken(null);
       setUser(null);
       window.location.replace("/login");
     });
@@ -54,18 +42,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const DEMO_ACCOUNTS: Record<string, { password: string; role: "client" | "agency"; name: string; businessName: string }> = {
       "client@demo.com": { password: "demo123", role: "client", name: "Demo Business", businessName: "Raleigh Eats" },
-      "agency@demo.com": { password: "demo123", role: "agency", name: "Roy Agency", businessName: "Roy AI Agency" },
+      "agency@demo.com": { password: "demo123", role: "agency", name: "Roy Agency",    businessName: "Roy AI Agency" },
     };
 
     try {
       const data = await api.post<LoginResponse>("/auth/login", { email, password });
-      authStorage.setToken(data.token);
+      // Token is set as httpOnly cookie by the server — only store user info
       authStorage.setUser(data.user);
-      setToken(data.token);
+      authStorage.setDemoMode(false);
       setUser(data.user);
       return data.user;
     } catch (err) {
-      // Always fall back to demo credentials if backend is unavailable or creds don't match
+      // Fall back to demo credentials when backend is unavailable
       const demo = DEMO_ACCOUNTS[email.toLowerCase()];
       if (demo && password === demo.password) {
         const demoUser: User = {
@@ -76,10 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           businessName: demo.businessName,
           platformPermissions: demo.role === "client" ? DEMO_PLATFORM_PERMISSIONS : undefined,
         };
-        const demoToken = "demo_token_" + Date.now();
-        authStorage.setToken(demoToken);
         authStorage.setUser(demoUser);
-        setToken(demoToken);
+        authStorage.setDemoMode(true);
         setUser(demoUser);
         return demoUser;
       }
@@ -93,9 +79,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const data = await api.post<LoginResponse>("/auth/team-login", { inviteToken });
-      authStorage.setToken(data.token);
       authStorage.setUser(data.user);
-      setToken(data.token);
+      authStorage.setDemoMode(false);
       setUser(data.user);
       return data.user;
     } finally {
@@ -104,8 +89,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Clear the httpOnly cookie server-side (fire-and-forget — local state is cleared regardless)
+    if (!authStorage.isDemoMode()) {
+      api.post("/auth/logout").catch(() => {});
+    }
     authStorage.clear();
-    setToken(null);
     setUser(null);
   }, []);
 
@@ -113,8 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        token,
-        isAuthenticated: !!token && !!user,
+        isAuthenticated: !!user,
         isLoading,
         login,
         teamLogin,

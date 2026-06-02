@@ -20,6 +20,7 @@ import {
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
+import { aiRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
 import { sendWhatsAppMessage } from "../lib/platformDelivery.js";
 import { createMiddleware } from "hono/factory";
@@ -211,7 +212,7 @@ app.get("/reach", async (c) => {
 
 // ── POST /generate — AI-generate message content ──────────────────────────────
 
-app.post("/generate", zValidator("json", generateSchema), async (c) => {
+app.post("/generate", aiRateLimit, zValidator("json", generateSchema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
 

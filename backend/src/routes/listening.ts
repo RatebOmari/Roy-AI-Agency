@@ -8,6 +8,7 @@ import { listeningKeywords, listeningMentions } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
+import { aiRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
 
 const anthropic = new Anthropic();
@@ -178,7 +179,7 @@ app.patch("/mentions/:id/unhandle", async (c) => {
 });
 
 // POST /generate-reply — AI-suggested reply for a mention
-app.post("/generate-reply", zValidator("json", z.object({
+app.post("/generate-reply", aiRateLimit, zValidator("json", z.object({
   content:  z.string().min(1).max(5000),
   platform: z.string(),
   username: z.string().optional(),

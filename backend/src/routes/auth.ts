@@ -3,9 +3,23 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { eq, and } from "drizzle-orm";
+import { setCookie, deleteCookie } from "hono/cookie";
 import { db } from "../db/index.js";
 import { users, teamMembers, clientInvites, agencyClients } from "../db/schema.js";
 import { signToken } from "../middleware/auth.js";
+
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
+const isSecure = process.env.APP_URL?.startsWith("https://") ?? false;
+
+function setAuthCookie(c: Parameters<typeof setCookie>[0], token: string) {
+  setCookie(c, "sp_token", token, {
+    httpOnly:  true,
+    secure:    isSecure,
+    sameSite:  "Strict",
+    path:      "/",
+    maxAge:    COOKIE_MAX_AGE,
+  });
+}
 
 const app = new Hono();
 
@@ -33,6 +47,8 @@ app.post("/login", zValidator("json", loginSchema), async (c) => {
     name: user.name,
     businessName: user.businessName,
   });
+
+  setAuthCookie(c, token);
 
   return c.json({
     token,
@@ -95,6 +111,8 @@ app.post("/team-login", zValidator("json", z.object({
     })
     .where(eq(teamMembers.id, member.id));
 
+  setAuthCookie(c, jwtToken);
+
   return c.json({
     token: jwtToken,
     user: {
@@ -132,6 +150,12 @@ app.post("/accept-invite", zValidator("json", z.object({
       .where(and(eq(agencyClients.clientId, invite.clientId), eq(agencyClients.agencyId, invite.agencyId)));
   });
 
+  return c.json({ ok: true });
+});
+
+// POST /logout — clears the httpOnly session cookie
+app.post("/logout", (c) => {
+  deleteCookie(c, "sp_token", { path: "/" });
   return c.json({ ok: true });
 });
 

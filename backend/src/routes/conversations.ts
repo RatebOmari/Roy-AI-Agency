@@ -11,6 +11,7 @@ import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, makePhoneCall, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
 import { evaluateRules, ruleActionToReplyStatus } from "../lib/automationRules.js";
 import { requireNotViewer } from "../middleware/teamRole.js";
+import { aiRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
 
 const app = new Hono();
@@ -102,7 +103,7 @@ const generateReplySchema = z.object({
   conversationId: z.string().uuid(),
 });
 
-app.post("/generate-reply", requireNotViewer, zValidator("json", generateReplySchema), async (c) => {
+app.post("/generate-reply", requireNotViewer, aiRateLimit, zValidator("json", generateReplySchema), async (c) => {
   const user = c.get("user");
   const { conversationId } = c.req.valid("json");
 

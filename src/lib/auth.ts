@@ -1,26 +1,15 @@
 import type { User } from "@/types";
 
-const TOKEN_KEY = "sp_token";
-const USER_KEY = "sp_user";
+const USER_KEY  = "sp_user";
+// Sentinel flag: "1" when running in demo mode so the API client
+// knows no real httpOnly cookie exists and should suppress auto-logout on 401.
+const DEMO_FLAG = "sp_demo";
 
 export const authStorage = {
-  getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
-  },
-  setToken(token: string): void {
-    localStorage.setItem(TOKEN_KEY, token);
-  },
-  removeToken(): void {
-    localStorage.removeItem(TOKEN_KEY);
-  },
   getUser(): User | null {
     const raw = localStorage.getItem(USER_KEY);
     if (!raw) return null;
-    try {
-      return JSON.parse(raw) as User;
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(raw) as User; } catch { return null; }
   },
   setUser(user: User): void {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -28,8 +17,15 @@ export const authStorage = {
   removeUser(): void {
     localStorage.removeItem(USER_KEY);
   },
+  isDemoMode(): boolean {
+    return localStorage.getItem(DEMO_FLAG) === "1";
+  },
+  setDemoMode(on: boolean): void {
+    if (on) localStorage.setItem(DEMO_FLAG, "1");
+    else    localStorage.removeItem(DEMO_FLAG);
+  },
   clear(): void {
-    localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(DEMO_FLAG);
   },
 };

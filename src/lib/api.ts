@@ -18,14 +18,10 @@ class ApiClient {
     path: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const token = authStorage.getToken();
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
     };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
     if (_clientId) {
       headers["x-client-id"] = _clientId;
     }
@@ -33,6 +29,8 @@ class ApiClient {
     const res = await fetch(`${BASE_URL}${path}`, {
       ...options,
       headers,
+      // Send httpOnly session cookie automatically; required for cookie-based auth
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -44,12 +42,11 @@ class ApiClient {
       } catch {
         // ignore parse errors
       }
-      if (res.status === 401) {
-        const currentToken = authStorage.getToken();
-        if (!currentToken?.startsWith("demo_token_")) {
-          authStorage.clear();
-          _onUnauthorized?.();
-        }
+      // On 401, clear local state and redirect to login — unless demo mode
+      // (demo mode has no real cookie, so 401s are expected on all API calls)
+      if (res.status === 401 && !authStorage.isDemoMode()) {
+        authStorage.clear();
+        _onUnauthorized?.();
       }
       throw err;
     }

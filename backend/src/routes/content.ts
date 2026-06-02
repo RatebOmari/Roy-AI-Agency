@@ -8,6 +8,7 @@ import { scheduledPosts, postMetrics, agencyClients, users } from "../db/schema.
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
+import { aiRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
 import { createMiddleware } from "hono/factory";
 
@@ -275,7 +276,7 @@ const generateSchema = z.object({
   tone:     z.enum(["friendly", "professional", "fun", "informative"]).optional(),
 });
 
-app.post("/generate", agencyOnly, zValidator("json", generateSchema), async (c) => {
+app.post("/generate", agencyOnly, aiRateLimit, zValidator("json", generateSchema), async (c) => {
   const user = c.get("user");
   const { prompt, platform, tone } = c.req.valid("json");
 
@@ -344,7 +345,7 @@ const DEMO_IMAGES = [
   "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600",
 ];
 
-app.post("/generate-image", agencyOnly, zValidator("json", generateImageSchema), async (c) => {
+app.post("/generate-image", agencyOnly, aiRateLimit, zValidator("json", generateImageSchema), async (c) => {
   const { prompt, caption, platform, brandStyle } = c.req.valid("json");
   const apiKey = process.env.OPENAI_API_KEY;
 

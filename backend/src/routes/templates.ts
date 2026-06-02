@@ -6,6 +6,7 @@ import { db } from "../db/index.js";
 import { replyTemplates } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
+import { aiRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
 
 const app = new Hono();
@@ -75,7 +76,7 @@ app.put("/:id", zValidator("json", templateSchema.partial()), async (c) => {
 });
 
 // POST /generate — AI-generate a template (must be before /:id routes)
-app.post("/generate", zValidator("json", z.object({
+app.post("/generate", aiRateLimit, zValidator("json", z.object({
   description: z.string().min(1).max(2000),
   platforms: z.array(z.string()).optional(),
   language: z.string().optional(),

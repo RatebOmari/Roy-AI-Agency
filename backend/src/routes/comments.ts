@@ -9,6 +9,7 @@ import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
+import { aiRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
 
 function platformToCommentChannel(platform: string): DeliveryChannel {
@@ -119,7 +120,7 @@ const generateReplySchema = z.object({
   commentId: z.string().uuid(),
 });
 
-app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) => {
+app.post("/generate-reply", aiRateLimit, zValidator("json", generateReplySchema), async (c) => {
   const user = c.get("user");
   const { commentId } = c.req.valid("json");
 

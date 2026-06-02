@@ -255,10 +255,10 @@ export default function Analytics() {
     totalTriggers: flows.reduce((s, f) => s + f.triggerCount, 0),
   }), [flows]);
 
-  const { posMentions, negMentions, posRate } = useMemo(() => {
+  const { negMentions, posRate } = useMemo(() => {
     const pos = mentions.filter(m => m.sentiment === "positive").length;
     const neg = mentions.filter(m => m.sentiment === "negative").length;
-    return { posMentions: pos, negMentions: neg, posRate: mentions.length > 0 ? Math.round((pos / mentions.length) * 100) : 0 };
+    return { negMentions: neg, posRate: mentions.length > 0 ? Math.round((pos / mentions.length) * 100) : 0 };
   }, [mentions]);
 
   const allMsgs = conversations;

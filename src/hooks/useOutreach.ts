@@ -159,7 +159,7 @@ export function useCreateOutreach() {
 export function useUpdateOutreach() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: Partial<OutreachMessage> & { id: string }) =>
+    mutationFn: ({ id, ...data }: Partial<CreateOutreachPayload> & { id: string }) =>
       api.put<OutreachMessage>(`/outreach/${id}`, data),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["outreach"] }),
   });

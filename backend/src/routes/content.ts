@@ -1,20 +1,38 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
-import { scheduledPosts, postMetrics } from "../db/schema.js";
+import { scheduledPosts, postMetrics, agencyClients, users } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
+import { createMiddleware } from "hono/factory";
 
 const app = new Hono();
 app.use("*", authMiddleware);
 app.use("*", clientContextMiddleware);
 
-// GET / — list all posts for user
+// ── Role guards ────────────────────────────────────────────────────────────────
+
+const agencyOnly = createMiddleware(async (c, next) => {
+  if (c.get("user").role !== "agency") {
+    return c.json({ message: "Agency access required" }, 403);
+  }
+  await next();
+});
+
+const clientOnly = createMiddleware(async (c, next) => {
+  if (c.get("user").role !== "client") {
+    return c.json({ message: "Client access required" }, 403);
+  }
+  await next();
+});
+
+// ── GET / — list posts for current user (client) or selected client (agency via x-client-id) ──
+
 app.get("/", async (c) => {
   const user = c.get("user");
   const posts = await db
@@ -25,38 +43,113 @@ app.get("/", async (c) => {
   return c.json(posts);
 });
 
+// ── GET /all-clients — agency only: all posts for every managed client ─────────
+
+app.get("/all-clients", agencyOnly, async (c) => {
+  const user = c.get("user");
+  // user.sub here is the agency's own ID (no x-client-id header for this endpoint)
+  const agencyId = user.sub;
+
+  const rels = await db
+    .select({ clientId: agencyClients.clientId, approvalEnabled: agencyClients.contentApprovalEnabled })
+    .from(agencyClients)
+    .where(eq(agencyClients.agencyId, agencyId));
+
+  if (rels.length === 0) return c.json([]);
+
+  const clientIds = rels.map(r => r.clientId);
+
+  const posts = await db
+    .select({
+      id:                     scheduledPosts.id,
+      userId:                 scheduledPosts.userId,
+      createdBy:              scheduledPosts.createdBy,
+      platforms:              scheduledPosts.platforms,
+      content:                scheduledPosts.content,
+      mediaUrl:               scheduledPosts.mediaUrl,
+      scheduledAt:            scheduledPosts.scheduledAt,
+      publishedAt:            scheduledPosts.publishedAt,
+      status:                 scheduledPosts.status,
+      aiGenerated:            scheduledPosts.aiGenerated,
+      createdAt:              scheduledPosts.createdAt,
+      approvalRequired:       scheduledPosts.approvalRequired,
+      approvalStatus:         scheduledPosts.approvalStatus,
+      submittedForApprovalAt: scheduledPosts.submittedForApprovalAt,
+      approvedAt:             scheduledPosts.approvedAt,
+      approvalFeedback:       scheduledPosts.approvalFeedback,
+      overridePublished:      scheduledPosts.overridePublished,
+      overridePublishedBy:    scheduledPosts.overridePublishedBy,
+      clientName:             users.name,
+      clientBusinessName:     users.businessName,
+    })
+    .from(scheduledPosts)
+    .innerJoin(users, eq(scheduledPosts.userId, users.id))
+    .where(inArray(scheduledPosts.userId, clientIds))
+    .orderBy(asc(scheduledPosts.scheduledAt));
+
+  return c.json(posts);
+});
+
+// ── POST / — create post (agency only) ────────────────────────────────────────
+
 const postSchema = z.object({
   platforms:   z.array(z.string()).min(1),
   content:     z.string().min(1),
   mediaUrl:    z.string().nullable().optional(),
   scheduledAt: z.string().nullable().optional(),
-  status:      z.enum(["draft", "scheduled", "published", "failed"]).optional(),
+  status:      z.enum(["draft", "scheduled", "published", "failed", "pending_approval", "changes_requested"]).optional(),
   aiGenerated: z.boolean().optional(),
 });
 
-// POST / — create post
-app.post("/", zValidator("json", postSchema), async (c) => {
+app.post("/", agencyOnly, zValidator("json", postSchema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
+
+  // When agency creates for a client (user.sub = clientId after middleware),
+  // check if the client has content approval enabled.
+  let finalStatus: string = body.status ?? "draft";
+  let approvalRequired = false;
+  let approvalStatus: "not_required" | "pending" = "not_required";
+  let submittedForApprovalAt: Date | null = null;
+
+  const clientId = user.sub;
+  const [rel] = await db
+    .select({ enabled: agencyClients.contentApprovalEnabled })
+    .from(agencyClients)
+    .where(eq(agencyClients.clientId, clientId))
+    .limit(1);
+
+  if (rel?.enabled !== false) {
+    // Approval enabled (default) — submit for approval
+    finalStatus = "pending_approval";
+    approvalRequired = true;
+    approvalStatus = "pending";
+    submittedForApprovalAt = new Date();
+  }
+
   const [post] = await db
     .insert(scheduledPosts)
     .values({
-      userId:      user.sub,
-      platforms:   body.platforms,
-      content:     body.content,
-      mediaUrl:    body.mediaUrl ?? null,
-      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
-      status:      body.status ?? "draft",
-      aiGenerated: body.aiGenerated ?? false,
+      userId:                 clientId,
+      platforms:              body.platforms,
+      content:                body.content,
+      mediaUrl:               body.mediaUrl ?? null,
+      scheduledAt:            body.scheduledAt ? new Date(body.scheduledAt) : null,
+      status:                 finalStatus as "draft" | "pending_approval",
+      aiGenerated:            body.aiGenerated ?? false,
+      approvalRequired,
+      approvalStatus,
+      submittedForApprovalAt,
     })
     .returning();
   return c.json(post, 201);
 });
 
-// PUT /:id — update post
-app.put("/:id", zValidator("json", postSchema.partial()), async (c) => {
+// ── PUT /:id — edit post (agency only) ────────────────────────────────────────
+
+app.put("/:id", agencyOnly, zValidator("json", postSchema.partial()), async (c) => {
   const user = c.get("user");
-  const id = c.req.param("id");
+  const id   = c.req.param("id");
   const body = c.req.valid("json");
 
   const [post] = await db
@@ -76,15 +169,105 @@ app.put("/:id", zValidator("json", postSchema.partial()), async (c) => {
   return c.json(post);
 });
 
-// DELETE /:id — delete post
-app.delete("/:id", async (c) => {
+// ── DELETE /:id — delete post (agency only) ───────────────────────────────────
+
+app.delete("/:id", agencyOnly, async (c) => {
   const user = c.get("user");
-  const id = c.req.param("id");
+  const id   = c.req.param("id");
   await db
     .delete(scheduledPosts)
     .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.userId, user.sub)));
   return c.json({ ok: true });
 });
+
+// ── POST /:id/submit-for-approval — agency resends a draft for client approval ─
+
+app.post("/:id/submit-for-approval", agencyOnly, async (c) => {
+  const user = c.get("user");
+  const id   = c.req.param("id");
+
+  const [post] = await db
+    .update(scheduledPosts)
+    .set({
+      status:                 "pending_approval",
+      approvalRequired:       true,
+      approvalStatus:         "pending",
+      submittedForApprovalAt: new Date(),
+      approvalFeedback:       null,
+    })
+    .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.userId, user.sub)))
+    .returning();
+
+  if (!post) return c.json({ message: "Not found" }, 404);
+  return c.json(post);
+});
+
+// ── POST /:id/approve — client approves a post ────────────────────────────────
+
+app.post("/:id/approve", clientOnly, async (c) => {
+  const user = c.get("user");
+  const id   = c.req.param("id");
+
+  const [post] = await db
+    .update(scheduledPosts)
+    .set({
+      status:         "scheduled",
+      approvalStatus: "approved",
+      approvedAt:     new Date(),
+    })
+    .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.userId, user.sub)))
+    .returning();
+
+  if (!post) return c.json({ message: "Not found" }, 404);
+  return c.json(post);
+});
+
+// ── POST /:id/request-changes — client requests changes ───────────────────────
+
+const changesSchema = z.object({ feedback: z.string().min(1) });
+
+app.post("/:id/request-changes", clientOnly, zValidator("json", changesSchema), async (c) => {
+  const user = c.get("user");
+  const id   = c.req.param("id");
+  const { feedback } = c.req.valid("json");
+
+  const [post] = await db
+    .update(scheduledPosts)
+    .set({
+      status:           "changes_requested",
+      approvalStatus:   "changes_requested",
+      approvalFeedback: feedback,
+    })
+    .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.userId, user.sub)))
+    .returning();
+
+  if (!post) return c.json({ message: "Not found" }, 404);
+  return c.json(post);
+});
+
+// ── POST /:id/override-publish — agency publishes regardless of approval status ─
+
+app.post("/:id/override-publish", agencyOnly, async (c) => {
+  const user = c.get("user");
+  const id   = c.req.param("id");
+
+  // Find the post by id under this client (user.sub = clientId after middleware)
+  const [post] = await db
+    .update(scheduledPosts)
+    .set({
+      status:              "scheduled",
+      overridePublished:   true,
+      approvalStatus:      "approved",
+      approvedAt:          new Date(),
+    })
+    .where(eq(scheduledPosts.id, id))
+    .returning();
+
+  if (!post) return c.json({ message: "Not found" }, 404);
+  return c.json(post);
+});
+
+// ── AI caption / image generation (agency only) ───────────────────────────────
 
 const generateSchema = z.object({
   prompt:   z.string().min(1),
@@ -92,8 +275,7 @@ const generateSchema = z.object({
   tone:     z.enum(["friendly", "professional", "fun", "informative"]).optional(),
 });
 
-// POST /generate — AI caption generation using Claude + knowledge base
-app.post("/generate", zValidator("json", generateSchema), async (c) => {
+app.post("/generate", agencyOnly, zValidator("json", generateSchema), async (c) => {
   const user = c.get("user");
   const { prompt, platform, tone } = c.req.valid("json");
 
@@ -133,7 +315,6 @@ app.post("/generate", zValidator("json", generateSchema), async (c) => {
     }
   }
 
-  // Demo mode — generate mock caption
   const toneMap: Record<string, string> = {
     friendly:     "✨ We're so excited to share this with you!",
     professional: "We are pleased to announce:",
@@ -163,8 +344,7 @@ const DEMO_IMAGES = [
   "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600",
 ];
 
-// POST /generate-image — DALL-E 3 or demo Unsplash photo
-app.post("/generate-image", zValidator("json", generateImageSchema), async (c) => {
+app.post("/generate-image", agencyOnly, zValidator("json", generateImageSchema), async (c) => {
   const { prompt, caption, platform, brandStyle } = c.req.valid("json");
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -196,18 +376,19 @@ app.post("/generate-image", zValidator("json", generateImageSchema), async (c) =
   return c.json({ url: DEMO_IMAGES[Math.floor(Math.random() * DEMO_IMAGES.length)] });
 });
 
-// GET /metrics — post performance (postMetrics joined with scheduledPosts)
+// ── GET /metrics — post performance (all roles) ───────────────────────────────
+
 app.get("/metrics", async (c) => {
   const user = c.get("user");
   const rows = await db
     .select({
-      postId:       postMetrics.postId,
-      likes:        postMetrics.likes,
-      comments:     postMetrics.comments,
-      reach:        postMetrics.reach,
-      shares:       postMetrics.shares,
-      recordedAt:   postMetrics.recordedAt,
-      postContent:  scheduledPosts.content,
+      postId:        postMetrics.postId,
+      likes:         postMetrics.likes,
+      comments:      postMetrics.comments,
+      reach:         postMetrics.reach,
+      shares:        postMetrics.shares,
+      recordedAt:    postMetrics.recordedAt,
+      postContent:   scheduledPosts.content,
       postPlatforms: scheduledPosts.platforms,
     })
     .from(postMetrics)

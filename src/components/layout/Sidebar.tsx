@@ -6,6 +6,7 @@ import {
   CalendarDays, BookOpen, FileText, Megaphone, GitBranch, Radio, MessageSquare, Phone,
   Siren,
 } from "lucide-react";
+import { useAgencyContent } from "@/hooks/useContent";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,6 +30,17 @@ function UnreadBadge() {
   if (count === 0) return null;
   return (
     <span className="ml-auto w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
+function PendingApprovalBadge() {
+  const { data = [] } = useAgencyContent();
+  const count = data.filter(p => p.status === "pending_approval").length;
+  if (count === 0) return null;
+  return (
+    <span className="ml-auto min-w-[20px] h-5 px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
       {count > 9 ? "9+" : count}
     </span>
   );
@@ -98,6 +110,7 @@ const AGENCY_NAV_GROUPS: NavGroup[] = [
   {
     label: "MANAGE",
     items: [
+      { label: "Content",   href: "/agency/content",   icon: CalendarDays, badge: true },
       { label: "Analytics", href: "/agency/analytics", icon: BarChart2 },
     ],
   },
@@ -154,7 +167,11 @@ export function Sidebar({ role, businessName }: SidebarProps) {
                 {!collapsed && (
                   <>
                     <span className="flex-1">{item.label}</span>
-                    {"badge" in item && item.badge && <UnreadBadge />}
+                    {"badge" in item && item.badge && (
+                      item.href === "/agency/content"
+                        ? <PendingApprovalBadge />
+                        : <UnreadBadge />
+                    )}
                   </>
                 )}
               </Link>

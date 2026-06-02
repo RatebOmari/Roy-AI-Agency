@@ -3,6 +3,7 @@ import { scheduledPosts } from "../db/schema.js";
 import { eq, and, lte, isNotNull } from "drizzle-orm";
 import { logDelivery, publishInstagramPost, publishFacebookPost } from "./platformDelivery.js";
 import { recordInitialMetrics, refreshRecentMetrics } from "./metricsFetcher.js";
+import { runApprovalReminders } from "./emailReminder.js";
 
 const INTERVAL_MS = 60_000; // check every 60 seconds
 
@@ -108,6 +109,15 @@ export function startScheduler(): void {
     METRICS_INTERVAL_MS
   );
 
+  // Run approval reminders hourly (24h / 48h / 72h after submission)
+  const REMINDER_INTERVAL_MS = 3_600_000;
+  runApprovalReminders().catch(err => console.error("[scheduler] approval reminders error:", err));
+  setInterval(
+    () => runApprovalReminders().catch(err => console.error("[scheduler] approval reminders error:", err)),
+    REMINDER_INTERVAL_MS
+  );
+
   console.log(`[scheduler] Post publisher started — checking every ${INTERVAL_MS / 1000}s`);
   console.log(`[scheduler] Metrics refresher started — running every ${METRICS_INTERVAL_MS / 3_600_000}h`);
+  console.log(`[scheduler] Approval reminder checker started — running every 1h`);
 }

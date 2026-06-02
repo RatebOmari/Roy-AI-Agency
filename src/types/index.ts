@@ -87,6 +87,7 @@ export interface AgencyClient {
   platforms: Platform[];
   replies: number;
   status: ClientStatus;
+  contentApprovalEnabled?: boolean;
 }
 
 export interface ApiError {
@@ -172,17 +173,32 @@ export interface ChannelBreakdown {
 
 // ── Content Scheduler ─────────────────────────────────────────────────────────
 
-export type PostStatus = "draft" | "scheduled" | "published" | "failed";
+export type PostStatus = "draft" | "scheduled" | "published" | "failed" | "pending_approval" | "changes_requested";
+
+export type ApprovalStatus = "not_required" | "pending" | "approved" | "changes_requested";
 
 export interface ScheduledPost {
   id: string;
+  userId?: string;
   platforms: Platform[];
   content: string;
-  mediaUrl?: string;
-  scheduledAt?: string;
+  mediaUrl?: string | null;
+  scheduledAt?: string | null;
   status: PostStatus;
   aiGenerated: boolean;
   createdAt: string;
+  // approval fields
+  approvalRequired?: boolean;
+  approvalStatus?: ApprovalStatus;
+  submittedForApprovalAt?: string | null;
+  approvedAt?: string | null;
+  approvalFeedback?: string | null;
+  overridePublished?: boolean;
+  overridePublishedBy?: string | null;
+  createdBy?: string | null;
+  // agency all-clients view extras
+  clientName?: string;
+  clientBusinessName?: string;
 }
 
 // ── Resources / Knowledge Base ────────────────────────────────────────────────

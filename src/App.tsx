@@ -22,6 +22,7 @@ import AgencyClients from "./pages/agency/Clients";
 import AgencyAnalytics from "./pages/agency/Analytics";
 import AgencySettings from "./pages/agency/Settings";
 import AgencyCommandCenter from "./pages/agency/CommandCenter";
+import AgencyContent from "./pages/agency/Content";
 import ClientOnboarding from "./pages/agency/ClientOnboarding";
 import AcceptInvite from "./pages/AcceptInvite";
 import TeamLogin from "./pages/TeamLogin";
@@ -136,6 +137,7 @@ export default function App() {
             <Route path="/agency/analytics"    element={<ProtectedRoute requiredRole="agency"><AgencyAnalytics /></ProtectedRoute>} />
             <Route path="/agency/settings"     element={<ProtectedRoute requiredRole="agency"><AgencySettings /></ProtectedRoute>} />
             <Route path="/agency/command"      element={<ProtectedRoute requiredRole="agency"><AgencyCommandCenter /></ProtectedRoute>} />
+            <Route path="/agency/content"     element={<ProtectedRoute requiredRole="agency"><AgencyContent /></ProtectedRoute>} />
 
             <Route path="*"                    element={<SmartFallback />} />
           </Routes>

@@ -40,6 +40,7 @@ const STATUS_STYLE: Record<PostStatus, string> = {
   scheduled:          "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
   published:          "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400",
   failed:             "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+  skipped:            "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-500",
   pending_approval:   "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
   changes_requested:  "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400",
 };
@@ -49,6 +50,7 @@ const STATUS_LABEL: Record<PostStatus, string> = {
   scheduled:          "Scheduled",
   published:          "Published",
   failed:             "Failed",
+  skipped:            "Not Published",
   pending_approval:   "Pending Approval",
   changes_requested:  "Changes Requested",
 };
@@ -483,6 +485,7 @@ const STATUS_BORDER: Record<PostStatus, string> = {
   scheduled:         "border-l-blue-500",
   published:         "border-l-green-500",
   failed:            "border-l-red-500",
+  skipped:           "border-l-yellow-500",
   pending_approval:  "border-l-amber-500",
   changes_requested: "border-l-orange-500",
 };
@@ -594,6 +597,11 @@ function ClientQueueTab({ posts }: { posts: ScheduledPost[] }) {
                         {post.status === "changes_requested" && post.approvalFeedback && (
                           <p className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 rounded-lg px-3 py-2 mt-1">
                             <span className="font-semibold">Your feedback:</span> {post.approvalFeedback}
+                          </p>
+                        )}
+                        {post.status === "skipped" && (
+                          <p className="text-xs text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg px-3 py-2 mt-1">
+                            ⚠ Post was not published. The targeted platform(s) require additional setup — connect Instagram or Facebook to enable auto-publishing.
                           </p>
                         )}
                       </div>

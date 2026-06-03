@@ -27,6 +27,7 @@ const STATUS_STYLE: Record<PostStatus, string> = {
   scheduled:         "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
   published:         "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400",
   failed:            "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+  skipped:           "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-500",
   pending_approval:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
   changes_requested: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400",
 };
@@ -36,6 +37,7 @@ const STATUS_LABEL: Record<PostStatus, string> = {
   scheduled:         "Scheduled",
   published:         "Published",
   failed:            "Failed",
+  skipped:           "Not Published",
   pending_approval:  "Pending Approval",
   changes_requested: "Changes Requested",
 };
@@ -45,6 +47,7 @@ const STATUS_BORDER: Record<PostStatus, string> = {
   scheduled:         "border-l-blue-500",
   published:         "border-l-green-500",
   failed:            "border-l-red-500",
+  skipped:           "border-l-yellow-500",
   pending_approval:  "border-l-amber-500",
   changes_requested: "border-l-orange-500",
 };

@@ -117,20 +117,35 @@ app.get("/:id/platforms", async (c) => {
 
   const creds = await db
     .select({
-      platform:    platformCredentials.platform,
-      feature:     platformCredentials.feature,
-      connectedAt: platformCredentials.connectedAt,
+      platform:       platformCredentials.platform,
+      feature:        platformCredentials.feature,
+      connectedAt:    platformCredentials.connectedAt,
+      expiresAt:      platformCredentials.expiresAt,
+      disconnectedAt: platformCredentials.disconnectedAt,
     })
     .from(platformCredentials)
     .where(eq(platformCredentials.userId, clientId));
 
+  const now = new Date();
   return c.json(
-    creds.map((cr) => ({
-      platform:    cr.platform,
-      feature:     cr.feature,
-      connected:   true,
-      connectedAt: cr.connectedAt,
-    }))
+    creds.map((cr) => {
+      const requiresReconnect =
+        cr.disconnectedAt != null ||
+        (cr.expiresAt != null && cr.expiresAt <= now);
+      const expiresInDays = cr.expiresAt
+        ? Math.round((cr.expiresAt.getTime() - now.getTime()) / 86_400_000)
+        : null;
+      return {
+        platform:        cr.platform,
+        feature:         cr.feature,
+        connected:       !requiresReconnect,
+        connectedAt:     cr.connectedAt,
+        expiresAt:       cr.expiresAt ?? null,
+        expiresInDays,
+        requiresReconnect,
+        disconnectedAt:  cr.disconnectedAt ?? null,
+      };
+    })
   );
 });
 

@@ -12,15 +12,90 @@
 import { db } from "../db/index.js";
 import { platformCredentials } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
-import { decryptToken } from "./crypto.js";
+import { decryptToken, encryptToken } from "./crypto.js";
 import { logger } from "./logger.js";
 
-type DeliveryResult =
+export type DeliveryResult =
   | { ok: true; sid?: string }
   | { ok: false; skipped: true; reason: string }
   | { ok: false; error: string };
 
-// ── Credential lookup ─────────────────────────────────────────────────────────
+// ── Meta token refresh ────────────────────────────────────────────────────────
+
+const META_PLATFORMS = new Set(["instagram", "facebook", "whatsapp"]);
+const TOKEN_REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // refresh if < 7 days remain
+
+async function refreshAndUpdateMetaToken(
+  userId: string,
+  platform: string,
+  feature: string,
+  currentToken: string,
+): Promise<string | null> {
+  const appId     = process.env.META_APP_ID;
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appId || !appSecret) return null; // can't refresh without app credentials
+
+  const url =
+    `https://graph.facebook.com/v19.0/oauth/access_token` +
+    `?grant_type=fb_exchange_token` +
+    `&client_id=${encodeURIComponent(appId)}` +
+    `&client_secret=${encodeURIComponent(appSecret)}` +
+    `&fb_exchange_token=${encodeURIComponent(currentToken)}`;
+
+  const res = await fetch(url).catch(() => null);
+  if (!res?.ok) return null;
+
+  const data = await res.json().catch(() => null) as {
+    access_token?: string;
+    expires_in?: number;
+  } | null;
+  if (!data?.access_token) return null;
+
+  const newExpiry = new Date(Date.now() + (data.expires_in ?? 60 * 86_400) * 1000);
+
+  await db
+    .update(platformCredentials)
+    .set({
+      accessTokenEnc: encryptToken(data.access_token),
+      expiresAt:      newExpiry,
+      disconnectedAt: null, // clear any previous disconnect marker
+    })
+    .where(
+      and(
+        eq(platformCredentials.userId, userId),
+        eq(platformCredentials.platform, platform as typeof platformCredentials.$inferSelect.platform),
+        eq(platformCredentials.feature,  feature  as typeof platformCredentials.$inferSelect.feature),
+      )
+    );
+
+  logger.info(
+    `[platform] Token refreshed for ${platform}/${feature} userId=${userId} ` +
+    `newExpiry=${newExpiry.toISOString()}`
+  );
+  return data.access_token;
+}
+
+async function markTokenExpired(
+  userId: string,
+  platform: string,
+  feature: string,
+): Promise<void> {
+  await db
+    .update(platformCredentials)
+    .set({ disconnectedAt: new Date() })
+    .where(
+      and(
+        eq(platformCredentials.userId, userId),
+        eq(platformCredentials.platform, platform as typeof platformCredentials.$inferSelect.platform),
+        eq(platformCredentials.feature,  feature  as typeof platformCredentials.$inferSelect.feature),
+      )
+    );
+  logger.warn(
+    `[platform] Token expired for ${platform}/${feature} userId=${userId} — reconnect required`
+  );
+}
+
+// ── Credential lookup (with Meta token refresh) ───────────────────────────────
 
 async function getToken(
   userId: string,
@@ -28,7 +103,10 @@ async function getToken(
   feature: "comments" | "messages" | "publishing"
 ): Promise<string | null> {
   const [cred] = await db
-    .select({ token: platformCredentials.accessTokenEnc })
+    .select({
+      token:     platformCredentials.accessTokenEnc,
+      expiresAt: platformCredentials.expiresAt,
+    })
     .from(platformCredentials)
     .where(
       and(
@@ -38,7 +116,32 @@ async function getToken(
       )
     )
     .limit(1);
-  return cred?.token ? decryptToken(cred.token) : null;
+
+  if (!cred?.token) return null;
+  const decrypted = decryptToken(cred.token);
+
+  // Proactive refresh for Meta platforms when token expires within 7 days
+  if (cred.expiresAt && META_PLATFORMS.has(platform)) {
+    const msToExpiry = cred.expiresAt.getTime() - Date.now();
+
+    if (msToExpiry < TOKEN_REFRESH_THRESHOLD_MS) {
+      const refreshed = await refreshAndUpdateMetaToken(userId, platform, feature, decrypted);
+      if (refreshed) return refreshed;
+
+      if (msToExpiry <= 0) {
+        // Token is past expiry and refresh failed — mark as requiring reconnect
+        await markTokenExpired(userId, platform, feature);
+        return null;
+      }
+      // Token still valid but refresh failed (e.g. META_APP_ID not configured) — use as-is
+      logger.warn(
+        `[platform] Token for ${platform}/${feature} expires in ${Math.round(msToExpiry / 86_400_000)}d ` +
+        `but refresh failed — set META_APP_ID to enable auto-refresh`
+      );
+    }
+  }
+
+  return decrypted;
 }
 
 async function getPublishingCred(
@@ -46,7 +149,11 @@ async function getPublishingCred(
   platform: "instagram" | "facebook"
 ): Promise<{ token: string; accountId: string | null } | null> {
   const [cred] = await db
-    .select({ token: platformCredentials.accessTokenEnc, scope: platformCredentials.scope })
+    .select({
+      token:     platformCredentials.accessTokenEnc,
+      scope:     platformCredentials.scope,
+      expiresAt: platformCredentials.expiresAt,
+    })
     .from(platformCredentials)
     .where(
       and(
@@ -56,12 +163,35 @@ async function getPublishingCred(
       )
     )
     .limit(1);
+
   if (!cred?.token) return null;
+  const decrypted = decryptToken(cred.token);
+
+  // Proactive refresh for Meta publishing tokens
+  let finalToken = decrypted;
+  if (cred.expiresAt) {
+    const msToExpiry = cred.expiresAt.getTime() - Date.now();
+    if (msToExpiry < TOKEN_REFRESH_THRESHOLD_MS) {
+      const refreshed = await refreshAndUpdateMetaToken(userId, platform, "publishing", decrypted);
+      if (refreshed) {
+        finalToken = refreshed;
+      } else if (msToExpiry <= 0) {
+        await markTokenExpired(userId, platform, "publishing");
+        return null;
+      } else {
+        logger.warn(
+          `[platform] Publishing token for ${platform} expires in ${Math.round(msToExpiry / 86_400_000)}d ` +
+          `but refresh failed — set META_APP_ID to enable auto-refresh`
+        );
+      }
+    }
+  }
+
   let accountId: string | null = null;
   if (cred.scope) {
     try { accountId = (JSON.parse(cred.scope) as { accountId?: string }).accountId ?? null; } catch {}
   }
-  return { token: decryptToken(cred.token), accountId };
+  return { token: finalToken, accountId };
 }
 
 // ── WhatsApp Business Cloud API ───────────────────────────────────────────────

@@ -173,7 +173,7 @@ export interface ChannelBreakdown {
 
 // ── Content Scheduler ─────────────────────────────────────────────────────────
 
-export type PostStatus = "draft" | "scheduled" | "published" | "failed" | "pending_approval" | "changes_requested";
+export type PostStatus = "draft" | "scheduled" | "published" | "failed" | "skipped" | "pending_approval" | "changes_requested";
 
 export type ApprovalStatus = "not_required" | "pending" | "approved" | "changes_requested";
 

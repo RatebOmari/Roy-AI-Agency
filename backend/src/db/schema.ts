@@ -61,6 +61,9 @@ export const platformCredentials = pgTable("platform_credentials", {
   expiresAt:       timestamp("expires_at"),
   scope:           text("scope"),
   connectedAt:     timestamp("connected_at").notNull().defaultNow(),
+  // Set by the scheduler when token refresh fails and the token has expired.
+  // Non-null means the credential requires reconnection.
+  disconnectedAt:  timestamp("disconnected_at"),
 });
 
 export const toneSettings = pgTable("tone_settings", {
@@ -111,9 +114,11 @@ export const messages = pgTable("messages", {
 
 // ── Content Scheduler ─────────────────────────────────────────────────────────
 
-// `status` tracks the scheduling lifecycle: draft → scheduled → published | failed.
+// `status` tracks the scheduling lifecycle: draft → scheduled → published | failed | skipped.
 // `pending_approval` and `changes_requested` are intermediate scheduling states
 // used when agency approval is required before the scheduler picks up the post.
+// `skipped` is set when all targeted platforms are currently unsupported for auto-publishing
+// (e.g. TikTok requires business API approval, WhatsApp requires Campaign API).
 //
 // `approvalStatus` tracks the agency-client approval workflow independently:
 // not_required | pending → approved | changes_requested.
@@ -121,7 +126,7 @@ export const messages = pgTable("messages", {
 // status will also have `approvalStatus = "pending"`. The scheduler only
 // publishes posts whose `status = "scheduled"`, so approval must set both fields.
 export const postStatusEnum = pgEnum("post_status", [
-  "draft", "scheduled", "published", "failed",
+  "draft", "scheduled", "published", "failed", "skipped",
   "pending_approval", "changes_requested",
 ]);
 

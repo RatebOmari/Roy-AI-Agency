@@ -9,12 +9,15 @@
     "start": "node dist/server.js",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "seed": "tsx src/db/seed.ts"
+    "seed": "tsx src/db/seed.ts",
+    "seed:demo": "tsx src/db/seed-demo.ts",
+    "seed:load": "tsx src/db/seed-load.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.8.0",
+    "@sentry/node": "^10.56.0",
     "bcryptjs": "^3.0.2",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.44.1",

@@ -1,4 +1,15 @@
 import "dotenv/config";
+import * as Sentry from "@sentry/node";
+
+// Initialize Sentry before anything else so it can instrument all imports.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn:              process.env.SENTRY_DSN,
+    environment:      process.env.NODE_ENV ?? "development",
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  });
+}
+
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
@@ -35,12 +46,14 @@ import outreachRoutes      from "./routes/outreach.js";
 
 process.on("unhandledRejection", (reason) => {
   logger.error({ err: reason }, "[server] Unhandled rejection");
+  Sentry.captureException(reason);
 });
 
 const app = new Hono();
 
 app.onError((err, c) => {
   logger.error({ err }, "[server] Unhandled error");
+  Sentry.captureException(err);
   return c.json({ message: "Internal server error" }, 500);
 });
 

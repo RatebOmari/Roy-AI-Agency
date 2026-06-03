@@ -33,3 +33,6 @@ export function rateLimit(maxRequests: number, windowMs: number) {
 
 // Convenience: 10 AI-generate calls per user per minute
 export const aiRateLimit = rateLimit(10, 60_000);
+
+// Strict: 2 outreach sends per user per minute (prevents accidental mass-send spam)
+export const outreachSendRateLimit = rateLimit(2, 60_000);

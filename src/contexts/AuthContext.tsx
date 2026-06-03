@@ -31,20 +31,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<User> => {
     setIsLoading(true);
 
-    const DEMO_PLATFORM_PERMISSIONS: User["platformPermissions"] = {
-      tiktok:    { comments: true,  messages: false },
-      instagram: { comments: true,  messages: true  },
-      facebook:  { comments: true,  messages: true  },
-      whatsapp:  { comments: false, messages: true  },
-      sms:       { comments: false, messages: true  },
-      phone:     { comments: false, messages: false },
-    };
-
-    const DEMO_ACCOUNTS: Record<string, { password: string; role: "client" | "agency"; name: string; businessName: string }> = {
-      "client@demo.com": { password: "demo123", role: "client", name: "Demo Business", businessName: "Raleigh Eats" },
-      "agency@demo.com": { password: "demo123", role: "agency", name: "Roy Agency",    businessName: "Roy AI Agency" },
-    };
-
     try {
       const data = await api.post<LoginResponse>("/auth/login", { email, password });
       // Token is set as httpOnly cookie by the server — only store user info
@@ -53,21 +39,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       return data.user;
     } catch (err) {
-      // Fall back to demo credentials when backend is unavailable
-      const demo = DEMO_ACCOUNTS[email.toLowerCase()];
-      if (demo && password === demo.password) {
-        const demoUser: User = {
-          id: "demo-" + demo.role,
-          email,
-          role: demo.role,
-          name: demo.name,
-          businessName: demo.businessName,
-          platformPermissions: demo.role === "client" ? DEMO_PLATFORM_PERMISSIONS : undefined,
+      // Demo fallback only available in development builds
+      if (import.meta.env.DEV) {
+        const DEMO_PLATFORM_PERMISSIONS: User["platformPermissions"] = {
+          tiktok:    { comments: true,  messages: false },
+          instagram: { comments: true,  messages: true  },
+          facebook:  { comments: true,  messages: true  },
+          whatsapp:  { comments: false, messages: true  },
+          sms:       { comments: false, messages: true  },
+          phone:     { comments: false, messages: false },
         };
-        authStorage.setUser(demoUser);
-        authStorage.setDemoMode(true);
-        setUser(demoUser);
-        return demoUser;
+
+        const DEMO_ACCOUNTS: Record<string, { password: string; role: "client" | "agency"; name: string; businessName: string }> = {
+          "client@demo.com": { password: "demo123", role: "client", name: "Demo Business", businessName: "Raleigh Eats" },
+          "agency@demo.com": { password: "demo123", role: "agency", name: "Roy Agency",    businessName: "Roy AI Agency" },
+        };
+
+        const demo = DEMO_ACCOUNTS[email.toLowerCase()];
+        if (demo && password === demo.password) {
+          const demoUser: User = {
+            id: "demo-" + demo.role,
+            email,
+            role: demo.role,
+            name: demo.name,
+            businessName: demo.businessName,
+            platformPermissions: demo.role === "client" ? DEMO_PLATFORM_PERMISSIONS : undefined,
+          };
+          authStorage.setUser(demoUser);
+          authStorage.setDemoMode(true);
+          setUser(demoUser);
+          return demoUser;
+        }
       }
       throw err;
     } finally {

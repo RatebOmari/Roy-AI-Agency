@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, ilike } from "drizzle-orm";
+import { eq, and, ilike, count } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { contacts } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -29,13 +29,17 @@ function serializeContact(row: typeof contacts.$inferSelect) {
   };
 }
 
-// GET / — list contacts (optional ?search=, ?tag=, ?platform=)
+// GET / — list contacts (optional ?search=, ?tag=, ?platform=, ?page=1, ?limit=50)
 app.get("/", async (c) => {
-  const user     = c.get("user");
-  const search   = c.req.query("search")   ?? "";
-  const tagFilter    = c.req.query("tag")      ?? "";
-  const platform = c.req.query("platform") ?? "";
+  const user      = c.get("user");
+  const search    = c.req.query("search")   ?? "";
+  const tagFilter = c.req.query("tag")      ?? "";
+  const platform  = c.req.query("platform") ?? "";
+  const page      = Math.max(1, parseInt(c.req.query("page")  ?? "1"));
+  const limit     = Math.min(100, Math.max(1, parseInt(c.req.query("limit") ?? "50")));
+  const offset    = (page - 1) * limit;
 
+  // Load all scoped rows for in-memory filter (search/tag/platform use JSON text fields)
   let rows = await db
     .select()
     .from(contacts)
@@ -60,7 +64,14 @@ app.get("/", async (c) => {
     );
   }
 
-  return c.json(rows.map(serializeContact).reverse()); // newest first
+  rows.reverse(); // newest first
+  const total   = rows.length;
+  const pageRows = rows.slice(offset, offset + limit);
+
+  return c.json({
+    data: pageRows.map(serializeContact),
+    pagination: { page, limit, total, hasMore: offset + pageRows.length < total },
+  });
 });
 
 // GET /:id

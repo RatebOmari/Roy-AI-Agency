@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { conversations, messages, listeningKeywords, listeningMentions } from "../db/schema.js";
@@ -31,6 +31,22 @@ function verifyHmacSha256(
   let diff = 0;
   for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
   return diff === 0;
+}
+
+function verifyTwilioSmsSignature(
+  authToken: string,
+  url: string,
+  params: Record<string, string>,
+  signature: string,
+): boolean {
+  const sortedKeys = Object.keys(params).sort();
+  const str = url + sortedKeys.map(k => k + params[k]).join("");
+  const expected = createHmac("sha1", authToken).update(str).digest("base64");
+  try {
+    return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  } catch {
+    return false;
+  }
 }
 
 /** Normalised inbound event extracted from any platform payload */
@@ -272,9 +288,19 @@ app.post("/:platform/:userId", async (c) => {
   const rawBody  = await c.req.text();
 
   // ── Signature verification ──────────────────────────────────────────────────
-  // SMS (Twilio) uses X-Twilio-Signature (HMAC-SHA1) — skip here, handled separately if needed.
-  // For Meta and TikTok verify HMAC-SHA256.
-  if (platform !== "sms") {
+  if (platform === "sms") {
+    // Twilio SMS uses X-Twilio-Signature (HMAC-SHA1)
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    if (authToken) {
+      const sig    = c.req.header("x-twilio-signature") ?? "";
+      const params = Object.fromEntries(new URLSearchParams(rawBody).entries());
+      if (!verifyTwilioSmsSignature(authToken, c.req.url, params, sig)) {
+        console.warn(`[webhook] Twilio SMS signature mismatch for ${userId}`);
+        return c.json({ message: "Invalid signature" }, 401);
+      }
+    }
+  } else {
+    // Meta and TikTok use HMAC-SHA256
     const appSecret = process.env.META_APP_SECRET ?? process.env.TIKTOK_CLIENT_SECRET;
     if (appSecret) {
       const sigHeader =

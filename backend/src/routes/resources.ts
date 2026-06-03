@@ -84,11 +84,32 @@ app.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+]);
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+
 // POST /upload — save document to disk, return accessible URL
 app.post("/upload", async (c) => {
   const body = await c.req.parseBody();
   const file = body["file"] as File | undefined;
   if (!file) return c.json({ message: "No file provided" }, 400);
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return c.json({ message: "File too large — maximum size is 10 MB" }, 413);
+  }
+
+  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    return c.json({ message: "File type not allowed" }, 415);
+  }
 
   // Sanitise filename — keep only safe characters
   const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;

@@ -6,18 +6,26 @@ interface ContactFilters {
   search?:   string;
   tag?:      string;
   platform?: string;
+  page?:     number;
 }
 
 export function useContacts(filters?: ContactFilters) {
+  const page = filters?.page ?? 1;
   const params = new URLSearchParams();
   if (filters?.search)   params.set("search",   filters.search);
   if (filters?.tag)      params.set("tag",       filters.tag);
   if (filters?.platform) params.set("platform",  filters.platform);
+  params.set("page",  String(page));
+  params.set("limit", "50");
 
-  const qs = params.toString();
   return useQuery({
-    queryKey: ["contacts", filters?.search ?? "", filters?.tag ?? "", filters?.platform ?? ""],
-    queryFn:  () => api.get<Contact[]>(`/contacts${qs ? `?${qs}` : ""}`),
+    queryKey: ["contacts", filters?.search ?? "", filters?.tag ?? "", filters?.platform ?? "", page],
+    queryFn: async () => {
+      const result = await api.get<{ data: Contact[]; pagination: { page: number; limit: number; total: number; hasMore: boolean } }>(
+        `/contacts?${params.toString()}`
+      );
+      return result?.data ?? (result as unknown as Contact[]);
+    },
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });

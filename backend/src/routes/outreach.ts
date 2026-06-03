@@ -7,7 +7,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, count } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
 import {
@@ -20,7 +20,7 @@ import {
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
-import { aiRateLimit } from "../middleware/rateLimit.js";
+import { aiRateLimit, outreachSendRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
 import { sendWhatsAppMessage } from "../lib/platformDelivery.js";
 import { createMiddleware } from "hono/factory";
@@ -278,13 +278,28 @@ app.post("/generate", aiRateLimit, zValidator("json", generateSchema), async (c)
 // ── GET / — list outreach for current user ────────────────────────────────────
 
 app.get("/", async (c) => {
-  const user = c.get("user");
+  const user   = c.get("user");
+  const page   = Math.max(1, parseInt(c.req.query("page")  ?? "1"));
+  const limit  = Math.min(100, Math.max(1, parseInt(c.req.query("limit") ?? "50")));
+  const offset = (page - 1) * limit;
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(outreachMessages)
+    .where(eq(outreachMessages.userId, user.sub));
+
   const rows = await db
     .select()
     .from(outreachMessages)
     .where(eq(outreachMessages.userId, user.sub))
-    .orderBy(desc(outreachMessages.createdAt));
-  return c.json(rows);
+    .orderBy(desc(outreachMessages.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return c.json({
+    data: rows,
+    pagination: { page, limit, total, hasMore: offset + rows.length < total },
+  });
 });
 
 // ── POST / — create new outreach ──────────────────────────────────────────────
@@ -407,9 +422,9 @@ app.delete("/:id", async (c) => {
 
 // ── POST /:id/send — send immediately ────────────────────────────────────────
 
-app.post("/:id/send", async (c) => {
+app.post("/:id/send", outreachSendRateLimit, async (c) => {
   const user = c.get("user");
-  const id   = c.req.param("id");
+  const id   = c.req.param("id") as string;
 
   const [outreach] = await db
     .select()
@@ -532,24 +547,25 @@ app.post("/:id/send", async (c) => {
       }
     }
 
-    // Bulk-insert results
-    if (resultRows.length > 0) {
-      await db.insert(outreachResults).values(resultRows);
-    }
-
-    // Update outreach record
-    const [updated] = await db
-      .update(outreachMessages)
-      .set({
-        status:        "sent",
-        sentAt:        new Date(),
-        actualReach:   audience.length,
-        sentCount,
-        deliveredCount,
-        failedCount,
-      })
-      .where(eq(outreachMessages.id, id))
-      .returning();
+    // Persist results and update counters atomically
+    const updated = await db.transaction(async (tx) => {
+      if (resultRows.length > 0) {
+        await tx.insert(outreachResults).values(resultRows);
+      }
+      const [row] = await tx
+        .update(outreachMessages)
+        .set({
+          status:        "sent",
+          sentAt:        new Date(),
+          actualReach:   audience.length,
+          sentCount,
+          deliveredCount,
+          failedCount,
+        })
+        .where(eq(outreachMessages.id, id))
+        .returning();
+      return row;
+    });
 
     return c.json(updated);
   } catch (err) {

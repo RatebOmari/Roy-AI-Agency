@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, count } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { replyTemplates } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -13,15 +13,30 @@ const app = new Hono();
 app.use("*", authMiddleware);
 app.use("*", clientContextMiddleware);
 
-// GET / — list all templates for user, ordered by createdAt desc
+// GET / — list all templates for user, ordered by createdAt desc (?page=1&limit=50)
 app.get("/", async (c) => {
-  const user = c.get("user");
+  const user   = c.get("user");
+  const page   = Math.max(1, parseInt(c.req.query("page")  ?? "1"));
+  const limit  = Math.min(100, Math.max(1, parseInt(c.req.query("limit") ?? "50")));
+  const offset = (page - 1) * limit;
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(replyTemplates)
+    .where(eq(replyTemplates.userId, user.sub));
+
   const rows = await db
     .select()
     .from(replyTemplates)
     .where(eq(replyTemplates.userId, user.sub))
-    .orderBy(desc(replyTemplates.createdAt));
-  return c.json(rows);
+    .orderBy(desc(replyTemplates.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return c.json({
+    data: rows,
+    pagination: { page, limit, total, hasMore: offset + rows.length < total },
+  });
 });
 
 const templateSchema = z.object({

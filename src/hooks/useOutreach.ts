@@ -91,8 +91,10 @@ export function useOutreachMessages() {
     queryKey: ["outreach"],
     queryFn: async () => {
       try {
-        const result = await api.get<OutreachMessage[]>("/outreach");
-        return Array.isArray(result) ? result : MOCK_OUTREACH;
+        const result = await api.get<{ data: OutreachMessage[]; pagination: { page: number; limit: number; total: number; hasMore: boolean } }>(
+          "/outreach?limit=50"
+        );
+        return result?.data ?? (result as unknown as OutreachMessage[]);
       } catch {
         return MOCK_OUTREACH;
       }

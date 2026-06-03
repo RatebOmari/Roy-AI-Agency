@@ -67,9 +67,12 @@ export function useComments(filter: CommentsFilter = {}) {
       try {
         const params = new URLSearchParams();
         if (filter.platform && filter.platform !== "all") params.set("platform", filter.platform);
-        if (filter.status && filter.status !== "all") params.set("status", filter.status);
-        const query = params.toString();
-        return await api.get<Comment[]>(`/comments${query ? `?${query}` : ""}`);
+        if (filter.status   && filter.status   !== "all") params.set("status",   filter.status);
+        params.set("limit", "50");
+        const result = await api.get<{ data: Comment[]; pagination: { page: number; limit: number; total: number; hasMore: boolean } }>(
+          `/comments?${params.toString()}`
+        );
+        return result?.data ?? (result as unknown as Comment[]);
       } catch {
         return MOCK_COMMENTS.filter(c => {
           if (filter.platform && filter.platform !== "all" && c.platform !== filter.platform) return false;

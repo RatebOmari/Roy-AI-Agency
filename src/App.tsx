@@ -114,7 +114,7 @@ class ErrorBoundary extends React.Component<
             <p className="text-foreground font-semibold">Something went wrong</p>
             <p className="text-muted-foreground text-sm">{this.state.error.message}</p>
             <button
-              onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+              onClick={() => { this.setState({ error: null }); window.location.replace("/?reset=1"); }}
               className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium"
             >
               Reload

@@ -93,31 +93,38 @@ async function publishDuePosts(): Promise<void> {
 
 const METRICS_INTERVAL_MS = 6 * 3_600_000; // refresh metrics every 6 hours
 
-export function startScheduler(): void {
+export function startScheduler(): () => void {
   // Run once immediately in case posts were due while the server was down
   publishDuePosts().catch(err => console.error("[scheduler] Initial run error:", err));
 
-  setInterval(
-    () => publishDuePosts().catch(err => console.error("[scheduler] Error:", err)),
-    INTERVAL_MS
-  );
+  const publishInterval = setInterval(async () => {
+    try { await publishDuePosts(); }
+    catch (err) { console.error("[scheduler] Error:", err); }
+  }, INTERVAL_MS);
 
   // Refresh post metrics for recently published posts
   refreshRecentMetrics().catch(err => console.error("[scheduler] metrics refresh error:", err));
-  setInterval(
-    () => refreshRecentMetrics().catch(err => console.error("[scheduler] metrics refresh error:", err)),
-    METRICS_INTERVAL_MS
-  );
+  const metricsInterval = setInterval(async () => {
+    try { await refreshRecentMetrics(); }
+    catch (err) { console.error("[scheduler] metrics refresh error:", err); }
+  }, METRICS_INTERVAL_MS);
 
   // Run approval reminders hourly (24h / 48h / 72h after submission)
   const REMINDER_INTERVAL_MS = 3_600_000;
   runApprovalReminders().catch(err => console.error("[scheduler] approval reminders error:", err));
-  setInterval(
-    () => runApprovalReminders().catch(err => console.error("[scheduler] approval reminders error:", err)),
-    REMINDER_INTERVAL_MS
-  );
+  const remindersInterval = setInterval(async () => {
+    try { await runApprovalReminders(); }
+    catch (err) { console.error("[scheduler] approval reminders error:", err); }
+  }, REMINDER_INTERVAL_MS);
 
   console.log(`[scheduler] Post publisher started — checking every ${INTERVAL_MS / 1000}s`);
   console.log(`[scheduler] Metrics refresher started — running every ${METRICS_INTERVAL_MS / 3_600_000}h`);
   console.log(`[scheduler] Approval reminder checker started — running every 1h`);
+
+  return () => {
+    clearInterval(publishInterval);
+    clearInterval(metricsInterval);
+    clearInterval(remindersInterval);
+    console.log("[scheduler] Stopped");
+  };
 }

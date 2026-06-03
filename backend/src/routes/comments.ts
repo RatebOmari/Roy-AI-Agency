@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
 import { comments, toneSettings } from "../db/schema.js";
@@ -33,33 +33,46 @@ function toFloat(n: number | null | undefined): number | undefined {
 // ── List comments ─────────────────────────────────────────────────────────────
 
 app.get("/", async (c) => {
-  const user = c.get("user");
+  const user     = c.get("user");
   const platform = c.req.query("platform");
   const status   = c.req.query("status");
+  const page     = Math.max(1, parseInt(c.req.query("page")  ?? "1"));
+  const limit    = Math.min(100, Math.max(1, parseInt(c.req.query("limit") ?? "50")));
+  const offset   = (page - 1) * limit;
 
-  let query = db
+  type PlatformVal = typeof comments.$inferSelect.platform;
+  type StatusVal   = typeof comments.$inferSelect.status;
+
+  const conditions = [eq(comments.userId, user.sub)];
+  if (platform) conditions.push(eq(comments.platform, platform as PlatformVal));
+  if (status)   conditions.push(eq(comments.status,   status   as StatusVal));
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(comments)
+    .where(and(...conditions));
+
+  const rows = await db
     .select()
     .from(comments)
-    .where(eq(comments.userId, user.sub))
+    .where(and(...conditions))
     .orderBy(desc(comments.timestamp))
-    .$dynamic();
+    .limit(limit)
+    .offset(offset);
 
-  const rows = await query;
-
-  const filtered = rows
-    .filter(r => !platform || r.platform === platform)
-    .filter(r => !status   || r.status   === status);
-
-  return c.json(filtered.map(r => ({
-    id:            r.id,
-    platform:      r.platform,
-    username:      r.username,
-    text:          r.text,
-    aiReply:       r.aiReply,
-    aiConfidence:  toFloat(r.aiConfidence),
-    status:        r.status,
-    timestamp:     r.timestamp.toISOString(),
-  })));
+  return c.json({
+    data: rows.map(r => ({
+      id:           r.id,
+      platform:     r.platform,
+      username:     r.username,
+      text:         r.text,
+      aiReply:      r.aiReply,
+      aiConfidence: toFloat(r.aiConfidence),
+      status:       r.status,
+      timestamp:    r.timestamp.toISOString(),
+    })),
+    pagination: { page, limit, total, hasMore: offset + rows.length < total },
+  });
 });
 
 // ── Approve / reject / edit ───────────────────────────────────────────────────

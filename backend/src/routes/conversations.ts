@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
 import { conversations, messages, toneSettings } from "../db/schema.js";
@@ -49,21 +49,32 @@ function toConfidenceFloat(n: number | null | undefined): number | undefined {
 }
 
 app.get("/", async (c) => {
-  const user = c.get("user");
+  const user  = c.get("user");
+  const page  = Math.max(1, parseInt(c.req.query("page")  ?? "1"));
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query("limit") ?? "50")));
+  const offset = (page - 1) * limit;
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(conversations)
+    .where(eq(conversations.userId, user.sub));
 
   const convRows = await db
     .select()
     .from(conversations)
     .where(eq(conversations.userId, user.sub))
-    .orderBy(desc(conversations.lastMessageAt));
+    .orderBy(desc(conversations.lastMessageAt))
+    .limit(limit)
+    .offset(offset);
 
-  const result = await Promise.all(
+  const data = await Promise.all(
     convRows.map(async (conv) => {
       const msgs = await db
         .select()
         .from(messages)
         .where(eq(messages.convId, conv.id))
-        .orderBy(messages.timestamp);
+        .orderBy(desc(messages.timestamp))
+        .limit(50);
 
       return {
         id:            conv.id,
@@ -78,7 +89,7 @@ app.get("/", async (c) => {
         priority:      conv.priority,
         assignedTo:    conv.assignedTo ?? undefined,
         tags:          conv.tags,
-        messages:      msgs.map((m) => ({
+        messages:      msgs.reverse().map((m) => ({
           id:             m.id,
           conversationId: conv.id,
           direction:      m.direction,
@@ -94,7 +105,62 @@ app.get("/", async (c) => {
     })
   );
 
-  return c.json(result);
+  return c.json({
+    data,
+    pagination: { page, limit, total, hasMore: offset + data.length < total },
+  });
+});
+
+// GET /:id/messages — load older messages with cursor pagination
+app.get("/:id/messages", async (c) => {
+  const user   = c.get("user");
+  const convId = c.req.param("id");
+  const before = c.req.query("before"); // messageId cursor
+  const limit  = Math.min(50, Math.max(1, parseInt(c.req.query("limit") ?? "50")));
+
+  const [conv] = await db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(and(eq(conversations.id, convId), eq(conversations.userId, user.sub)))
+    .limit(1);
+  if (!conv) return c.json({ message: "Conversation not found" }, 404);
+
+  let baseQuery = db
+    .select()
+    .from(messages)
+    .where(eq(messages.convId, convId))
+    .orderBy(desc(messages.timestamp))
+    .limit(limit)
+    .$dynamic();
+
+  if (before) {
+    const [cursor] = await db
+      .select({ timestamp: messages.timestamp })
+      .from(messages)
+      .where(and(eq(messages.id, before), eq(messages.convId, convId)))
+      .limit(1);
+    if (cursor) {
+      const { lt } = await import("drizzle-orm");
+      baseQuery = baseQuery.where(lt(messages.timestamp, cursor.timestamp));
+    }
+  }
+
+  const rows = await baseQuery;
+  return c.json({
+    data: rows.reverse().map((m) => ({
+      id:             m.id,
+      conversationId: convId,
+      direction:      m.direction,
+      content:        m.content,
+      aiReply:        m.aiReply ?? undefined,
+      aiConfidence:   toConfidenceFloat(m.aiConfidence),
+      replyStatus:    m.replyStatus ?? undefined,
+      sentBy:         m.sentBy ?? undefined,
+      timestamp:      m.timestamp.toISOString(),
+      mediaUrl:       m.mediaUrl ?? undefined,
+    })),
+    hasMore: rows.length === limit,
+  });
 });
 
 // ── Generate AI reply for a conversation ─────────────────────────────────────

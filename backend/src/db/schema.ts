@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, uuid, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, uuid, pgEnum, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const roleEnum       = pgEnum("role",        ["client", "agency"]);
@@ -89,7 +89,10 @@ export const conversations = pgTable("conversations", {
   assignedTo:    text("assigned_to"),
   tags:          text("tags").array().notNull().default([]),
   createdAt:     timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => ({
+  userIdIdx: index("conversations_user_id_idx").on(t.userId),
+  statusIdx: index("conversations_status_idx").on(t.status),
+}));
 
 export const messages = pgTable("messages", {
   id:           uuid("id").primaryKey().defaultRandom(),
@@ -102,7 +105,9 @@ export const messages = pgTable("messages", {
   sentBy:       sentByEnum("sent_by"),
   mediaUrl:     text("media_url"),
   timestamp:    timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => ({
+  convIdIdx: index("messages_conv_id_idx").on(t.convId),
+}));
 
 // ── Content Scheduler ─────────────────────────────────────────────────────────
 
@@ -136,7 +141,10 @@ export const scheduledPosts = pgTable("scheduled_posts", {
   approvalFeedback:        text("approval_feedback"),
   overridePublished:       boolean("override_published").notNull().default(false),
   overridePublishedBy:     uuid("override_published_by").references(() => users.id, { onDelete: "set null" }),
-});
+}, (t) => ({
+  userIdIdx: index("scheduled_posts_user_id_idx").on(t.userId),
+  statusIdx: index("scheduled_posts_status_idx").on(t.status),
+}));
 
 // ── Resources / Knowledge Base ────────────────────────────────────────────────
 
@@ -197,7 +205,9 @@ export const outreachMessages = pgTable("outreach_messages", {
   scheduledAt:     timestamp("scheduled_at"),
   sentAt:          timestamp("sent_at"),
   createdAt:       timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => ({
+  userIdIdx: index("outreach_messages_user_id_idx").on(t.userId),
+}));
 
 export const outreachResults = pgTable("outreach_results", {
   id:             uuid("id").primaryKey().defaultRandom(),
@@ -284,7 +294,9 @@ export const listeningMentions = pgTable("listening_mentions", {
   handled:    boolean("handled").notNull().default(false),
   handledAt:  timestamp("handled_at"),
   timestamp:  timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => ({
+  userIdIdx: index("listening_mentions_user_id_idx").on(t.userId),
+}));
 
 // ── Brand Settings ────────────────────────────────────────────────────────────
 
@@ -345,7 +357,9 @@ export const contacts = pgTable("contacts", {
   totalConversations: integer("total_conversations").notNull().default(0),
   lastSeenAt:         timestamp("last_seen_at").notNull().defaultNow(),
   createdAt:          timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => ({
+  userIdIdx: index("contacts_user_id_idx").on(t.userId),
+}));
 
 // ── Automation Rules ─────────────────────────────────────────────────────────
 
@@ -404,7 +418,9 @@ export const clientInvites = pgTable("client_invites", {
   expiresAt: timestamp("expires_at").notNull(),
   usedAt:    timestamp("used_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => ({
+  clientIdIdx: index("client_invites_client_id_idx").on(t.clientId),
+}));
 
 // ── Email Reminders (approval flow) ──────────────────────────────────────────
 
@@ -432,4 +448,6 @@ export const comments = pgTable("comments", {
   platformVideoId:   text("platform_video_id"),
   timestamp:         timestamp("timestamp").notNull().defaultNow(),
   createdAt:         timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => ({
+  userIdIdx: index("comments_user_id_idx").on(t.userId),
+}));

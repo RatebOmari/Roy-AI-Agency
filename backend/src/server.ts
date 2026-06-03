@@ -5,6 +5,8 @@ import { Hono } from "hono";
 import { startScheduler } from "./lib/scheduler.js";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { sql } from "drizzle-orm";
+import { db, sqlClient } from "./db/index.js";
 import authRoutes          from "./routes/auth.js";
 import settingsRoutes      from "./routes/settings.js";
 import clientsRoutes       from "./routes/clients.js";
@@ -28,7 +30,18 @@ import webhookRoutes       from "./routes/webhook.js";
 import agencyRoutes        from "./routes/agency.js";
 import outreachRoutes      from "./routes/outreach.js";
 
+// ── Global unhandled rejection safety net ─────────────────────────────────────
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[server] Unhandled rejection:", reason);
+});
+
 const app = new Hono();
+
+app.onError((err, c) => {
+  console.error("[server] Unhandled error:", err);
+  return c.json({ message: "Internal server error" }, 500);
+});
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5174,http://localhost:5173").split(",").map(s => s.trim());
 
@@ -41,8 +54,15 @@ app.use("*", cors({
 
 app.use("*", logger());
 
-// Health check
-app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
+// Health check with DB liveness
+app.get("/health", async (c) => {
+  try {
+    await db.execute(sql`SELECT 1`);
+    return c.json({ ok: true, db: "connected", ts: new Date().toISOString() });
+  } catch {
+    return c.json({ ok: false, db: "error", ts: new Date().toISOString() }, 503);
+  }
+});
 
 // Serve uploaded files (documents from Knowledge Base)
 app.use("/uploads/*", serveStatic({ root: "./" }));
@@ -97,6 +117,25 @@ if (!process.env.RESEND_API_KEY) {
 const port = Number(process.env.PORT ?? 3001);
 console.log(`🚀 SocialPilot backend running on port ${port}`);
 
-serve({ fetch: app.fetch, port });
+const server = serve({ fetch: app.fetch, port });
 
-startScheduler();
+const stopScheduler = startScheduler();
+
+// ── Graceful SIGTERM shutdown ──────────────────────────────────────────────────
+
+process.on("SIGTERM", () => {
+  console.log("[server] SIGTERM received — graceful shutdown initiated");
+
+  const forceExitTimer = setTimeout(() => {
+    console.error("[server] Shutdown timeout — forcing exit");
+    process.exit(1);
+  }, 10_000);
+
+  server.close(() => {
+    clearTimeout(forceExitTimer);
+    stopScheduler();
+    sqlClient.end()
+      .then(() => { console.log("[server] DB pool closed"); process.exit(0); })
+      .catch(() => process.exit(0));
+  });
+});

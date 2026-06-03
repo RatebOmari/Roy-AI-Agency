@@ -3,7 +3,17 @@ import { createMiddleware } from "hono/factory";
 
 // In-memory sliding-window rate limiter keyed by userId + route path.
 // Timestamps older than the window are pruned on each request.
+// Note: for multi-instance deployments, replace with Redis/Upstash.
 const windows = new Map<string, number[]>();
+
+// Prune keys whose timestamps are all expired — prevents unbounded Map growth.
+const MAX_WINDOW_MS = 60_000;
+setInterval(() => {
+  const cutoff = Date.now() - MAX_WINDOW_MS;
+  for (const [key, timestamps] of windows.entries()) {
+    if (timestamps.every(t => t <= cutoff)) windows.delete(key);
+  }
+}, 10 * 60_000); // run every 10 minutes
 
 export function rateLimit(maxRequests: number, windowMs: number) {
   return createMiddleware(async (c: Context, next: Next) => {

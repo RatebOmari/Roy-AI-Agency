@@ -14,6 +14,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { chatbotFlows, conversations, messages, flowSessions } from "../db/schema.js";
 import { deliverReply, type DeliveryChannel } from "./platformDelivery.js";
+import { logger } from "./logger.js";
 
 type DBFlow         = InferSelectModel<typeof chatbotFlows>;
 type DBConversation = InferSelectModel<typeof conversations>;
@@ -189,7 +190,7 @@ async function sendFlowMessage(state: FlowState, text: string): Promise<void> {
     text,
   });
   if (!result.ok && "error" in result) {
-    console.error(`[flowEngine] delivery failed: ${result.error}`);
+    logger.error(`[flowEngine] delivery failed: ${result.error}`);
   }
 }
 
@@ -256,7 +257,7 @@ async function runStepsFrom(
           .set({ status: "open" })
           .where(eq(conversations.id, conversationId));
         await clearFlowSession(conversationId);
-        console.log(`[flowEngine] handoff → conv ${conversationId} is now open`);
+        logger.info(`[flowEngine] handoff → conv ${conversationId} is now open`);
         return;
       }
     }

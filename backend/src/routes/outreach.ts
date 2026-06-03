@@ -10,6 +10,7 @@ import { z } from "zod";
 import { eq, and, desc, inArray, count } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import {
   outreachMessages,
   outreachResults,
@@ -263,7 +264,7 @@ app.post("/generate", aiRateLimit, zValidator("json", generateSchema), async (c)
     }
     return c.json({ body: parsed.body ?? "" });
   } catch (err) {
-    console.error("[outreach/generate] AI generation failed:", err);
+    logger.error({ err }, "[outreach/generate] AI generation failed");
     // Graceful fallback
     if (body.channel === "email") {
       return c.json({
@@ -493,7 +494,7 @@ app.post("/:id/send", outreachSendRateLimit, async (c) => {
           });
         } else if ("skipped" in result) {
           // No credential — log and count as failed
-          console.log(`[outreach/send] WhatsApp skipped for ${contact.name}: ${result.reason}`);
+          logger.info(`[outreach/send] WhatsApp skipped for ${contact.name}: ${result.reason}`);
           failedCount++;
           resultRows.push({
             outreachId:    outreach.id,
@@ -518,7 +519,7 @@ app.post("/:id/send", outreachSendRateLimit, async (c) => {
         }
       } else if (outreach.channel === "sms") {
         // SMS: log to console (real delivery outside scope)
-        console.log(`[outreach/send] Would send SMS to ${contact.name} (${contact.phone}): ${outreach.messageBody}`);
+        logger.info(`[outreach/send] Would send SMS to ${contact.name} (${contact.phone}): ${outreach.messageBody}`);
         sentCount++;
         deliveredCount++;
         resultRows.push({
@@ -532,7 +533,7 @@ app.post("/:id/send", outreachSendRateLimit, async (c) => {
         });
       } else if (outreach.channel === "email") {
         // Email: log to console (real delivery outside scope)
-        console.log(`[outreach/send] Would send Email to ${contact.name} (${contact.email}) subject="${outreach.subject}": ${outreach.messageBody}`);
+        logger.info(`[outreach/send] Would send Email to ${contact.name} (${contact.email}) subject="${outreach.subject}": ${outreach.messageBody}`);
         sentCount++;
         deliveredCount++;
         resultRows.push({
@@ -569,7 +570,7 @@ app.post("/:id/send", outreachSendRateLimit, async (c) => {
 
     return c.json(updated);
   } catch (err) {
-    console.error("[outreach/send] Send failed:", err);
+    logger.error({ err }, "[outreach/send] Send failed");
     await db
       .update(outreachMessages)
       .set({ status: "failed" })

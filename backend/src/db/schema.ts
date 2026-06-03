@@ -111,6 +111,15 @@ export const messages = pgTable("messages", {
 
 // ── Content Scheduler ─────────────────────────────────────────────────────────
 
+// `status` tracks the scheduling lifecycle: draft → scheduled → published | failed.
+// `pending_approval` and `changes_requested` are intermediate scheduling states
+// used when agency approval is required before the scheduler picks up the post.
+//
+// `approvalStatus` tracks the agency-client approval workflow independently:
+// not_required | pending → approved | changes_requested.
+// The two columns overlap semantically — a post in `pending_approval` scheduling
+// status will also have `approvalStatus = "pending"`. The scheduler only
+// publishes posts whose `status = "scheduled"`, so approval must set both fields.
 export const postStatusEnum = pgEnum("post_status", [
   "draft", "scheduled", "published", "failed",
   "pending_approval", "changes_requested",

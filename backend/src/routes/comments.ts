@@ -4,6 +4,7 @@ import { z } from "zod";
 import { eq, and, desc, count } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import { comments, toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
@@ -121,7 +122,7 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
       text:              replyText,
     })
       .then(result => logDelivery(result, `comment ${id} → ${comment.platform}`))
-      .catch(err => console.error("[delivery] Unexpected error:", err));
+      .catch(err => logger.error({ err }, "[delivery] Unexpected error"));
   }
 
   return c.json({ ok: true });
@@ -250,7 +251,7 @@ app.post("/generate-reply", aiRateLimit, zValidator("json", generateReplySchema)
       text:              reply,
     })
       .then(result => logDelivery(result, `auto comment ${commentId} → ${comment.platform}`))
-      .catch(err => console.error("[delivery] Unexpected error:", err));
+      .catch(err => logger.error({ err }, "[delivery] Unexpected error"));
   }
 
   return c.json({

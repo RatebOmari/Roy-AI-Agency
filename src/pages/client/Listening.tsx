@@ -28,21 +28,7 @@ import {
   Loader2,
 } from "lucide-react";
 
-// ── Platform config ────────────────────────────────────────────────────────────
-
-const PLATFORM_COLORS: Record<Platform, string> = {
-  instagram: "bg-pink-500",
-  tiktok: "bg-black",
-  facebook: "bg-blue-600",
-  whatsapp: "bg-green-500",
-};
-
-const PLATFORM_LABELS: Record<Platform, string> = {
-  instagram: "Instagram",
-  tiktok: "TikTok",
-  facebook: "Facebook",
-  whatsapp: "WhatsApp",
-};
+import { PLATFORM_CONFIG } from "@/constants/platforms";
 
 const ALL_PLATFORMS: Platform[] = ["instagram", "tiktok", "facebook", "whatsapp"];
 
@@ -163,8 +149,8 @@ function MentionCard({ mention, handled, onMarkHandled }: MentionCardProps) {
       {/* Top row */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${PLATFORM_COLORS[mention.platform]}`} />
-          <span className="text-xs font-medium text-muted-foreground">{PLATFORM_LABELS[mention.platform]}</span>
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${PLATFORM_CONFIG[mention.platform]?.dotColor ?? "bg-gray-400"}`} />
+          <span className="text-xs font-medium text-muted-foreground">{PLATFORM_CONFIG[mention.platform]?.label ?? mention.platform}</span>
           <span className="text-xs text-foreground font-medium">{mention.username}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -460,8 +446,8 @@ export default function Listening() {
                         {kw.platforms.map((p) => (
                           <span
                             key={p}
-                            title={PLATFORM_LABELS[p]}
-                            className={`w-2 h-2 rounded-full ${PLATFORM_COLORS[p]}`}
+                            title={PLATFORM_CONFIG[p]?.label ?? p}
+                            className={`w-2 h-2 rounded-full ${PLATFORM_CONFIG[p]?.dotColor ?? "bg-gray-400"}`}
                           />
                         ))}
                       </div>
@@ -495,8 +481,8 @@ export default function Listening() {
                         : "border-border text-muted-foreground hover:border-primary/30"
                     }`}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${PLATFORM_COLORS[p]}`} />
-                    {PLATFORM_LABELS[p]}
+                    <span className={`w-1.5 h-1.5 rounded-full ${PLATFORM_CONFIG[p]?.dotColor ?? "bg-gray-400"}`} />
+                    {PLATFORM_CONFIG[p]?.label ?? p}
                   </button>
                 ))}
               </div>
@@ -570,8 +556,8 @@ export default function Listening() {
                           : "border-border text-muted-foreground hover:border-primary/30"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${PLATFORM_COLORS[p]}`} />
-                      {PLATFORM_LABELS[p]}
+                      <span className={`w-1.5 h-1.5 rounded-full ${PLATFORM_CONFIG[p]?.dotColor ?? "bg-gray-400"}`} />
+                      {PLATFORM_CONFIG[p]?.label ?? p}
                     </button>
                   ))}
                 </div>

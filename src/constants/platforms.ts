@@ -1,4 +1,4 @@
-import { AtSign, MessageCircle, MessageSquare } from "lucide-react";
+import { AtSign, MessageCircle, MessageSquare, Phone, Smartphone } from "lucide-react";
 import type React from "react";
 
 export interface PlatformConfig {
@@ -37,5 +37,19 @@ export const PLATFORM_CONFIG: Record<string, PlatformConfig> = {
     color:    "bg-green-500 text-white",
     dotColor: "bg-green-500",
     icon:     MessageSquare,
+  },
+  sms: {
+    id:       "sms",
+    label:    "SMS",
+    color:    "bg-indigo-500 text-white",
+    dotColor: "bg-indigo-500",
+    icon:     Smartphone,
+  },
+  phone: {
+    id:       "phone",
+    label:    "Phone",
+    color:    "bg-slate-600 text-white",
+    dotColor: "bg-slate-600",
+    icon:     Phone,
   },
 };

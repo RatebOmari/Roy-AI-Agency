@@ -4,6 +4,7 @@ import { eq, and, lte, isNotNull } from "drizzle-orm";
 import { logDelivery, publishInstagramPost, publishFacebookPost } from "./platformDelivery.js";
 import { recordInitialMetrics, refreshRecentMetrics } from "./metricsFetcher.js";
 import { runApprovalReminders } from "./emailReminder.js";
+import { logger } from "./logger.js";
 
 const INTERVAL_MS = 60_000; // check every 60 seconds
 
@@ -77,16 +78,16 @@ async function publishDuePosts(): Promise<void> {
 
       // Record initial engagement metrics for this post (non-blocking)
       recordInitialMetrics(post.id, post.userId, post.platforms, publishedAt)
-        .catch(err => console.error(`[scheduler] metrics recording failed for ${post.id}:`, err));
+        .catch(err => logger.error({ err }, `[scheduler] metrics recording failed for ${post.id}`));
 
-      console.log(`[scheduler] Post ${post.id} published → ${post.platforms.join(", ")} [${deliveryResults.join(", ")}]`);
+      logger.info(`[scheduler] Post ${post.id} published → ${post.platforms.join(", ")} [${deliveryResults.join(", ")}]`);
     } catch (err) {
       await db
         .update(scheduledPosts)
         .set({ status: "failed" })
         .where(eq(scheduledPosts.id, post.id));
 
-      console.error(`[scheduler] Failed to publish post ${post.id}:`, err);
+      logger.error({ err }, `[scheduler] Failed to publish post ${post.id}`);
     }
   }
 }
@@ -95,36 +96,36 @@ const METRICS_INTERVAL_MS = 6 * 3_600_000; // refresh metrics every 6 hours
 
 export function startScheduler(): () => void {
   // Run once immediately in case posts were due while the server was down
-  publishDuePosts().catch(err => console.error("[scheduler] Initial run error:", err));
+  publishDuePosts().catch(err => logger.error({ err }, "[scheduler] Initial run error"));
 
   const publishInterval = setInterval(async () => {
     try { await publishDuePosts(); }
-    catch (err) { console.error("[scheduler] Error:", err); }
+    catch (err) { logger.error({ err }, "[scheduler] Error"); }
   }, INTERVAL_MS);
 
   // Refresh post metrics for recently published posts
-  refreshRecentMetrics().catch(err => console.error("[scheduler] metrics refresh error:", err));
+  refreshRecentMetrics().catch(err => logger.error({ err }, "[scheduler] metrics refresh error"));
   const metricsInterval = setInterval(async () => {
     try { await refreshRecentMetrics(); }
-    catch (err) { console.error("[scheduler] metrics refresh error:", err); }
+    catch (err) { logger.error({ err }, "[scheduler] metrics refresh error"); }
   }, METRICS_INTERVAL_MS);
 
   // Run approval reminders hourly (24h / 48h / 72h after submission)
   const REMINDER_INTERVAL_MS = 3_600_000;
-  runApprovalReminders().catch(err => console.error("[scheduler] approval reminders error:", err));
+  runApprovalReminders().catch(err => logger.error({ err }, "[scheduler] approval reminders error"));
   const remindersInterval = setInterval(async () => {
     try { await runApprovalReminders(); }
-    catch (err) { console.error("[scheduler] approval reminders error:", err); }
+    catch (err) { logger.error({ err }, "[scheduler] approval reminders error"); }
   }, REMINDER_INTERVAL_MS);
 
-  console.log(`[scheduler] Post publisher started — checking every ${INTERVAL_MS / 1000}s`);
-  console.log(`[scheduler] Metrics refresher started — running every ${METRICS_INTERVAL_MS / 3_600_000}h`);
-  console.log(`[scheduler] Approval reminder checker started — running every 1h`);
+  logger.info(`[scheduler] Post publisher started — checking every ${INTERVAL_MS / 1000}s`);
+  logger.info(`[scheduler] Metrics refresher started — running every ${METRICS_INTERVAL_MS / 3_600_000}h`);
+  logger.info(`[scheduler] Approval reminder checker started — running every 1h`);
 
   return () => {
     clearInterval(publishInterval);
     clearInterval(metricsInterval);
     clearInterval(remindersInterval);
-    console.log("[scheduler] Stopped");
+    logger.info("[scheduler] Stopped");
   };
 }

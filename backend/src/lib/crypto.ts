@@ -13,6 +13,7 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { logger } from "./logger.js";
 
 const ALGO = "aes-256-gcm";
 const DELIMITER = ":";
@@ -59,7 +60,7 @@ export function decryptToken(stored: string): string {
     // The string looked encrypted (had 3 segments) but decryption failed.
     // This means a wrong or rotated key — surface it loudly rather than
     // silently returning garbage as if it were a valid plaintext token.
-    console.error("[crypto] decryptToken failed — check ENCRYPTION_KEY rotation:", err);
+    logger.error({ err }, "[crypto] decryptToken failed — check ENCRYPTION_KEY rotation");
     return "";
   }
 }

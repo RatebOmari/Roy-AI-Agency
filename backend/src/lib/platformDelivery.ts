@@ -13,6 +13,7 @@ import { db } from "../db/index.js";
 import { platformCredentials } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
 import { decryptToken } from "./crypto.js";
+import { logger } from "./logger.js";
 
 type DeliveryResult =
   | { ok: true; sid?: string }
@@ -276,7 +277,7 @@ export async function sendSmsMessage(
   }
 
   const data = await res.json() as { sid: string };
-  console.log(`[sms] Sent SID=${data.sid} → ${phone}`);
+  logger.info(`[sms] Sent SID=${data.sid} → ${phone}`);
   return { ok: true, sid: data.sid };
 }
 
@@ -329,7 +330,7 @@ export async function makePhoneCall(
   }
 
   const data = await res.json() as { sid: string; status: string };
-  console.log(`[call] Initiated SID=${data.sid} → ${phone} status=${data.status}`);
+  logger.info(`[call] Initiated SID=${data.sid} → ${phone} status=${data.status}`);
   return { ok: true, sid: data.sid };
 }
 
@@ -393,7 +394,7 @@ export async function publishInstagramPost(
   }
 
   const { id: postId } = await publishRes.json() as { id: string };
-  console.log(`[publish] Instagram post created: ${postId}`);
+  logger.info(`[publish] Instagram post created: ${postId}`);
   return { ok: true, sid: postId };
 }
 
@@ -448,7 +449,7 @@ export async function publishFacebookPost(
 
   const result = await res.json() as { id?: string; post_id?: string };
   const postId = result.post_id ?? result.id ?? "unknown";
-  console.log(`[publish] Facebook post created: ${postId}`);
+  logger.info(`[publish] Facebook post created: ${postId}`);
   return { ok: true, sid: postId };
 }
 
@@ -504,10 +505,10 @@ export async function deliverReply(params: {
 
 export function logDelivery(result: DeliveryResult, ctx: string): void {
   if (result.ok) {
-    console.log(`[delivery] ✓ ${ctx}`);
+    logger.info(`[delivery] ✓ ${ctx}`);
   } else if ("skipped" in result) {
-    console.log(`[delivery] – ${ctx} skipped: ${result.reason}`);
+    logger.info(`[delivery] – ${ctx} skipped: ${result.reason}`);
   } else {
-    console.error(`[delivery] ✗ ${ctx} failed: ${result.error}`);
+    logger.error(`[delivery] ✗ ${ctx} failed: ${result.error}`);
   }
 }

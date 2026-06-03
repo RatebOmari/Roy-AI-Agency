@@ -15,6 +15,7 @@
 import { eq, and, gte, isNotNull } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { scheduledPosts, postMetrics, platformCredentials } from "../db/schema.js";
+import { logger } from "./logger.js";
 
 // ── Demo metric simulation ────────────────────────────────────────────────────
 
@@ -142,6 +143,6 @@ export async function refreshRecentMetrics(): Promise<void> {
   }
 
   if (posts.length > 0) {
-    console.log(`[metricsFetcher] Refreshed metrics for ${posts.length} recent posts`);
+    logger.info(`[metricsFetcher] Refreshed metrics for ${posts.length} recent posts`);
   }
 }

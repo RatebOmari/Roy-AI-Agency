@@ -4,6 +4,7 @@ import { z } from "zod";
 import { eq, and, desc, count } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import { conversations, messages, toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
@@ -337,7 +338,7 @@ app.post("/generate-reply", requireNotViewer, aiRateLimit, zValidator("json", ge
     const overrideStatus = ruleActionToReplyStatus(ruleMatch.action);
     if (overrideStatus) {
       replyStatus = overrideStatus;
-      console.log(`[conversations] rule "${ruleMatch.ruleName}" → ${overrideStatus}`);
+      logger.info(`[conversations] rule "${ruleMatch.ruleName}" → ${overrideStatus}`);
     }
   }
 
@@ -371,7 +372,7 @@ app.post("/generate-reply", requireNotViewer, aiRateLimit, zValidator("json", ge
       text:            reply,
     })
       .then(result => logDelivery(result, `auto conv ${conversationId} → ${conv.channel}`))
-      .catch(err => console.error("[delivery] Unexpected error:", err));
+      .catch(err => logger.error({ err }, "[delivery] Unexpected error"));
   }
 
   return c.json({
@@ -452,7 +453,7 @@ app.post("/action", requireNotViewer, zValidator("json", actionSchema), async (c
       text:            replyText,
     })
       .then(result => logDelivery(result, `conv ${body.conversationId} → ${conv.channel}`))
-      .catch(err => console.error("[delivery] Unexpected error:", err));
+      .catch(err => logger.error({ err }, "[delivery] Unexpected error"));
   }
 
   return c.json({ ok: true });

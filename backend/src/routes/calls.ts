@@ -4,6 +4,7 @@ import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { createHmac } from "crypto";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import { calls, conversations, messages } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
@@ -39,7 +40,7 @@ app.post("/webhook/status", async (c) => {
     const rawBody = await c.req.text();
     const params = Object.fromEntries(new URLSearchParams(rawBody).entries());
     if (!verifyTwilioSignature(authToken, url, params, sig)) {
-      console.warn("[calls] Twilio signature verification failed");
+      logger.warn("[calls] Twilio signature verification failed");
       return c.text("Forbidden", 403);
     }
     // Re-parse params since we already consumed the body

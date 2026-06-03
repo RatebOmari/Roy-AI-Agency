@@ -4,7 +4,8 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { startScheduler } from "./lib/scheduler.js";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { logger as honoLogger } from "hono/logger";
+import { logger } from "./lib/logger.js";
 import { sql } from "drizzle-orm";
 import { db, sqlClient } from "./db/index.js";
 import authRoutes          from "./routes/auth.js";
@@ -33,13 +34,13 @@ import outreachRoutes      from "./routes/outreach.js";
 // ── Global unhandled rejection safety net ─────────────────────────────────────
 
 process.on("unhandledRejection", (reason) => {
-  console.error("[server] Unhandled rejection:", reason);
+  logger.error({ err: reason }, "[server] Unhandled rejection");
 });
 
 const app = new Hono();
 
 app.onError((err, c) => {
-  console.error("[server] Unhandled error:", err);
+  logger.error({ err }, "[server] Unhandled error");
   return c.json({ message: "Internal server error" }, 500);
 });
 
@@ -52,7 +53,7 @@ app.use("*", cors({
   credentials:   true,
 }));
 
-app.use("*", logger());
+app.use("*", honoLogger());
 
 // Health check with DB liveness
 app.get("/health", async (c) => {
@@ -99,23 +100,23 @@ app.route("/api", api);
 // ── Startup environment checks ────────────────────────────────────────────────
 
 if (!process.env.ANTHROPIC_API_KEY) {
-  console.warn("⚠️  ANTHROPIC_API_KEY is not set — AI reply generation will use demo fallback responses.");
+  logger.warn("⚠️  ANTHROPIC_API_KEY is not set — AI reply generation will use demo fallback responses.");
 }
 if (!process.env.JWT_SECRET) {
-  console.warn("⚠️  JWT_SECRET is not set — authentication will fail in production.");
+  logger.warn("⚠️  JWT_SECRET is not set — authentication will fail in production.");
 }
 if (!process.env.DATABASE_URL) {
-  console.warn("⚠️  DATABASE_URL is not set — database operations will fail.");
+  logger.warn("⚠️  DATABASE_URL is not set — database operations will fail.");
 }
 if (!process.env.ENCRYPTION_KEY) {
-  console.warn("⚠️  ENCRYPTION_KEY is not set — platform credentials will be stored unencrypted.");
+  logger.warn("⚠️  ENCRYPTION_KEY is not set — platform credentials will be stored unencrypted.");
 }
 if (!process.env.RESEND_API_KEY) {
-  console.warn("⚠️  RESEND_API_KEY is not set — team invite emails will be logged to console only.");
+  logger.warn("⚠️  RESEND_API_KEY is not set — team invite emails will be logged to console only.");
 }
 
 const port = Number(process.env.PORT ?? 3001);
-console.log(`🚀 SocialPilot backend running on port ${port}`);
+logger.info({ port }, "SocialPilot backend running");
 
 const server = serve({ fetch: app.fetch, port });
 
@@ -124,10 +125,10 @@ const stopScheduler = startScheduler();
 // ── Graceful SIGTERM shutdown ──────────────────────────────────────────────────
 
 process.on("SIGTERM", () => {
-  console.log("[server] SIGTERM received — graceful shutdown initiated");
+  logger.info("[server] SIGTERM received — graceful shutdown initiated");
 
   const forceExitTimer = setTimeout(() => {
-    console.error("[server] Shutdown timeout — forcing exit");
+    logger.error("[server] Shutdown timeout — forcing exit");
     process.exit(1);
   }, 10_000);
 
@@ -135,7 +136,7 @@ process.on("SIGTERM", () => {
     clearTimeout(forceExitTimer);
     stopScheduler();
     sqlClient.end()
-      .then(() => { console.log("[server] DB pool closed"); process.exit(0); })
+      .then(() => { logger.info("[server] DB pool closed"); process.exit(0); })
       .catch(() => process.exit(0));
   });
 });

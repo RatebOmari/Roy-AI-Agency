@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { createHmac, timingSafeEqual } from "crypto";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import { conversations, messages, listeningKeywords, listeningMentions } from "../db/schema.js";
 import type { channelEnum } from "../db/schema.js";
 import type { InferSelectModel } from "drizzle-orm";
@@ -295,7 +296,7 @@ app.post("/:platform/:userId", async (c) => {
       const sig    = c.req.header("x-twilio-signature") ?? "";
       const params = Object.fromEntries(new URLSearchParams(rawBody).entries());
       if (!verifyTwilioSmsSignature(authToken, c.req.url, params, sig)) {
-        console.warn(`[webhook] Twilio SMS signature mismatch for ${userId}`);
+        logger.warn(`[webhook] Twilio SMS signature mismatch for ${userId}`);
         return c.json({ message: "Invalid signature" }, 401);
       }
     }
@@ -308,7 +309,7 @@ app.post("/:platform/:userId", async (c) => {
         c.req.header("x-tiktok-signature") ??
         "";
       if (sigHeader && !verifyHmacSha256(appSecret, rawBody, sigHeader)) {
-        console.warn(`[webhook] Signature mismatch for ${platform}/${userId}`);
+        logger.warn(`[webhook] Signature mismatch for ${platform}/${userId}`);
         return c.json({ message: "Invalid signature" }, 401);
       }
     }
@@ -353,11 +354,11 @@ app.post("/:platform/:userId", async (c) => {
 
       // Update contacts CRM (fire-and-forget; non-blocking)
       syncContact(userId, event.contactId, event.contactName, event.handle, event.channel)
-        .catch(err => console.error("[webhook] contactSync failed:", err));
+        .catch(err => logger.error({ err }, "[webhook] contactSync failed"));
 
       // Scan message text against active listening keywords (fire-and-forget)
       scanForMentions(userId, event)
-        .catch(err => console.error("[webhook] mention scan failed:", err));
+        .catch(err => logger.error({ err }, "[webhook] mention scan failed"));
 
       // ── Flow engine ─────────────────────────────────────────────────────────
       if (await hasActiveFlow(conv.id)) {
@@ -365,7 +366,7 @@ app.post("/:platform/:userId", async (c) => {
         if (activeFlowId) {
           const resumed = await continueFlow(conv.id, event.text, activeFlowId);
           if (resumed) {
-            console.log(`[webhook] flow resumed for conv ${conv.id}`);
+            logger.info(`[webhook] flow resumed for conv ${conv.id}`);
             continue;
           }
         }
@@ -374,14 +375,14 @@ app.post("/:platform/:userId", async (c) => {
       const matchedFlow = await checkFlowTrigger(event.text, userId, platform, conv.id);
       if (matchedFlow) {
         await executeFlow(matchedFlow, conv, event.handle);
-        console.log(`[webhook] flow "${matchedFlow.name}" triggered for conv ${conv.id}`);
+        logger.info(`[webhook] flow "${matchedFlow.name}" triggered for conv ${conv.id}`);
         continue;
       }
 
       // No flow matched — conversation stays pending for AI/human handling
-      console.log(`[webhook] ${platform} message from ${event.contactId} → conv ${conv.id}`);
+      logger.info(`[webhook] ${platform} message from ${event.contactId} → conv ${conv.id}`);
     } catch (err) {
-      console.error(`[webhook] Failed to process event:`, err);
+      logger.error({ err }, `[webhook] Failed to process event`);
     }
   }
 

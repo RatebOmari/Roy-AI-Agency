@@ -14,6 +14,7 @@ import { db } from "../db/index.js";
 import { scheduledPosts, agencyClients, emailReminders, users } from "../db/schema.js";
 import { eq, and, isNotNull, lte } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import { logger } from "./logger.js";
 
 const APP_URL = (process.env.APP_URL ?? "http://localhost:5174").replace(/\/$/, "");
 const RESEND_KEY = process.env.RESEND_API_KEY;
@@ -117,14 +118,14 @@ async function sendReminderEmail(
       }),
     });
     if (!res.ok) {
-      console.error("[emailReminder] Resend failed:", await res.json().catch(() => ({})));
+      logger.error({ err: await res.json().catch(() => ({})) }, "[emailReminder] Resend failed");
     } else {
-      console.log(`[emailReminder] Reminder ${reminderNumber} sent to ${to}`);
+      logger.info(`[emailReminder] Reminder ${reminderNumber} sent to ${to}`);
     }
   } else {
-    console.log(`[emailReminder] ── No provider – reminder ${reminderNumber} for post ${post.id} ──`);
-    console.log(`[emailReminder] Would email: ${to}`);
-    console.log(`[emailReminder] Approve URL: ${approveUrl}`);
+    logger.info(`[emailReminder] ── No provider – reminder ${reminderNumber} for post ${post.id} ──`);
+    logger.info(`[emailReminder] Would email: ${to}`);
+    logger.info(`[emailReminder] Approve URL: ${approveUrl}`);
   }
 }
 
@@ -214,13 +215,13 @@ export async function runApprovalReminders(): Promise<void> {
 
         // At 72h, log agency alert (surfaced in /agency/content via badge)
         if (reminderNumber === 3) {
-          console.log(
+          logger.info(
             `[emailReminder] AGENCY ALERT: Post "${post.id}" for client "${clientUser.businessName}" ` +
             `has been pending approval for 72h. Override available in /agency/content.`
           );
         }
       } catch (err) {
-        console.error(`[emailReminder] Failed to process reminder ${reminderNumber} for post ${post.id}:`, err);
+        logger.error({ err }, `[emailReminder] Failed to process reminder ${reminderNumber} for post ${post.id}`);
       }
     }
   }

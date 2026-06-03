@@ -4,6 +4,7 @@ import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import { teamMembers, internalNotes } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
@@ -61,7 +62,7 @@ app.post("/members", requireAdmin, zValidator("json", memberSchema), async (c) =
     role:          body.role ?? "agent",
     inviteToken,
     businessName:  user.businessName,
-  }).catch(err => console.error("[team] invite email failed:", err));
+  }).catch(err => logger.error({ err }, "[team] invite email failed"));
 
   return c.json(row, 201);
 });

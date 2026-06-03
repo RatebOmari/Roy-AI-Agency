@@ -8,6 +8,8 @@
  * No extra npm packages needed — uses the built-in fetch API.
  */
 
+import { logger } from "./logger.js";
+
 interface InviteParams {
   to:            string;
   recipientName: string;
@@ -71,16 +73,16 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      console.error("[email] Resend delivery failed:", err);
+      logger.error({ err }, "[email] Resend delivery failed");
     } else {
-      console.log(`[email] Invite sent to ${to} via Resend`);
+      logger.info(`[email] Invite sent to ${to} via Resend`);
     }
     return;
   }
 
   // No provider configured — log so the invite can be shared manually
-  console.log(`[invite] ─────────────────────────────────────────────────────`);
-  console.log(`[invite] No email provider configured. Send this link to ${to}:`);
-  console.log(`[invite] ${inviteUrl}`);
-  console.log(`[invite] ─────────────────────────────────────────────────────`);
+  logger.info(`[invite] ─────────────────────────────────────────────────────`);
+  logger.info(`[invite] No email provider configured. Send this link to ${to}:`);
+  logger.info(`[invite] ${inviteUrl}`);
+  logger.info(`[invite] ─────────────────────────────────────────────────────`);
 }

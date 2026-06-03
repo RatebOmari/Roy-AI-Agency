@@ -23,7 +23,8 @@ import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { aiRateLimit, outreachSendRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
-import { sendWhatsAppMessage } from "../lib/platformDelivery.js";
+import { sendWhatsAppMessage, sendSmsMessage } from "../lib/platformDelivery.js";
+import { sendBroadcastEmail } from "../lib/email.js";
 import { createMiddleware } from "hono/factory";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -518,33 +519,114 @@ app.post("/:id/send", outreachSendRateLimit, async (c) => {
           });
         }
       } else if (outreach.channel === "sms") {
-        // SMS: log to console (real delivery outside scope)
-        logger.info(`[outreach/send] Would send SMS to ${contact.name} (${contact.phone}): ${outreach.messageBody}`);
+        const phone = contact.phone;
+        if (!phone) {
+          // filterByChannel should have excluded these, but guard defensively
+          failedCount++;
+          resultRows.push({
+            outreachId:    outreach.id,
+            contactId:     contact.id,
+            channel:       "sms",
+            failed:        true,
+            failureReason: "no_phone_number",
+            createdAt:     now,
+          });
+          continue;
+        }
+
+        const result = await sendSmsMessage(phone, outreach.messageBody);
         sentCount++;
-        deliveredCount++;
-        resultRows.push({
-          outreachId:  outreach.id,
-          contactId:   contact.id,
-          channel:     "sms",
-          sentAt:      now,
-          deliveredAt: now,
-          failed:      false,
-          createdAt:   now,
-        });
+
+        if (result.ok) {
+          deliveredCount++;
+          resultRows.push({
+            outreachId:  outreach.id,
+            contactId:   contact.id,
+            channel:     "sms",
+            sentAt:      now,
+            deliveredAt: now,
+            failed:      false,
+            createdAt:   now,
+          });
+        } else if ("skipped" in result) {
+          failedCount++;
+          resultRows.push({
+            outreachId:    outreach.id,
+            contactId:     contact.id,
+            channel:       "sms",
+            sentAt:        now,
+            failed:        true,
+            failureReason: result.reason,
+            createdAt:     now,
+          });
+        } else {
+          failedCount++;
+          resultRows.push({
+            outreachId:    outreach.id,
+            contactId:     contact.id,
+            channel:       "sms",
+            sentAt:        now,
+            failed:        true,
+            failureReason: result.error,
+            createdAt:     now,
+          });
+        }
       } else if (outreach.channel === "email") {
-        // Email: log to console (real delivery outside scope)
-        logger.info(`[outreach/send] Would send Email to ${contact.name} (${contact.email}) subject="${outreach.subject}": ${outreach.messageBody}`);
-        sentCount++;
-        deliveredCount++;
-        resultRows.push({
-          outreachId:  outreach.id,
-          contactId:   contact.id,
-          channel:     "email",
-          sentAt:      now,
-          deliveredAt: now,
-          failed:      false,
-          createdAt:   now,
+        const emailAddr = contact.email;
+        if (!emailAddr) {
+          failedCount++;
+          resultRows.push({
+            outreachId:    outreach.id,
+            contactId:     contact.id,
+            channel:       "email",
+            failed:        true,
+            failureReason: "no_email_address",
+            createdAt:     now,
+          });
+          continue;
+        }
+
+        const result = await sendBroadcastEmail({
+          to:      emailAddr,
+          subject: outreach.subject ?? outreach.title,
+          text:    outreach.messageBody,
         });
+        sentCount++;
+
+        if (result.ok) {
+          deliveredCount++;
+          resultRows.push({
+            outreachId:  outreach.id,
+            contactId:   contact.id,
+            channel:     "email",
+            sentAt:      now,
+            deliveredAt: now,
+            failed:      false,
+            createdAt:   now,
+          });
+        } else if ("skipped" in result) {
+          failedCount++;
+          resultRows.push({
+            outreachId:    outreach.id,
+            contactId:     contact.id,
+            channel:       "email",
+            sentAt:        now,
+            failed:        true,
+            failureReason: result.reason,
+            createdAt:     now,
+          });
+        } else {
+          failedCount++;
+          resultRows.push({
+            outreachId:    outreach.id,
+            contactId:     contact.id,
+            channel:       "email",
+            sentAt:        now,
+            failed:        true,
+            failureReason: result.error,
+            createdAt:     now,
+          });
+        }
       }
     }
 

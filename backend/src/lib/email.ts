@@ -86,3 +86,57 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
   logger.info(`[invite] ${inviteUrl}`);
   logger.info(`[invite] ─────────────────────────────────────────────────────`);
 }
+
+// ── Broadcast email (outreach) ────────────────────────────────────────────────
+
+interface BroadcastEmailResult {
+  ok: boolean;
+  error?: string;
+  skipped?: boolean;
+  reason?: string;
+}
+
+/**
+ * Sends a single outreach broadcast email via Resend.
+ * Returns { ok: false, skipped: true } when RESEND_API_KEY is not configured
+ * rather than throwing, so the caller can track it as a clean skip.
+ */
+export async function sendBroadcastEmail(params: {
+  to:       string;
+  subject:  string;
+  text:     string;
+  fromName?: string;
+}): Promise<BroadcastEmailResult> {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) {
+    return { ok: false, skipped: true, reason: "resend_api_key_not_set" };
+  }
+
+  const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "socialpilot.app";
+  const fromName   = params.fromName ?? "Roy AI Agency";
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method:  "POST",
+    headers: {
+      Authorization:  `Bearer ${resendKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from:    `${fromName} <noreply@${fromDomain}>`,
+      to:      [params.to],
+      subject: params.subject,
+      text:    params.text,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { message?: string; name?: string };
+    const msg = err.message ?? `Resend API ${res.status}`;
+    logger.error({ err }, `[email/broadcast] Delivery failed to ${params.to}`);
+    return { ok: false, error: msg };
+  }
+
+  const data = await res.json() as { id: string };
+  logger.info(`[email/broadcast] Sent id=${data.id} → ${params.to}`);
+  return { ok: true };
+}

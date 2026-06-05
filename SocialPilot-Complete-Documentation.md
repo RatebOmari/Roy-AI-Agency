@@ -1,6 +1,6 @@
 # SocialPilot — Complete Platform Documentation
 
-> **Version:** Post Security & Outreach Release · **Date:** June 2026  
+> **Version:** Post Meta Token Refresh & Platform Delivery Fixes · **Date:** June 2026  
 > **Audience:** Business owners, agency managers, onboarding staff — no technical knowledge required.
 
 ---
@@ -255,7 +255,8 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 - **Schedule Date/Time picker** — choose exact date and time for publishing
 - **Platform-specific brand style** — uses your brand image style settings for AI image generation
 - **Edit / Delete draft posts** — modify or remove any post before it publishes
-- **Post Status tracking** — Draft → Pending Approval → Scheduled → Published / Failed
+- **Post Status tracking** — Draft → Pending Approval → Scheduled → Published / Failed / **Skipped**
+- **Skipped status** — shown as a yellow "Not Published" badge. Appears when all targeted platforms are stubbed (e.g. TikTok-only or WhatsApp-only posts). An inline warning explains which platforms need setup.
 - **Performance Metrics tab** — after publishing, shows likes, comments, reach, shares per post
 
 **Content Approval Workflow** (when agency content approval is enabled):
@@ -269,8 +270,9 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 **Publishing behavior by platform:**
 - **Instagram** — real two-step Graph API publish (media container → media_publish). Requires a publishing credential with your Instagram Business Account ID.
 - **Facebook** — real Graph API publish to your Page feed or photos endpoint. Requires a publishing credential; Page ID auto-discovered via `GET /me/accounts` if not stored.
-- **TikTok** — currently skipped; TikTok's Content Posting API requires separate business app approval from TikTok. Posts are marked published in the database but not delivered to TikTok.
-- **WhatsApp** — content posting is not applicable; use Outreach for WhatsApp broadcasts.
+- **TikTok** — **skipped** at publish time. TikTok's Content Posting API requires separate business app approval from TikTok. Posts targeting only TikTok are set to `"skipped"` status — never falsely marked `"published"`. A yellow badge and explanatory message appear in the Content page.
+- **WhatsApp** — content posting not applicable (WhatsApp is a messaging platform, not a feed). Posts targeting only WhatsApp are set to `"skipped"` status. Use Outreach for WhatsApp broadcasts.
+- **Mixed-platform posts** — if a post targets Instagram + TikTok, and Instagram succeeds, the aggregate status is `"published"` (at least one real platform succeeded). If only the stubbed platforms were targeted, status is `"skipped"`.
 
 **Reads from:** ScheduledPosts, postMetrics, resources (for AI caption context), brandSettings (for image style)  
 **Writes to:** ScheduledPosts, postMetrics (automatically after publishing)  
@@ -304,9 +306,11 @@ SocialPilot has four distinct roles. Each role controls what a person can see an
 - **Read rate, reply rate, delivery rate** — percentage metrics for each outreach
 
 **Supported channels:**
-- **WhatsApp** — sends via WhatsApp Business API; supports quick-reply buttons (max 3); shows open/read receipts
-- **SMS** — sends via Twilio; plain-text messages to phone numbers
-- **Email** — sends with subject line and body; requires email addresses in contacts
+- **WhatsApp** — sends via WhatsApp Business API (real delivery); supports quick-reply buttons (max 3); shows open/read receipts. Requires `WHATSAPP_PHONE_NUMBER_ID` env var + Meta access token.
+- **SMS** — sends via Twilio REST API (real delivery); plain-text messages to E.164 phone numbers. Requires Twilio credentials.
+- **Email** — sends via Resend API (real delivery) with subject line and body; requires email addresses in contacts and `RESEND_API_KEY`. Falls back to console log if key not set.
+
+**Delivery accuracy:** Only contacts where delivery is confirmed by the API are counted as "delivered." Contacts with missing phone/email, or where the API returns an error, are counted as "failed" with a reason logged per recipient.
 
 **Reads from:** OutreachMessages, OutreachResults, contacts (for audience reach calculation)  
 **Writes to:** OutreachMessages (creates, updates), OutreachResults (one row per recipient per send)  
@@ -1019,11 +1023,13 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `platformCredentials` — API Access Tokens
 **What it stores:** The secret access tokens that allow SocialPilot to post on behalf of each business on each platform.  
-**Key columns:** User ID, platform (instagram/tiktok/facebook/whatsapp/sms/phone), **feature** (comments / messages / publishing), token (AES-256-GCM encrypted), scope (JSON — stores accountId for publishing credentials), expiry.  
+**Key columns:** User ID, platform (instagram/tiktok/facebook/whatsapp/sms/phone), **feature** (comments / messages / publishing), token (AES-256-GCM encrypted), scope (JSON — stores accountId for publishing credentials), `expiresAt` (token expiry date), `connectedAt`, `disconnectedAt` (set when auto-refresh fails and token has expired — signals that reconnection is required).  
 **Feature values explained:**
 - `comments` — for replying to public comments
 - `messages` — for sending DMs and WhatsApp messages
 - `publishing` — for posting new content to Instagram or Facebook (also stores the Page ID or Instagram Business Account ID in the `scope` JSON field)
+
+**Meta token auto-refresh:** For Instagram, Facebook, and WhatsApp tokens, the platform checks expiry before every API call. If a token expires in less than 7 days, it is automatically exchanged for a fresh 60-day token via Meta's `fb_exchange_token` grant. If the exchange fails and the token has already expired, `disconnectedAt` is set and the agency `GET /api/clients/:id/platforms` endpoint returns `requiresReconnect: true`. Requires `META_APP_ID` and `META_APP_SECRET` env vars.
 
 **Connected to:** Users.  
 **Features that depend on it:** All platform delivery. If a token is missing or expired, replies/posts cannot be delivered — they are skipped gracefully.
@@ -1080,7 +1086,8 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ### `scheduledPosts` — Content Calendar
 **What it stores:** Every social media post — drafts, scheduled, published, and pending approval.  
-**Key columns:** User ID, platforms array, content, media URL, scheduled date, published date, status (draft/scheduled/published/failed/**pending_approval**/**changes_requested**), AI-generated flag.  
+**Key columns:** User ID, platforms array, content, media URL, scheduled date, published date, status (draft/scheduled/published/failed/**skipped**/**pending_approval**/**changes_requested**), AI-generated flag.  
+**`skipped` status explained:** Set by the scheduler when all targeted platforms are stubbed (TikTok-only or WhatsApp-only posts). This is distinct from `failed` — `failed` means a real platform was attempted and errored; `skipped` means no real platform was attempted at all. The aggregate status is `published` if at least one real platform (Instagram, Facebook) succeeded, regardless of stubbed platforms.  
 **Approval columns:** `approvalRequired`, `approvalStatus` (not_required/pending/approved/changes_requested), `submittedForApprovalAt`, `approvedAt`, `approvalFeedback`, `overridePublished`, `overridePublishedBy`.  
 **Connected to:** Users, postMetrics, emailReminders.  
 **Features that depend on it:** Content Scheduler, approval workflow, Agency Content page.
@@ -1298,6 +1305,21 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ---
 
+### Meta Token Auto-Refresh
+
+| Field | Details |
+|---|---|
+| **What it does** | Automatically exchanges Meta access tokens for fresh 60-day tokens before they expire |
+| **Platforms covered** | Instagram, Facebook, WhatsApp (all use Meta Graph API tokens) |
+| **When it runs** | Before every API call — if the stored token expires in less than 7 days, a refresh is attempted first |
+| **Exchange endpoint** | `GET https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=...&client_secret=...&fb_exchange_token=...` |
+| **On refresh success** | New token encrypted and saved to DB; `expiresAt` updated to 60 days from now; `disconnectedAt` cleared |
+| **On refresh failure (token still valid)** | Logged as a warning; existing token used for this call |
+| **On refresh failure (token expired)** | `disconnectedAt` set in DB; agency `GET /api/clients/:id/platforms` returns `requiresReconnect: true`; delivery skipped gracefully |
+| **Configuration** | `META_APP_ID` and `META_APP_SECRET` env vars required. Without them, refresh is skipped with a warning log. |
+
+---
+
 ### TikTok Open API
 
 | Field | Details |
@@ -1338,15 +1360,16 @@ Each piece of information SocialPilot stores lives in a "table" inside the datab
 
 ---
 
-### Resend (Team Invite Emails)
+### Resend (Emails)
 
 | Field | Details |
 |---|---|
-| **What it does** | Sends HTML email invitations to new team members with their login link; sends content approval reminders to clients |
-| **Where used** | Team page → Add Team Member; content approval workflow reminder emails |
+| **What it does** | Sends HTML email invitations to new team members; sends content approval reminders; delivers outreach broadcast emails |
+| **Where used** | Team page → Add Team Member; content approval workflow reminder emails; Outreach → Email channel (`sendBroadcastEmail()`) |
 | **Configuration** | `RESEND_API_KEY` · `EMAIL_FROM_DOMAIN` (sender domain, must be verified with Resend; default: `socialpilot.app`) · `APP_URL` (for login link in email) |
-| **If key is missing** | Console fallback — member ID and login link printed to server log. Member can still be onboarded manually. |
-| **Email format** | Both HTML (styled) and plain-text versions sent |
+| **If key is missing** | Invite emails: console fallback (member ID + link printed to server log). Outreach emails: delivery returns `{ ok: false, skipped: true }` — counted as failed in outreach results. |
+| **Email format** | Invite emails: HTML (styled) + plain-text. Outreach emails: plain-text body with subject line. |
+| **Broadcast function** | `sendBroadcastEmail({ to, subject, text, fromName? })` — separate from invite emails; returns `{ ok: true }` on success or `{ ok: false, error }` on failure. Only confirmed deliveries increment `deliveredCount`. |
 
 ---
 
@@ -1503,7 +1526,10 @@ Cross-Origin Resource Sharing is controlled by the `ALLOWED_ORIGINS` environment
 | Outreach — CRUD (WhatsApp / SMS / Email) | ✅ Fully working |
 | Outreach — multi-step wizard (channel → audience → compose → schedule) | ✅ Fully working |
 | Outreach — AI message generation | ✅ Fully working |
-| Outreach — real WhatsApp delivery (with credentials) | ✅ Working (mock fallback if no credentials) |
+| Outreach — real WhatsApp delivery (with credentials) | ✅ Fully working (Meta Graph API) |
+| Outreach — real SMS delivery (with credentials) | ✅ Fully working (Twilio REST API) |
+| Outreach — real Email delivery (with credentials) | ✅ Fully working (Resend API) |
+| Outreach — delivered count only on confirmed API success | ✅ Fully working |
 | Outreach — per-recipient results tracking | ✅ Fully working |
 | Outreach — quick replies (WhatsApp, max 3) | ✅ Fully working |
 | Contacts CRM — CRUD | ✅ Fully working |
@@ -1534,6 +1560,12 @@ Cross-Origin Resource Sharing is controlled by the `ALLOWED_ORIGINS` environment
 | Agency — outreach cross-client view | ✅ Fully working |
 | Agency — client onboarding wizard | ✅ Fully working |
 | Agency — global blocked words | ✅ Fully working |
+| Agency — platform reconnect alerts (requiresReconnect flag) | ✅ Fully working |
+| Meta token auto-refresh (7-day pre-expiry window) | ✅ Fully working (requires META_APP_ID + META_APP_SECRET) |
+| Content — skipped status for TikTok/WhatsApp-only posts | ✅ Fully working |
+| Content — accurate aggregate status (no false "published") | ✅ Fully working |
+| Structured JSON logging (pino) across all backend routes | ✅ Fully working |
+| Error tracking (Sentry) — backend + frontend | ✅ Working (requires SENTRY_DSN) |
 | Phone — call history | ✅ Fully working |
 | Phone — outbound call initiation | ✅ Working (requires Twilio credentials) |
 | Token encryption at rest (AES-256-GCM) | ✅ Working (requires `ENCRYPTION_KEY`) |
@@ -1563,12 +1595,15 @@ Cross-Origin Resource Sharing is controlled by the `ALLOWED_ORIGINS` environment
 | Publishing posts to TikTok | Requires TikTok Content Posting API business approval — not yet available |
 | Sending WhatsApp outreach / replies | `WHATSAPP_PHONE_NUMBER_ID` env var + Meta access token |
 | Sending / receiving SMS + SMS outreach | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` |
+| Sending email outreach | `RESEND_API_KEY` (counted as failed without it) |
 | Receiving inbound messages from any platform | Public HTTPS webhook URL + platform webhook registration |
 | Phone calls | Twilio credentials + `APP_URL` for status callback |
 | AI image generation | `OPENAI_API_KEY` (Unsplash fallback active without it) |
 | Team invite emails | `RESEND_API_KEY` + verified `EMAIL_FROM_DOMAIN` (console fallback without it) |
 | Content approval reminder emails | `RESEND_API_KEY` (same as above) |
+| Meta token auto-refresh | `META_APP_ID` + `META_APP_SECRET` (skipped with warning log without them) |
 | Token encryption | `ENCRYPTION_KEY` (plaintext fallback without it — set before going live) |
+| Error tracking | `SENTRY_DSN` (silently disabled without it) |
 
 Without these credentials, the platform shows all features correctly in the UI and stores data in the database — outbound delivery is gracefully skipped with `{ ok: false, skipped: true }` and does not crash.
 
@@ -1603,7 +1638,7 @@ Without these credentials, the platform shows all features correctly in the UI a
 
 6. **AI rate limit is in-memory:** The 10 req/min rate limiter resets on server restart. For production deployments with multiple server instances, use a shared Redis or Upstash counter to enforce limits across all instances.
 
-7. **Campaigns table preserved:** The original `campaigns` database table is still present for backward compatibility. The active feature is now `outreach_messages`. The `/api/campaigns` route also remains live (same data) and redirects exist on the frontend. The old `Campaigns.tsx` page file is preserved but its route redirects to `/outreach`.
+7. **Campaigns → Outreach rename complete:** The `Campaigns.tsx` frontend page has been deleted. The `/outreach` route is the active page. The `/api/campaigns` backend route is preserved as a thin re-export of the outreach routes for any external integrations. The original `campaigns` database table is still present for backward compatibility alongside `outreach_messages`.
 
 ---
 
@@ -1632,137 +1667,151 @@ Follow these steps in order to set up SocialPilot for a new client.
 - [ ] 7. Set `ALLOWED_ORIGINS=https://your-frontend-domain.com`
 - [ ] 8. Set `APP_URL=https://your-backend-domain.com` (used for Twilio callbacks, invite email links, and the `Secure` flag on session cookies — must start with `https://` in production)
 - [ ] 9. Set `ANTHROPIC_API_KEY=sk-ant-...` (from console.anthropic.com)
-- [ ] 10. (Optional) Set `OPENAI_API_KEY=sk-...` for AI image generation
-- [ ] 11. (Optional) Set `RESEND_API_KEY=re_...` for team invite emails and content approval reminders
-- [ ] 12. (Optional) Set `EMAIL_FROM_DOMAIN=yourdomain.com` for invite email sender (must be verified with Resend; default: `socialpilot.app`)
-- [ ] 13. Run database migrations to create all 27 tables:
+- [ ] 10. Set `META_APP_ID` and `META_APP_SECRET` (from Meta Developer Console → your app → Settings → Basic). Required for Meta token auto-refresh.
+- [ ] 11. (Optional) Set `OPENAI_API_KEY=sk-...` for AI image generation (Unsplash fallback if missing)
+- [ ] 12. (Optional) Set `RESEND_API_KEY=re_...` for team invite emails, content approval reminders, and email outreach
+- [ ] 13. (Optional) Set `EMAIL_FROM_DOMAIN=yourdomain.com` for invite email sender (must be verified with Resend; default: `socialpilot.app`)
+- [ ] 14. (Optional) Set `SENTRY_DSN=https://...` for error tracking (Sentry). Also set `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` for source map uploads at build time.
+- [ ] 15. Set `LOG_LEVEL=info` (options: trace / debug / info / warn / error)
+- [ ] 16. Run database migrations:
   ```
   cd backend && npx drizzle-kit push
   ```
-- [ ] 14. (Optional) Seed demo data:
+- [ ] 17. (Optional) Seed demo data for presentations:
   ```
-  npx tsx src/db/seed.ts
+  cd backend && npm run seed:demo
   ```
-- [ ] 15. Build and start the backend: `npm run build && npm start`
-- [ ] 16. Deploy the frontend with `VITE_API_URL=https://your-backend-domain.com/api`
+  Creates demo agency + client accounts: `agency@demo.com` / `demo123` and `client@demo.com` / `demo123`
+- [ ] 18. Build and start the backend: `npm run build && npm start`
+- [ ] 19. Deploy the frontend with `VITE_API_URL=https://your-backend-domain.com/api`
 
-> **Upgrading an existing deployment:** Run `npx drizzle-kit push` after deploying to apply new tables and enum changes (the `outreach_messages`, `outreach_results`, `agency_config`, `client_invites`, `email_reminders` tables and `pending_approval`, `changes_requested` post status values added in this release).
+> **Upgrading an existing deployment:** Run `npx drizzle-kit push` after deploying to apply schema changes. This release adds `"skipped"` to the `post_status` enum and adds the `disconnected_at` column to `platform_credentials`.
 
 ---
 
 **Phase 2 — Agency Account Setup**
 
-- [ ] 17. Open the platform and go to `/login`
-- [ ] 18. Log in with your agency admin credentials (demo: `agency@demo.com` / `demo123`)
-- [ ] 19. Navigate to Agency → Clients → Add Client (opens the onboarding wizard at `/agency/clients/new`)
-- [ ] 20. Complete the wizard: enter business name, owner name, email
-- [ ] 21. In the permissions panel, enable the platforms the client will use
-- [ ] 22. Enter platform credentials for each enabled feature:
-  - **Instagram comments:** token with feature = "comments"
-  - **Instagram DMs:** token with feature = "messages"
-  - **Instagram publishing:** token with feature = "publishing" + Instagram Business Account ID
-  - **Facebook comments:** token with feature = "comments"
-  - **Facebook Messenger:** token with feature = "messages"
-  - **Facebook publishing:** token with feature = "publishing" (Page ID optional — auto-discovered if omitted)
-  - **WhatsApp:** token with feature = "messages" (also set `WHATSAPP_PHONE_NUMBER_ID` in server env)
-  - **TikTok:** token with feature = "comments"
-- [ ] 23. (Optional) Enable the **Content Approval Workflow** for this client in the client settings panel (`contentApprovalEnabled`) if you want agency-created posts to require client sign-off before publishing
+- [ ] 20. Open the platform and go to `/login`
+- [ ] 21. Log in with your agency admin credentials (demo: `agency@demo.com` / `demo123`)
+- [ ] 22. Navigate to Agency → Clients → Add Client (opens the onboarding wizard at `/agency/clients/new`)
+- [ ] 23. Complete the wizard: enter business name, owner name, email
+- [ ] 24. In the client row, click ⋯ → **Manage Permissions** to open the Client Setup modal
+- [ ] 25. On the **Platform Connections** tab, enter the access token for each platform/feature and click **Connect**:
+  - **Instagram — Comments:** Meta Graph API token with `instagram_manage_comments` scope
+  - **Instagram — Direct:** Meta Graph API token with `instagram_manage_messages` scope
+  - **Facebook — Comments:** Meta Page token with `pages_manage_posts` scope
+  - **Facebook — Messenger:** Meta Page token with `pages_messaging` scope
+  - **TikTok — Comments:** TikTok Developer Platform access token
+  - **WhatsApp Business:** WhatsApp Business API token from Meta for Developers
+- [ ] 26. On the **Feature Permissions** tab, toggle which features (comments / messages) the AI is allowed to use per platform, then click **Save Permissions**
+- [ ] 27. (Optional) Enable the **Content Approval Workflow** for this client (`contentApprovalEnabled`) if you want agency-created posts to require client sign-off before publishing
+- [ ] 28. Click the **▶** play button on the client row to change status from "Setup" → "Active"
+
+> **Getting tokens:** Go to [developers.facebook.com/tools/explorer](https://developers.facebook.com/tools/explorer) → select your Meta app → Generate Access Token → select the client's Page → Generate Long-Lived Token (60-day). One Meta Developer app handles all clients — tokens are the only per-client step.
 
 ---
 
 **Phase 3 — Client Knowledge Base Setup**
 
-- [ ] 24. Log into the client account (directly or via Switch to Client)
-- [ ] 25. Go to Resources → add Business Info
-- [ ] 26. Add Operating Hours for each day
-- [ ] 27. Add at least 5 Menu Items / Products with names, descriptions, and prices
-- [ ] 28. Add any current Offers or Promotions
-- [ ] 29. Add 5–10 FAQs covering the most common questions
-- [ ] 30. Confirm all resources show "Active" status
+- [ ] 29. Log into the client account (directly or via ⋯ → View as Client)
+- [ ] 30. Go to Resources → add Business Info
+- [ ] 31. Add Operating Hours for each day
+- [ ] 32. Add at least 5 Menu Items / Products with names, descriptions, and prices
+- [ ] 33. Add any current Offers or Promotions
+- [ ] 34. Add 5–10 FAQs covering the most common questions
+- [ ] 35. Confirm all resources show "Active" status
 
 ---
 
 **Phase 4 — AI Settings Configuration**
 
-- [ ] 31. Go to Settings
-- [ ] 32. For each connected platform (TikTok, Instagram, Facebook, WhatsApp, SMS):
+- [ ] 36. Go to Settings
+- [ ] 37. For each connected platform (TikTok, Instagram, Facebook, WhatsApp, SMS):
   - Select Tone (Friendly recommended for most businesses)
   - Select Language (Arabic, English, or Mixed)
   - Add Blocked Words
   - Add Custom Instructions
-- [ ] 33. Click Save for each platform
-- [ ] 34. (Agency only) Go to Agency Settings → add any Global Blocked Words that apply across all clients
+- [ ] 38. Click Save for each platform
+- [ ] 39. (Agency only) Go to Agency Settings → add any Global Blocked Words that apply across all clients
 
 ---
 
 **Phase 5 — Automation Rules**
 
-- [ ] 35. Go to Automation
-- [ ] 36. Create a complaint escalation rule: "Contains Word: refund, cancel, complaint" → "Escalate"
-- [ ] 37. (Optional) Create an auto-send rule for simple questions: "Is a Question" → "Auto-Send"
-- [ ] 38. (Optional) Create additional business-specific rules
+- [ ] 40. Go to Automation
+- [ ] 41. Create a complaint escalation rule: "Contains Word: refund, cancel, complaint" → "Escalate"
+- [ ] 42. (Optional) Create an auto-send rule for simple questions: "Is a Question" → "Auto-Send"
+- [ ] 43. (Optional) Create additional business-specific rules
 
 ---
 
 **Phase 6 — Chatbot Flows**
 
-- [ ] 39. Go to Flows
-- [ ] 40. Create a Greeting flow for WhatsApp (trigger: Greeting, Step 1: welcome message)
-- [ ] 41. Set the flow to Active
-- [ ] 42. Test after webhook registration (Phase 9)
+- [ ] 44. Go to Flows
+- [ ] 45. Create a Greeting flow for WhatsApp (trigger: Greeting, Step 1: welcome message)
+- [ ] 46. Set the flow to Active
+- [ ] 47. Test after webhook registration (Phase 9)
 
 ---
 
 **Phase 7 — Brand Listening**
 
-- [ ] 43. Go to Listening
-- [ ] 44. Add your business name as a monitored keyword
-- [ ] 45. Add any common misspellings or short-form names
-- [ ] 46. Once webhooks are live, any inbound message matching a keyword appears in the feed automatically
+- [ ] 48. Go to Listening
+- [ ] 49. Add your business name as a monitored keyword
+- [ ] 50. Add any common misspellings or short-form names
+- [ ] 51. Once webhooks are live, any inbound message matching a keyword appears in the feed automatically
 
 ---
 
 **Phase 8 — Team Setup**
 
-- [ ] 47. Go to Team
-- [ ] 48. Add each team member with name, email, and role
-- [ ] 49. Each member receives an invite email (or check server console if `RESEND_API_KEY` not set) with their UUID login link
-- [ ] 50. Confirm each member can log in and sees the correct pages for their role
+- [ ] 52. Go to Team
+- [ ] 53. Add each team member with name, email, and role
+- [ ] 54. Each member receives an invite email (or check server console if `RESEND_API_KEY` not set) with their UUID login link
+- [ ] 55. Confirm each member can log in and sees the correct pages for their role
 
 ---
 
 **Phase 9 — Webhook Registration (requires public HTTPS URL)**
 
-- [ ] 51. Set `WEBHOOK_VERIFY_TOKEN` — any random string you choose
-- [ ] 52. Set `META_APP_SECRET` — from Meta Developer App settings
-- [ ] 53. Set `TIKTOK_CLIENT_SECRET` — from TikTok Developer App settings
-- [ ] 54. Set `WHATSAPP_PHONE_NUMBER_ID` — from Meta WhatsApp Business settings
-- [ ] 55. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`
-- [ ] 56. Register webhook URLs with each platform:
-  - **WhatsApp:** `https://your-server.com/webhook/whatsapp/:userId`
-  - **Instagram:** `https://your-server.com/webhook/instagram/:userId`
-  - **Facebook:** `https://your-server.com/webhook/facebook/:userId`
+- [ ] 56. Set `WEBHOOK_VERIFY_TOKEN` — any random string you choose
+- [ ] 57. Set `META_APP_SECRET` — from Meta Developer Console → your app → Settings → Basic
+- [ ] 58. Set `META_APP_ID` — same location as above (also needed for token auto-refresh)
+- [ ] 59. Set `TIKTOK_CLIENT_SECRET` — from TikTok Developer App settings
+- [ ] 60. Set `WHATSAPP_PHONE_NUMBER_ID` — from Meta Developer Console → WhatsApp → API Setup
+- [ ] 61. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`
+- [ ] 62. **Create Meta Developer App** (one app for all clients):
+  - Go to [developers.facebook.com](https://developers.facebook.com) → My Apps → Create App → Business
+  - Add products: Instagram, Messenger, WhatsApp
+  - Switch app to **Live mode** (not Development) before using with real client accounts
+- [ ] 63. Register Meta webhook (handles Instagram, Facebook, WhatsApp):
+  - Meta Developer Console → your app → Webhooks → Add Subscription
+  - **Callback URL:** `https://your-server.com/api/webhook` (single endpoint for all Meta platforms)
+  - **Verify Token:** matches `WEBHOOK_VERIFY_TOKEN` in Railway
+  - Subscribe to: `messages`, `messaging_postbacks`, `feed`, `comments`, `mention`
+- [ ] 64. Register other webhook URLs:
   - **TikTok:** `https://your-server.com/webhook/tiktok/:userId`
   - **SMS (Twilio):** `https://your-server.com/webhook/sms/:userId`
   - **Call status (Twilio):** `https://your-server.com/api/calls/webhook/status`
-    *(This path is under `/api/calls`, not `/webhook` — do not register it under `/webhook`)*
-- [ ] 57. Verify each webhook via the platform's challenge process (SocialPilot responds automatically to `hub.challenge` requests using `WEBHOOK_VERIFY_TOKEN`)
+    *(Under `/api/calls`, not `/webhook` — do not register it under `/webhook`)*
+- [ ] 65. Verify each webhook via the platform's challenge process (SocialPilot responds automatically to `hub.challenge` requests using `WEBHOOK_VERIFY_TOKEN`)
 
 ---
 
 **Phase 10 — First Live Test**
 
-- [ ] 58. Send a test WhatsApp message to the connected phone number
-- [ ] 59. Confirm it appears in the Inbox within seconds
-- [ ] 60. Click "Generate AI Reply" — verify it uses your Knowledge Base
-- [ ] 61. Approve the reply and verify it is delivered to WhatsApp
-- [ ] 62. Post a test comment on the connected Instagram post
-- [ ] 63. Confirm it appears in Comments and receives an AI reply
-- [ ] 64. Create a test scheduled post for Instagram, set 2 minutes from now, verify it publishes
-- [ ] 65. (Agency) Check the Command Center — verify escalations/pending items from all clients appear
-- [ ] 66. (Agency) Create a test outreach message (WhatsApp, Send Now to 1 test contact) — verify delivery
-- [ ] 67. Check Analytics to verify message counts are updating
-- [ ] 68. 🎉 System is live!
+- [ ] 66. Send a test WhatsApp message to the connected phone number
+- [ ] 67. Confirm it appears in the Inbox within seconds
+- [ ] 68. Click "Generate AI Reply" — verify it uses your Knowledge Base
+- [ ] 69. Approve the reply and verify it is delivered to WhatsApp
+- [ ] 70. Post a test comment on the connected Instagram post
+- [ ] 71. Confirm it appears in Comments and receives an AI reply
+- [ ] 72. Create a test scheduled post for Instagram, set 2 minutes from now, verify it publishes
+- [ ] 73. Create a TikTok-only post — verify it gets "Skipped / Not Published" status (yellow badge), not "Published"
+- [ ] 74. (Agency) Check the Command Center — verify escalations/pending items from all clients appear
+- [ ] 75. (Agency) Create a test outreach message (WhatsApp, Send Now to 1 test contact) — verify delivery and `deliveredCount` increments
+- [ ] 76. Check Analytics to verify message counts are updating
+- [ ] 77. 🎉 System is live!
 
 ---
 
@@ -1817,8 +1866,11 @@ Follow these steps in order to set up SocialPilot for a new client.
 | **Pending Approval** | في انتظار الموافقة | A post created by the agency that is waiting for the client to review and approve before it goes live. |
 | **Changes Requested** | طلب تعديلات | A post the client reviewed and sent back to the agency with feedback requesting edits before approval. |
 | **Override Publish** | نشر إلزامي | An agency action that force-publishes a post without client approval, available after a post has been pending approval for 72+ hours. The client is notified when this happens. |
-| **Published** | منشور | A post successfully posted to the platform. |
-| **Failed** | فشل | A post or reply that could not be delivered — usually because a platform credential is missing or expired. |
+| **Published** | منشور | A post successfully posted to the platform. At least one real platform (Instagram or Facebook) confirmed the post was received. |
+| **Skipped** | تم تخطيه | A post where no real platform was attempted because all targeted platforms are stubbed (e.g. TikTok-only or WhatsApp-only posts). Shown as a yellow "Not Published" badge. Different from Failed — nothing errored; the platform simply isn't ready for publishing yet. |
+| **Failed** | فشل | A post or reply that could not be delivered — usually because a platform credential is missing, expired, or the API returned an error. |
+| **Token Auto-Refresh** | تجديد رمز الوصول تلقائياً | When a Meta platform token (Instagram, Facebook, WhatsApp) is within 7 days of expiry, SocialPilot automatically exchanges it for a fresh 60-day token before making any API call. Requires META_APP_ID and META_APP_SECRET. |
+| **Requires Reconnect** | يحتاج إعادة ربط | A flag shown in the agency's platform connections panel when a token has expired and auto-refresh failed. The agency must paste a new token to restore delivery. |
 | **Command Center** | مركز القيادة | The agency-only page that shows all urgent items (escalations, pending replies, failed posts) across all managed clients in real time. |
 | **Agency** | الوكالة | A social media management company using SocialPilot to manage multiple business clients. |
 | **Client** | العميل | A business account managed by an agency inside SocialPilot. |
@@ -1835,4 +1887,4 @@ Follow these steps in order to set up SocialPilot for a new client.
 
 ---
 
-*Documentation last updated: June 2026 — reflects all releases through the Security & Outreach update: httpOnly cookie session auth, per-user AI rate limiting, multi-channel Outreach (WhatsApp/SMS/Email) replacing Campaigns, content approval workflow between agency and clients, Agency Command Center, Agency Content page, Client Onboarding wizard, per-recipient outreach results tracking, data-scoping security fixes, frontend performance optimizations (code splitting, memoization, deferred queries), and UI/UX improvements (touch targets, empty states, platform Connect CTAs).*
+*Documentation last updated: June 2026 — reflects all releases through the Meta Token Refresh & Platform Delivery Fixes update: real SMS/Email/WhatsApp outreach delivery with accurate delivered counts, Meta token auto-refresh (7-day pre-expiry window with `disconnectedAt` reconnect signalling), TikTok/WhatsApp silent publish bug fixed (`"skipped"` status replaces false `"published"`), pino structured JSON logging across all backend routes, Sentry error tracking (frontend + backend), SMS/phone platform icons, Campaigns→Outreach rename complete (Campaigns.tsx deleted), demo seed data scripts, load test seed scripts, E2E test scripts, health monitor scripts, and all prior releases: httpOnly cookie session auth, per-user AI rate limiting, multi-channel Outreach, content approval workflow, Agency Command Center, Agency Content page, Client Onboarding wizard, per-recipient outreach results tracking, data-scoping security fixes, frontend performance optimizations.*

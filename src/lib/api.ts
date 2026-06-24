@@ -1,7 +1,7 @@
 import { authStorage } from "./auth";
 import type { ApiError } from "@/types";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "";
+const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
 // Called by AuthContext to enable clean React-state logout on 401
 let _onUnauthorized: (() => void) | null = null;

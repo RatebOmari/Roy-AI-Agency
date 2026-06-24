@@ -68,13 +68,16 @@ export function useTemplates() {
     queryKey: ["templates"],
     queryFn: async () => {
       try {
-        const result = await api.get<ReplyTemplate[]>("/templates");
-        return Array.isArray(result) ? result : MOCK_TEMPLATES;
+        const result = await api.get<{ data: ReplyTemplate[]; pagination: { page: number; limit: number; total: number; hasMore: boolean } }>(
+          "/templates?limit=50"
+        );
+        return result?.data ?? (result as unknown as ReplyTemplate[]);
       } catch {
         return MOCK_TEMPLATES;
       }
     },
-    staleTime: 30_000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 }
 

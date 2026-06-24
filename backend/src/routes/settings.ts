@@ -5,9 +5,12 @@ import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
+import { requireAdmin } from "../middleware/teamRole.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 const platformSettingsSchema = z.object({
   tone:     z.enum(["friendly", "professional", "fun", "informative"]),
@@ -54,7 +57,7 @@ app.get("/", async (c) => {
   return c.json(result);
 });
 
-app.post("/", zValidator("json", settingsSchema), async (c) => {
+app.post("/", requireAdmin, zValidator("json", settingsSchema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
 

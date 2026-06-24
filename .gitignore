@@ -33,3 +33,4 @@ pnpm-debug.log*
 
 # Claude Code worktrees (temporary agent sandboxes)
 .claude/worktrees/
+.gstack/

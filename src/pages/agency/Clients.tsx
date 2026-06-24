@@ -1,18 +1,23 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useAgencyClient } from "@/contexts/AgencyClientContext";
 import {
   Users, TrendingUp, CheckCircle, Search, Plus, MoreHorizontal,
   Eye, Settings, Pause, Play, MessageSquare, Loader2, X, MessageCircle, Inbox,
-  Link2, Link2Off, CheckCircle2,
+  Link2, Link2Off, CheckCircle2, AlertTriangle, RotateCcw, Upload, Send,
 } from "lucide-react";
 import type { AgencyClient, ClientStatus, ExtendedPlatform, PlatformFeatureType } from "@/types";
 import {
   useClients, useUpdateClientStatus, useUpdateClientPermissions,
   useClientPlatforms, useSetClientPlatformCredential, useRevokeClientPlatformCredential,
+  useResetClientAiSettings, usePushTemplate,
 } from "@/hooks/useClients";
 import { cn } from "@/lib/utils";
+import { computeHealthScore, healthColor } from "@/hooks/useHealthScore";
 
 type PlatformPerms = Record<ExtendedPlatform, { comments: boolean; messages: boolean }>;
 
@@ -302,25 +307,170 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
   );
 }
 
+// ── Health Badge ──────────────────────────────────────────────────────────────
+
+const HEALTH_BADGE_COLOR: Record<"green" | "amber" | "red", string> = {
+  green: "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
+  amber: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+  red:   "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+};
+
+function HealthBadge({ score }: { score: number }) {
+  return (
+    <div className={cn("inline-flex flex-col items-center px-2.5 py-1 rounded-xl border text-xs font-bold leading-none gap-0.5", HEALTH_BADGE_COLOR[healthColor(score)])}>
+      <span>{score}</span>
+      <span className="text-[9px] font-normal opacity-70 uppercase tracking-wider">Health</span>
+    </div>
+  );
+}
+
+// ── Push Template Modal ───────────────────────────────────────────────────────
+
+const TEMPLATE_PLATFORMS = ["instagram", "tiktok", "facebook", "whatsapp"] as const;
+
+function PushTemplateModal({ selectedIds, onClose }: { selectedIds: Set<string>; onClose: () => void }) {
+  const [title, setTitle]       = useState("");
+  const [content, setContent]   = useState("");
+  const [platforms, setPlatforms] = useState<string[]>(["instagram", "whatsapp"]);
+  const [language, setLanguage] = useState("en");
+  const [done, setDone]         = useState(false);
+  const pushMutation = usePushTemplate();
+
+  const togglePlatform = (p: string) =>
+    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !content.trim() || platforms.length === 0) return;
+    const result = await pushMutation.mutateAsync({
+      clientIds: Array.from(selectedIds),
+      title, content, platforms, language, category: "",
+    });
+    if (result.pushed >= 0) setDone(true);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
+        className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-lg"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Upload className="w-4 h-4 text-primary" />
+            <h2 className="font-semibold text-foreground">Push Template</h2>
+            <span className="text-xs text-muted-foreground">→ {selectedIds.size} client{selectedIds.size !== 1 ? "s" : ""}</span>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted"><X className="w-4 h-4" /></button>
+        </div>
+
+        {done ? (
+          <div className="p-8 text-center space-y-3">
+            <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto" />
+            <p className="font-semibold text-foreground">Template pushed to {selectedIds.size} client{selectedIds.size !== 1 ? "s" : ""}!</p>
+            <button onClick={onClose} className="mt-2 px-5 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors">Done</button>
+          </div>
+        ) : (
+          <div className="p-5 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Title *</label>
+              <input
+                value={title} onChange={e => setTitle(e.target.value)}
+                placeholder="e.g. Welcome Reply"
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Content *</label>
+              <textarea
+                value={content} onChange={e => setContent(e.target.value)}
+                placeholder="Template message content…"
+                rows={4}
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Platforms *</label>
+              <div className="flex flex-wrap gap-2">
+                {TEMPLATE_PLATFORMS.map(p => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => togglePlatform(p)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors capitalize",
+                      platforms.includes(p)
+                        ? "bg-primary text-white border-primary"
+                        : "border-border text-muted-foreground hover:text-foreground hover:bg-muted",
+                    )}
+                  >{p}</button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Language</label>
+              <select
+                value={language} onChange={e => setLanguage(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="en">English</option>
+                <option value="ar">Arabic</option>
+                <option value="ar_en">Arabic + English</option>
+              </select>
+            </div>
+            <button
+              onClick={handleSubmit}
+              disabled={!title.trim() || !content.trim() || platforms.length === 0 || pushMutation.isPending}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60"
+            >
+              {pushMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {pushMutation.isPending ? "Pushing…" : `Push to ${selectedIds.size} client${selectedIds.size !== 1 ? "s" : ""}`}
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function AgencyClients() {
   const { t } = useTranslation();
   const { data, isLoading } = useClients();
   const statusMutation = useUpdateClientStatus();
+  const { selectClient } = useAgencyClient();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
+  const resetAi = useResetClientAiSettings();
   const [clients, setClients] = useState<AgencyClient[]>([]);
   const [search, setSearch] = useState("");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [permClient, setPermClient] = useState<AgencyClient | null>(null);
+  const [needsAttention, setNeedsAttention] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [pushOpen, setPushOpen] = useState(false);
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
   useEffect(() => {
     if (data) setClients(data);
   }, [data]);
 
-  const filtered = clients.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.owner.toLowerCase().includes(search.toLowerCase()) ||
-    c.email.includes(search.toLowerCase())
-  );
+  const filtered = clients.filter(c => {
+    const matchSearch =
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.owner.toLowerCase().includes(search.toLowerCase()) ||
+      c.email.includes(search.toLowerCase());
+    const matchAttention = !needsAttention || computeHealthScore(c) < 60;
+    return matchSearch && matchAttention;
+  });
 
   const toggle = (id: string) => {
     const client = clients.find(c => c.id === id);
@@ -346,7 +496,10 @@ export default function AgencyClients() {
             <h1 className="text-2xl font-bold text-foreground">{t("agency.title")}</h1>
             <p className="text-sm text-muted-foreground">{t("agency.subtitle")}</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+          <button
+            onClick={() => navigate("/agency/clients/new")}
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
             <Plus className="w-4 h-4" /> {t("agency.addClient")}
           </button>
         </motion.div>
@@ -371,15 +524,61 @@ export default function AgencyClients() {
           ))}
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={t("agency.searchPlaceholder")}
-            className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-card shadow-sm"
-          />
+        <div className="flex gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={t("agency.searchPlaceholder")}
+              className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-card shadow-sm"
+            />
+          </div>
+          <button
+            onClick={() => setNeedsAttention(n => !n)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-colors whitespace-nowrap",
+              needsAttention
+                ? "bg-red-50 border-red-300 text-red-600 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            <span className="hidden sm:inline">Needs Attention</span>
+          </button>
+          <button
+            onClick={() => { setSelectMode(m => !m); setSelectedIds(new Set()); }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-colors whitespace-nowrap",
+              selectMode
+                ? "bg-primary text-white border-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
+          >
+            <Upload className="w-4 h-4" />
+            <span className="hidden sm:inline">Select</span>
+          </button>
         </div>
+
+        {/* Action bar when clients are selected */}
+        {selectMode && selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-xl">
+            <span className="text-sm font-medium text-foreground">{selectedIds.size} selected</span>
+            <button
+              onClick={() => setPushOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Push Template
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          </div>
+        )}
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden"
@@ -393,17 +592,29 @@ export default function AgencyClients() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
+                    {selectMode && <th className="px-4 py-3 w-8" />}
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.client")}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.replies")}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("agency.status")}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Health</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center py-8 text-muted-foreground">{t("agency.noResults")}</td></tr>
+                    <tr><td colSpan={selectMode ? 6 : 5} className="text-center py-8 text-muted-foreground">{t("agency.noResults")}</td></tr>
                   ) : filtered.map(c => (
-                    <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    <tr key={c.id} className={cn("border-b border-border last:border-0 hover:bg-muted/30 transition-colors", selectMode && selectedIds.has(c.id) && "bg-primary/5")}>
+                      {selectMode && (
+                        <td className="px-4 py-3 w-8">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(c.id)}
+                            onChange={() => toggleSelect(c.id)}
+                            className="w-4 h-4 accent-primary cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <p className="font-medium text-foreground">{c.name}</p>
                         <p className="text-xs text-muted-foreground">{c.owner}</p>
@@ -419,35 +630,57 @@ export default function AgencyClients() {
                           {t(`agency.statuses.${c.status}`)}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <HealthBadge score={computeHealthScore(c)} />
+                      </td>
                       <td className="px-4 py-3 relative">
-                        <button
-                          onClick={() => setOpenMenu(openMenu === c.id ? null : c.id)}
-                          className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                        >
-                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Inline pause/resume */}
+                          <button
+                            onClick={() => toggle(c.id)}
+                            title={c.status === "active" ? "Pause" : "Activate"}
+                            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                          >
+                            {c.status === "active" ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                          </button>
+                          {/* ⋯ menu */}
+                          <button
+                            onClick={() => setOpenMenu(openMenu === c.id ? null : c.id)}
+                            className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                          >
+                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                        </div>
                         {openMenu === c.id && (
-                          <div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-lg py-1 w-48">
-                            <button className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted">
-                              <Eye className="w-4 h-4" /> {t("agency.viewDetails")}
+                          <div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-lg py-1 w-52">
+                            <button
+                              onClick={() => { queryClient.clear(); selectClient(c); setOpenMenu(null); navigate("/inbox"); }}
+                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-primary font-medium"
+                            >
+                              <Inbox className="w-4 h-4" /> View Inbox
+                            </button>
+                            <button
+                              onClick={() => { queryClient.clear(); selectClient(c); setOpenMenu(null); navigate("/dashboard"); }}
+                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
+                            >
+                              <Eye className="w-4 h-4" /> View as Client
                             </button>
                             <button className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted">
                               <Settings className="w-4 h-4" /> {t("agency.accountSettings")}
                             </button>
                             <button
                               onClick={() => { setPermClient(c); setOpenMenu(null); }}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-primary"
+                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
                             >
                               <Users className="w-4 h-4" /> Manage Permissions
                             </button>
+                            <div className="border-t border-border my-1" />
                             <button
-                              onClick={() => { toggle(c.id); setOpenMenu(null); }}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
+                              onClick={() => { resetAi.mutate(c.id); setOpenMenu(null); }}
+                              disabled={resetAi.isPending}
+                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-amber-600 dark:text-amber-400"
                             >
-                              {c.status === "active"
-                                ? <><Pause className="w-4 h-4" /> {t("agency.pause")}</>
-                                : <><Play className="w-4 h-4" /> {t("agency.activate")}</>
-                              }
+                              <RotateCcw className="w-4 h-4" /> Reset AI Settings
                             </button>
                           </div>
                         )}
@@ -465,6 +698,13 @@ export default function AgencyClients() {
       <AnimatePresence>
         {permClient && (
           <PermissionsPanel client={permClient} onClose={() => setPermClient(null)} />
+        )}
+      </AnimatePresence>
+
+      {/* Push Template modal */}
+      <AnimatePresence>
+        {pushOpen && (
+          <PushTemplateModal selectedIds={selectedIds} onClose={() => { setPushOpen(false); setSelectedIds(new Set()); setSelectMode(false); }} />
         )}
       </AnimatePresence>
     </AppLayout>

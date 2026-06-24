@@ -5,6 +5,9 @@ import "@/i18n";
 import App from "./App";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { initSentry } from "@/lib/sentry";
+
+initSentry();
 
 // Lock layout to LTR always — language changes only affect text, not layout direction
 document.documentElement.dir = "ltr";

@@ -122,6 +122,101 @@ export function useDeletePost() {
   });
 }
 
+export function useApprovePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<ScheduledPost>(`/content/${id}/approve`, {}),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: ["agencyContent"] });
+    },
+  });
+}
+
+export function useRequestChanges() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, feedback }: { id: string; feedback: string }) =>
+      api.post<ScheduledPost>(`/content/${id}/request-changes`, { feedback }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: ["agencyContent"] });
+    },
+  });
+}
+
+export function useSubmitForApproval() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<ScheduledPost>(`/content/${id}/submit-for-approval`, {}),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: ["agencyContent"] });
+    },
+  });
+}
+
+export function useOverridePublish() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<ScheduledPost>(`/content/${id}/override-publish`, {}),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: ["agencyContent"] });
+    },
+  });
+}
+
+const MOCK_AGENCY_POSTS: ScheduledPost[] = [
+  ...MOCK_POSTS,
+  {
+    id: "pa1",
+    userId: "client-1",
+    platforms: ["instagram"],
+    content: "🍰 Try our new seasonal special — only available this week!",
+    scheduledAt: future(2, 11),
+    status: "pending_approval",
+    aiGenerated: true,
+    createdAt: new Date(now.getTime() - 3_600_000).toISOString(),
+    approvalRequired: true,
+    approvalStatus: "pending",
+    submittedForApprovalAt: new Date(now.getTime() - 3_600_000).toISOString(),
+    clientName: "Demo Client",
+    clientBusinessName: "The Bakery",
+  },
+  {
+    id: "pa2",
+    userId: "client-1",
+    platforms: ["facebook", "instagram"],
+    content: "We are expanding! New location opening next month. Stay tuned for details.",
+    scheduledAt: future(4, 9),
+    status: "changes_requested",
+    aiGenerated: false,
+    createdAt: new Date(now.getTime() - 86_400_000).toISOString(),
+    approvalRequired: true,
+    approvalStatus: "changes_requested",
+    submittedForApprovalAt: new Date(now.getTime() - 86_400_000).toISOString(),
+    approvalFeedback: "Please add more excitement — maybe emojis and a call to action?",
+    clientName: "Demo Client",
+    clientBusinessName: "The Bakery",
+  },
+];
+
+export function useAgencyContent() {
+  return useQuery({
+    queryKey: ["agencyContent"],
+    queryFn: async () => {
+      try {
+        const result = await api.get<ScheduledPost[]>("/content/all-clients");
+        return Array.isArray(result) ? result : MOCK_AGENCY_POSTS;
+      } catch {
+        return MOCK_AGENCY_POSTS;
+      }
+    },
+    staleTime: 30_000,
+  });
+}
+
 export function useGeneratePost() {
   return useMutation({
     mutationFn: (params: { prompt: string; platform?: Platform; tone?: ToneType }) =>
@@ -151,7 +246,7 @@ const MOCK_METRICS: PostMetricsWithContent[] = [
   { postId: "p4", postContent: "New weekend hours: We're now open until 11 PM on Fridays and Saturdays! Come enjoy a late dinner with us 🌟", postPlatforms: ["whatsapp", "facebook"], likes: 94, comments: 11, reach: 1400, shares: 18, recordedAt: past(5) },
 ];
 
-export function usePostMetrics() {
+export function usePostMetrics(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["postMetrics"],
     queryFn: async () => {
@@ -163,5 +258,6 @@ export function usePostMetrics() {
       }
     },
     staleTime: 60_000,
+    enabled: options?.enabled ?? true,
   });
 }

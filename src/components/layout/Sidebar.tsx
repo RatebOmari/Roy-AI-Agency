@@ -4,12 +4,15 @@ import {
   LayoutDashboard, Inbox, Users, BarChart2, Zap,
   Settings, LogOut, ChevronRight, Menu, X, UserCircle,
   CalendarDays, BookOpen, FileText, Megaphone, GitBranch, Radio, MessageSquare, Phone,
+  Siren,
 } from "lucide-react";
+import { useAgencyContent } from "@/hooks/useContent";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversations } from "@/hooks/useConversations";
+import { AGENCY_NAME } from "@/lib/constants";
 
 type Role = "agency" | "client";
 
@@ -20,10 +23,24 @@ interface SidebarProps {
 
 function UnreadBadge() {
   const { data = [] } = useConversations();
-  const count = data.reduce((s, c) => s + c.unreadCount, 0);
+  // Only count social channels — SMS/calls have their own Phone page
+  const count = data
+    .filter(c => c.channel !== "sms" && c.channel !== "phone_call")
+    .reduce((s, c) => s + c.unreadCount, 0);
   if (count === 0) return null;
   return (
     <span className="ml-auto w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
+function PendingApprovalBadge() {
+  const { data = [] } = useAgencyContent();
+  const count = data.filter(p => p.status === "pending_approval").length;
+  if (count === 0) return null;
+  return (
+    <span className="ml-auto min-w-[20px] h-5 px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
       {count > 9 ? "9+" : count}
     </span>
   );
@@ -44,35 +61,40 @@ interface NavGroup {
 const CLIENT_NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { label: "Dashboard", href: "/dashboard",  icon: LayoutDashboard },
-      { label: "Content",   href: "/content",    icon: CalendarDays },
-      { label: "Inbox",     href: "/inbox",       icon: Inbox, badge: true },
-      { label: "Comments",  href: "/comments",   icon: MessageSquare },
-      { label: "Calls",     href: "/calls",      icon: Phone },
-    ],
-  },
-  {
-    label: "MANAGE",
-    items: [
-      { label: "Contacts",   href: "/contacts",   icon: UserCircle },
-      { label: "Analytics",  href: "/analytics",  icon: BarChart2 },
-      { label: "Resources",  href: "/resources",  icon: BookOpen },
-      { label: "Templates",  href: "/templates",  icon: FileText },
-      { label: "Campaigns",  href: "/campaigns",  icon: Megaphone },
-    ],
-  },
-  {
-    label: "ENGAGE",
-    items: [
-      { label: "Flows",      href: "/flows",      icon: GitBranch },
-      { label: "Team",       href: "/team",       icon: Users },
+      { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
+      { label: "Inbox",      href: "/inbox",       icon: Inbox, badge: true },
+      { label: "Comments",   href: "/comments",   icon: MessageSquare },
+      { label: "Phone",      href: "/phone",      icon: Phone },
       { label: "Listening",  href: "/listening",  icon: Radio },
     ],
   },
   {
-    label: "CONFIG",
+    label: "PUBLISH",
     items: [
-      { label: "Settings", href: "/settings", icon: Settings },
+      { label: "Content",    href: "/content",    icon: CalendarDays },
+      { label: "Outreach",   href: "/outreach",   icon: Megaphone },
+    ],
+  },
+  {
+    label: "INSIGHTS",
+    items: [
+      { label: "Analytics",  href: "/analytics",  icon: BarChart2 },
+      { label: "Contacts",   href: "/contacts",   icon: UserCircle },
+    ],
+  },
+  {
+    label: "AUTOMATE",
+    items: [
+      { label: "Flows",      href: "/flows",      icon: GitBranch },
+      { label: "Templates",  href: "/templates",  icon: FileText },
+    ],
+  },
+  {
+    label: "SETUP",
+    items: [
+      { label: "Resources",  href: "/resources",  icon: BookOpen },
+      { label: "Team",       href: "/team",       icon: Users },
+      { label: "Settings",   href: "/settings",   icon: Settings },
     ],
   },
 ];
@@ -80,13 +102,16 @@ const CLIENT_NAV_GROUPS: NavGroup[] = [
 const AGENCY_NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { label: "Dashboard", href: "/agency/dashboard", icon: LayoutDashboard },
-      { label: "Clients",   href: "/agency/clients",   icon: Users },
+      { label: "Dashboard",       href: "/agency/dashboard", icon: LayoutDashboard },
+      { label: "Command Center",  href: "/agency/command",   icon: Siren },
+      { label: "Clients",         href: "/agency/clients",   icon: Users },
     ],
   },
   {
     label: "MANAGE",
     items: [
+      { label: "Content",   href: "/agency/content",   icon: CalendarDays, badge: true },
+      { label: "Outreach",  href: "/agency/outreach",  icon: Megaphone },
       { label: "Analytics", href: "/agency/analytics", icon: BarChart2 },
     ],
   },
@@ -143,7 +168,11 @@ export function Sidebar({ role, businessName }: SidebarProps) {
                 {!collapsed && (
                   <>
                     <span className="flex-1">{item.label}</span>
-                    {"badge" in item && item.badge && <UnreadBadge />}
+                    {"badge" in item && item.badge && (
+                      item.href === "/agency/content"
+                        ? <PendingApprovalBadge />
+                        : <UnreadBadge />
+                    )}
                   </>
                 )}
               </Link>
@@ -170,7 +199,9 @@ export function Sidebar({ role, businessName }: SidebarProps) {
               <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
                 <Zap className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="font-bold text-foreground">SocialPilot</span>
+              <span className="font-bold text-foreground">
+                {role === "agency" ? AGENCY_NAME : "SocialPilot"}
+              </span>
             </div>
           )}
           <button
@@ -218,7 +249,9 @@ export function Sidebar({ role, businessName }: SidebarProps) {
           <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
             <Zap className="w-3 h-3 text-white" />
           </div>
-          <span className="font-bold text-foreground text-sm">SocialPilot</span>
+          <span className="font-bold text-foreground text-sm">
+            {role === "agency" ? AGENCY_NAME : "SocialPilot"}
+          </span>
         </div>
         <div className="w-9" /> {/* spacer to center logo */}
       </div>

@@ -188,7 +188,7 @@
       "fullPreview": "Vista completa"
     },
     "section": {
-      "empty": "Vacío",
+      "empty": "Sin completar",
       "items_one": "{{count}} elemento",
       "items_other": "{{count}} elementos"
     },

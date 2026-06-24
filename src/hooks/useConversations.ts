@@ -143,14 +143,17 @@ const MOCK_CONVERSATIONS: Conversation[] = [
   },
 ];
 
-export function useConversations(filter?: { status?: ConversationStatus | "all"; channel?: string }) {
+export function useConversations(filter?: { status?: ConversationStatus | "all"; channel?: string; page?: number }) {
+  const page = filter?.page ?? 1;
   return useQuery({
-    queryKey: ["conversations", filter],
+    queryKey: ["conversations", filter?.status ?? "all", filter?.channel ?? "all", page],
     queryFn: async () => {
       try {
-        const result = await api.get<Conversation[]>("/conversations");
-        if (!Array.isArray(result)) throw new Error("unexpected response");
-        return result;
+        const result = await api.get<{ data: Conversation[]; pagination: { page: number; limit: number; total: number; hasMore: boolean } }>(
+          `/conversations?page=${page}&limit=50`
+        );
+        if (!result?.data) throw new Error("unexpected response");
+        return result.data;
       } catch {
         let data = MOCK_CONVERSATIONS;
         if (filter?.status && filter.status !== "all") {
@@ -211,6 +214,15 @@ export function useInsertTemplateDraft() {
   return useMutation({
     mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) =>
       api.post<{ messageId: string }>(`/conversations/${conversationId}/draft`, { content }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+  });
+}
+
+export function useSendManualMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) =>
+      api.post<{ messageId: string }>(`/conversations/${conversationId}/send`, { content }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
   });
 }

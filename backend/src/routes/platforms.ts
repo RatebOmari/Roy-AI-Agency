@@ -5,27 +5,53 @@ import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { platformCredentials } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
+import { encryptToken } from "../lib/crypto.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 const connectSchema = z.object({
-  platform: z.enum(["tiktok", "instagram", "facebook", "whatsapp", "sms", "phone"]),
-  feature:  z.enum(["comments", "messages"]).optional().default("comments"),
+  platform:    z.enum(["tiktok", "instagram", "facebook", "whatsapp", "sms", "phone"]),
+  feature:     z.enum(["comments", "messages", "publishing"]).optional().default("comments"),
+  accessToken: z.string().min(1),
+  accountId:   z.string().optional(), // page ID / IG business account ID for publishing
+  expiresAt:   z.string().datetime().optional(),
 });
 
 app.post("/connect", zValidator("json", connectSchema), async (c) => {
-  const { platform, feature } = c.req.valid("json");
-  // Phase 2: Real OAuth redirect URL returned here
-  // For now, return stub
-  return c.json({
-    connected: false,
-    message:   `OAuth for ${platform} ${feature} will be available in Phase 2`,
-  });
+  const user = c.get("user");
+  if (user.role === "client") return c.json({ message: "Platform credentials are managed by your agency" }, 403);
+  const { platform, feature, accessToken, accountId, expiresAt } = c.req.valid("json");
+
+  // Delete any existing credential for this user/platform/feature, then insert fresh.
+  await db
+    .delete(platformCredentials)
+    .where(and(
+      eq(platformCredentials.userId, user.sub),
+      eq(platformCredentials.platform, platform),
+      eq(platformCredentials.feature, feature),
+    ));
+
+  await db
+    .insert(platformCredentials)
+    .values({
+      userId:         user.sub,
+      platform,
+      feature,
+      accessTokenEnc: encryptToken(accessToken),
+      scope:          accountId ? JSON.stringify({ accountId }) : null,
+      expiresAt:      expiresAt ? new Date(expiresAt) : null,
+      connectedAt:    new Date(),
+    });
+
+  return c.json({ connected: true, platform, feature });
 });
 
 app.post("/disconnect", zValidator("json", connectSchema), async (c) => {
   const user = c.get("user");
+  if (user.role === "client") return c.json({ message: "Platform credentials are managed by your agency" }, 403);
   const { platform, feature } = c.req.valid("json");
 
   await db

@@ -14,14 +14,13 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"client" | "agency">("client");
   const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     try {
-      const user = await login(email, password, role);
+      const user = await login(email, password);
       navigate(user.role === "agency" ? "/agency/dashboard" : "/dashboard");
     } catch {
       setError(t("login.invalidCredentials"));
@@ -49,20 +48,6 @@ export default function Login() {
         </div>
 
         <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-5">
-          <div className="flex bg-muted rounded-xl p-1">
-            {(["client", "agency"] as const).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  role === r ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                {r === "client" ? t("login.businessOwner") : t("login.agency")}
-              </button>
-            ))}
-          </div>
-
           {error && (
             <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-xl px-3 py-2.5">
               <AlertCircle className="w-4 h-4 shrink-0" />

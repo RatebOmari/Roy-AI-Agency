@@ -30,6 +30,7 @@ export interface User {
   id: string;
   email: string;
   role: "client" | "agency";
+  teamRole?: "admin" | "agent" | "viewer";
   name: string;
   businessName: string;
   platformPermissions?: Record<ExtendedPlatform, { comments: boolean; messages: boolean }>;
@@ -86,6 +87,7 @@ export interface AgencyClient {
   platforms: Platform[];
   replies: number;
   status: ClientStatus;
+  contentApprovalEnabled?: boolean;
 }
 
 export interface ApiError {
@@ -171,17 +173,32 @@ export interface ChannelBreakdown {
 
 // ── Content Scheduler ─────────────────────────────────────────────────────────
 
-export type PostStatus = "draft" | "scheduled" | "published" | "failed";
+export type PostStatus = "draft" | "scheduled" | "published" | "failed" | "skipped" | "pending_approval" | "changes_requested";
+
+export type ApprovalStatus = "not_required" | "pending" | "approved" | "changes_requested";
 
 export interface ScheduledPost {
   id: string;
+  userId?: string;
   platforms: Platform[];
   content: string;
-  mediaUrl?: string;
-  scheduledAt?: string;
+  mediaUrl?: string | null;
+  scheduledAt?: string | null;
   status: PostStatus;
   aiGenerated: boolean;
   createdAt: string;
+  // approval fields
+  approvalRequired?: boolean;
+  approvalStatus?: ApprovalStatus;
+  submittedForApprovalAt?: string | null;
+  approvedAt?: string | null;
+  approvalFeedback?: string | null;
+  overridePublished?: boolean;
+  overridePublishedBy?: string | null;
+  createdBy?: string | null;
+  // agency all-clients view extras
+  clientName?: string;
+  clientBusinessName?: string;
 }
 
 // ── Resources / Knowledge Base ────────────────────────────────────────────────
@@ -245,26 +262,62 @@ export interface ReplyTemplate {
   createdAt: string;
 }
 
-// ── Campaigns (WhatsApp Broadcasts) ──────────────────────────────────────────
+// ── Outreach (multi-channel broadcasts) ──────────────────────────────────────
 
-export type CampaignStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
+export type OutreachChannel = "whatsapp" | "sms" | "email";
+export type OutreachStatus  = "draft" | "scheduled" | "sending" | "sent" | "failed";
 
+export interface OutreachAudienceFilter {
+  type:           "all" | "tag" | "platform";
+  tagValue?:      string | null;
+  platformValue?: string | null;
+  activeDays?:    number | null;
+}
+
+export interface OutreachMessage {
+  id:             string;
+  userId?:        string;
+  title:          string;
+  channel:        OutreachChannel;
+  messageBody:    string;
+  subject?:       string | null;   // email only
+  imageUrl?:      string | null;
+  quickReplies?:  string;          // JSON: string[], WA only
+  audienceFilter?: string;         // JSON: OutreachAudienceFilter
+  estimatedReach: number;
+  actualReach:    number;
+  sentCount:      number;
+  deliveredCount: number;
+  openedCount:    number;
+  clickedCount:   number;
+  repliedCount:   number;
+  failedCount:    number;
+  status:         OutreachStatus;
+  scheduledAt?:   string | null;
+  sentAt?:        string | null;
+  createdAt:      string;
+  // agency all-clients extras
+  clientName?:         string;
+  clientBusinessName?: string;
+}
+
+// Keep Campaign as alias so Analytics.tsx (before CHANGE 8 update) still compiles
+export type CampaignStatus       = OutreachStatus;
 export type CampaignAudienceType = "all" | "tag" | "platform";
-
 export interface Campaign {
-  id: string;
-  name: string;
-  message: string;
-  mediaUrl?: string;
-  platform: Platform;
+  id:           string;
+  name:         string;
+  message:      string;
+  mediaUrl?:    string;
+  platform:     Platform;
   audienceType: CampaignAudienceType;
   audienceValue?: string;
-  scheduledAt?: string;
-  status: CampaignStatus;
-  sentCount: number;
-  readCount: number;
-  replyCount: number;
-  createdAt: string;
+  scheduledAt?:   string;
+  status:         CampaignStatus;
+  sentCount:      number;
+  readCount:      number;
+  replyCount:     number;
+  createdAt:      string;
 }
 
 // ── Chatbot Flows ─────────────────────────────────────────────────────────────
@@ -332,13 +385,15 @@ export interface ListeningKeyword {
 
 export interface Mention {
   id: string;
-  keywordId: string;
+  keywordId: string | null;
   keyword: string;
   platform: Platform;
   username: string;
   content: string;
-  url?: string;
+  url?: string | null;
   sentiment: MentionSentiment;
+  handled: boolean;
+  handledAt?: string | null;
   timestamp: string;
 }
 

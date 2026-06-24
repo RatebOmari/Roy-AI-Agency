@@ -1,37 +1,52 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Building2, Globe, Bell, Shield, CreditCard } from "lucide-react";
+import { Globe, Bell, Shield, Brain } from "lucide-react";
+import { AGENCY_NAME } from "@/lib/constants";
+import { useAgencyConfig, useUpdateAgencyConfig } from "@/hooks/useAgencyConfig";
 
 const SECTIONS = [
-  { key: "agency", label: "Agency Profile", icon: Building2 },
-  { key: "notifications", label: "Notifications", icon: Bell },
-  { key: "billing", label: "Billing & Plan", icon: CreditCard },
-  { key: "security", label: "Security", icon: Shield },
-  { key: "integrations", label: "Integrations", icon: Globe },
+  { key: "contact",       label: "Contact Info",  icon: Globe  },
+  { key: "ai",            label: "AI Control",    icon: Brain  },
+  { key: "notifications", label: "Notifications", icon: Bell   },
+  { key: "security",      label: "Security",      icon: Shield },
 ] as const;
 
 type Section = (typeof SECTIONS)[number]["key"];
 
 export default function AgencySettings() {
-  const [active, setActive] = useState<Section>("agency");
+  const [active, setActive] = useState<Section>("contact");
+  const { data: config } = useAgencyConfig();
+  const updateConfig = useUpdateAgencyConfig();
+  const [blocked, setBlocked] = useState("");
 
   return (
     <AppLayout role="agency">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Agency Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage your agency account and preferences</p>
+          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage your agency preferences</p>
         </div>
 
-        <div className="flex gap-6">
-          {/* Left nav */}
-          <div className="w-52 flex-shrink-0">
-            <nav className="space-y-0.5">
+        {/* Agency identity — read-only */}
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl px-5 py-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-sm">R</span>
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">{AGENCY_NAME}</p>
+            <p className="text-xs text-muted-foreground">Agency account · single-tenant</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          {/* Left nav — horizontal scrollable on mobile, vertical sidebar on md+ */}
+          <div className="md:w-52 md:flex-shrink-0">
+            <nav className="flex gap-1 overflow-x-auto no-scrollbar pb-1 md:pb-0 md:flex-col md:space-y-0.5">
               {SECTIONS.map(s => (
                 <button
                   key={s.key}
                   onClick={() => setActive(s.key)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-colors ${
+                  className={`flex items-center gap-2 px-3 py-2 md:py-2.5 rounded-xl text-sm font-medium whitespace-nowrap shrink-0 md:shrink md:w-full md:text-left transition-colors ${
                     active === s.key
                       ? "bg-primary text-white"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -46,22 +61,21 @@ export default function AgencySettings() {
 
           {/* Content */}
           <div className="flex-1 bg-card rounded-2xl border border-border p-6">
-            {active === "agency" && (
+            {active === "contact" && (
               <div className="space-y-5">
-                <h2 className="font-semibold text-foreground">Agency Profile</h2>
+                <h2 className="font-semibold text-foreground">Contact Info</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
-                    { label: "Agency Name", placeholder: "Roy AI Agency", type: "text" },
-                    { label: "Website", placeholder: "https://royaiagency.com", type: "url" },
-                    { label: "Contact Email", placeholder: "contact@royaiagency.com", type: "email" },
-                    { label: "Phone", placeholder: "+1 (919) 555-0100", type: "tel" },
+                    { label: "Website",       placeholder: "https://royaiagency.com",   type: "url"   },
+                    { label: "Contact Email", placeholder: "contact@royaiagency.com",   type: "email" },
+                    { label: "Phone",         placeholder: "+1 (919) 555-0100",         type: "tel"   },
                   ].map(f => (
                     <div key={f.label} className="space-y-1.5">
                       <label className="text-sm font-medium text-foreground">{f.label}</label>
                       <input
                         type={f.type}
                         placeholder={f.placeholder}
-                        className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                       />
                     </div>
                   ))}
@@ -72,24 +86,38 @@ export default function AgencySettings() {
               </div>
             )}
 
-            {active === "billing" && (
+            {active === "ai" && (
               <div className="space-y-5">
-                <h2 className="font-semibold text-foreground">Billing & Plan</h2>
-                <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-foreground">Agency Pro Plan</p>
-                    <p className="text-sm text-muted-foreground">Up to 20 clients · $199 / month</p>
-                  </div>
-                  <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-medium">Active</span>
+                <div>
+                  <h2 className="font-semibold text-foreground">AI Control</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Global settings applied to all clients' AI behaviour.
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">Next billing date: June 1, 2026</p>
-                <button className="px-5 py-2.5 border border-border text-sm font-medium rounded-xl hover:bg-muted transition-colors">
-                  Manage Subscription
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Global Blocked Words</label>
+                  <p className="text-xs text-muted-foreground">
+                    Comma-separated. The AI will never use these words in replies across all client accounts.
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={blocked || config?.globalBlocked || ""}
+                    onChange={e => setBlocked(e.target.value)}
+                    placeholder="e.g. competitor, free, discount, guaranteed"
+                    className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                  />
+                </div>
+                <button
+                  onClick={() => updateConfig.mutate({ globalBlocked: blocked || config?.globalBlocked || "" })}
+                  disabled={updateConfig.isPending}
+                  className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60"
+                >
+                  {updateConfig.isPending ? "Saving…" : "Save"}
                 </button>
               </div>
             )}
 
-            {(active === "notifications" || active === "security" || active === "integrations") && (
+            {(active === "notifications" || active === "security") && (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
                   {(() => {

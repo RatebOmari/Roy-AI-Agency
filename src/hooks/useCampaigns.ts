@@ -138,3 +138,23 @@ export function useSendCampaign() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["campaigns"] }),
   });
 }
+
+export interface AudienceReach {
+  total:          number;
+  tagCounts:      Record<string, number>;
+  platformCounts: Record<string, number>;
+}
+
+export function useAudienceReach() {
+  return useQuery({
+    queryKey: ["campaignReach"],
+    queryFn: async () => {
+      try {
+        return await api.get<AudienceReach>("/campaigns/reach");
+      } catch {
+        return { total: 0, tagCounts: {}, platformCounts: {} } as AudienceReach;
+      }
+    },
+    staleTime: 60_000,
+  });
+}

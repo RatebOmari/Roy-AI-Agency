@@ -189,7 +189,7 @@
       "fullPreview": "معاينة كاملة"
     },
     "section": {
-      "empty": "فارغ",
+      "empty": "لم يُعبأ بعد",
       "items_one": "{{count}} عنصر",
       "items_other": "{{count}} عناصر"
     },

@@ -1,13 +1,17 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import { comments, toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
+import { aiRateLimit } from "../middleware/rateLimit.js";
+import { AI_FAST_MODEL } from "../lib/constants.js";
 
 function platformToCommentChannel(platform: string): DeliveryChannel {
   if (platform === "instagram") return "instagram_comment";
@@ -19,6 +23,7 @@ function platformToCommentChannel(platform: string): DeliveryChannel {
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // Confidence integer (0–100) → float (0.0–1.0) for frontend
 function toFloat(n: number | null | undefined): number | undefined {
@@ -29,33 +34,46 @@ function toFloat(n: number | null | undefined): number | undefined {
 // ── List comments ─────────────────────────────────────────────────────────────
 
 app.get("/", async (c) => {
-  const user = c.get("user");
+  const user     = c.get("user");
   const platform = c.req.query("platform");
   const status   = c.req.query("status");
+  const page     = Math.max(1, parseInt(c.req.query("page")  ?? "1"));
+  const limit    = Math.min(100, Math.max(1, parseInt(c.req.query("limit") ?? "50")));
+  const offset   = (page - 1) * limit;
 
-  let query = db
+  type PlatformVal = typeof comments.$inferSelect.platform;
+  type StatusVal   = typeof comments.$inferSelect.status;
+
+  const conditions = [eq(comments.userId, user.sub)];
+  if (platform) conditions.push(eq(comments.platform, platform as PlatformVal));
+  if (status)   conditions.push(eq(comments.status,   status   as StatusVal));
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(comments)
+    .where(and(...conditions));
+
+  const rows = await db
     .select()
     .from(comments)
-    .where(eq(comments.userId, user.sub))
+    .where(and(...conditions))
     .orderBy(desc(comments.timestamp))
-    .$dynamic();
+    .limit(limit)
+    .offset(offset);
 
-  const rows = await query;
-
-  const filtered = rows
-    .filter(r => !platform || r.platform === platform)
-    .filter(r => !status   || r.status   === status);
-
-  return c.json(filtered.map(r => ({
-    id:            r.id,
-    platform:      r.platform,
-    username:      r.username,
-    text:          r.text,
-    aiReply:       r.aiReply,
-    aiConfidence:  toFloat(r.aiConfidence),
-    status:        r.status,
-    timestamp:     r.timestamp.toISOString(),
-  })));
+  return c.json({
+    data: rows.map(r => ({
+      id:           r.id,
+      platform:     r.platform,
+      username:     r.username,
+      text:         r.text,
+      aiReply:      r.aiReply,
+      aiConfidence: toFloat(r.aiConfidence),
+      status:       r.status,
+      timestamp:    r.timestamp.toISOString(),
+    })),
+    pagination: { page, limit, total, hasMore: offset + rows.length < total },
+  });
 });
 
 // ── Approve / reject / edit ───────────────────────────────────────────────────
@@ -104,7 +122,7 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
       text:              replyText,
     })
       .then(result => logDelivery(result, `comment ${id} → ${comment.platform}`))
-      .catch(err => console.error("[delivery] Unexpected error:", err));
+      .catch(err => logger.error({ err }, "[delivery] Unexpected error"));
   }
 
   return c.json({ ok: true });
@@ -116,7 +134,7 @@ const generateReplySchema = z.object({
   commentId: z.string().uuid(),
 });
 
-app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) => {
+app.post("/generate-reply", aiRateLimit, zValidator("json", generateReplySchema), async (c) => {
   const user = c.get("user");
   const { commentId } = c.req.valid("json");
 
@@ -179,7 +197,7 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
     try {
       const anthropic = new Anthropic({ apiKey });
       const response = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: AI_FAST_MODEL,
         max_tokens: 256,
         system: systemParts.join("\n"),
         messages: [{ role: "user", content: comment.text }],
@@ -233,7 +251,7 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
       text:              reply,
     })
       .then(result => logDelivery(result, `auto comment ${commentId} → ${comment.platform}`))
-      .catch(err => console.error("[delivery] Unexpected error:", err));
+      .catch(err => logger.error({ err }, "[delivery] Unexpected error"));
   }
 
   return c.json({

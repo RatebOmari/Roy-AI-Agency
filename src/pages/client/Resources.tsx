@@ -278,29 +278,29 @@ function WorkingHoursSection({ resource }: { resource?: Resource }) {
       </div>
       <div className="space-y-2">
         {hours.map((row, i) => (
-          <div key={row.day} className="flex items-center gap-3 py-1">
-            <span className="w-24 text-sm text-foreground flex-shrink-0">
+          <div key={row.day} className="flex items-center gap-2 py-1">
+            <span className="w-[68px] sm:w-24 text-sm text-foreground flex-shrink-0 truncate">
               {t(`resources.days.${row.day.toLowerCase()}`)}
             </span>
             <Toggle
               on={row.open}
               onChange={v => setHours(h => h.map((x, j) => j === i ? { ...x, open: v } : x))}
             />
-            <span className="text-xs text-muted-foreground w-12">
+            <span className="text-xs text-muted-foreground w-9 sm:w-12 flex-shrink-0">
               {row.open ? t("resources.hours.open") : t("resources.hours.closed")}
             </span>
             {row.open && (
               <>
                 <input
                   type="time"
-                  className="bg-background border border-border rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="flex-1 min-w-0 bg-background border border-border rounded-lg px-1.5 sm:px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                   value={row.from}
                   onChange={e => setHours(h => h.map((x, j) => j === i ? { ...x, from: e.target.value } : x))}
                 />
-                <span className="text-xs text-muted-foreground">–</span>
+                <span className="text-xs text-muted-foreground flex-shrink-0">–</span>
                 <input
                   type="time"
-                  className="bg-background border border-border rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="flex-1 min-w-0 bg-background border border-border rounded-lg px-1.5 sm:px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                   value={row.to}
                   onChange={e => setHours(h => h.map((x, j) => j === i ? { ...x, to: e.target.value } : x))}
                 />

@@ -79,6 +79,28 @@ export function useSetClientPlatformCredential() {
   });
 }
 
+export interface AgencyStats {
+  totalReplies: number;
+  autoSentRate: number;
+  activeClients: number;
+  avgPerClient: number;
+  weeklyData: { day: string; replies: number }[];
+}
+
+export function useAgencyStats() {
+  return useQuery({
+    queryKey: ["agencyStats"],
+    queryFn: async () => {
+      try {
+        return await api.get<AgencyStats>("/clients/stats");
+      } catch {
+        return { totalReplies: 0, autoSentRate: 0, activeClients: 0, avgPerClient: 0, weeklyData: [] } as AgencyStats;
+      }
+    },
+    staleTime: 60_000,
+  });
+}
+
 export function useRevokeClientPlatformCredential() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -89,5 +111,25 @@ export function useRevokeClientPlatformCredential() {
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["clientPlatforms", vars.clientId] });
     },
+  });
+}
+
+export function useResetClientAiSettings() {
+  return useMutation({
+    mutationFn: (clientId: string) =>
+      api.post<void>("/clients/action", { action: "resetAiSettings", clientId }),
+  });
+}
+
+export function usePushTemplate() {
+  return useMutation({
+    mutationFn: (vars: {
+      clientIds: string[];
+      title: string;
+      content: string;
+      platforms: string[];
+      language: string;
+      category: string;
+    }) => api.post<{ ok: boolean; pushed: number }>("/clients/push-template", vars),
   });
 }

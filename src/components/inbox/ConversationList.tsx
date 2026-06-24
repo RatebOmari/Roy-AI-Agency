@@ -89,7 +89,6 @@ const CHANNEL_FILTERS: { key: string; label: string; activeClass: string }[] = [
   { key: "tiktok",    label: "TikTok",    activeClass: "bg-zinc-900 text-white dark:bg-zinc-700" },
   { key: "facebook",  label: "Facebook",  activeClass: "bg-blue-600 text-white" },
   { key: "whatsapp",  label: "WhatsApp",  activeClass: "bg-green-500 text-white" },
-  { key: "sms",       label: "SMS",       activeClass: "bg-slate-500 text-white" },
 ];
 
 const CHANNEL_ICONS: Record<Channel, React.ComponentType<{ className?: string }>> = {

@@ -106,10 +106,33 @@ export function useDeleteKeyword() {
   });
 }
 
-export function useMentions() {
+export function useMentions(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["mentions"],
     queryFn: () => api.get<Mention[]>("/listening/mentions"),
     staleTime: 30_000,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useGenerateMentionReply() {
+  return useMutation({
+    mutationFn: (data: { content: string; platform: string; username: string; keyword: string }) =>
+      api.post<{ reply: string }>("/listening/generate-reply", data),
+  });
+}
+
+export function useMarkMentionHandled() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, handled }: { id: string; handled: boolean }) =>
+      api.patch<Mention>(`/listening/mentions/${id}/${handled ? "handle" : "unhandle"}`, {}),
+    onSuccess: (updated) => {
+      // Optimistically update the cached mention
+      queryClient.setQueryData<Mention[]>(["mentions"], (old) =>
+        (old ?? []).map(m => m.id === updated.id ? updated : m)
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["mentions"] }),
   });
 }

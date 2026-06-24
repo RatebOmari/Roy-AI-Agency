@@ -1,16 +1,23 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import { conversations, messages, toneSettings } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, makePhoneCall, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
+import { evaluateRules, ruleActionToReplyStatus } from "../lib/automationRules.js";
+import { requireNotViewer } from "../middleware/teamRole.js";
+import { aiRateLimit } from "../middleware/rateLimit.js";
+import { AI_FAST_MODEL } from "../lib/constants.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // Map channel string → platform for tone settings lookup
 function channelToPlatform(channel: string): "tiktok" | "instagram" | "facebook" | "whatsapp" {
@@ -43,21 +50,32 @@ function toConfidenceFloat(n: number | null | undefined): number | undefined {
 }
 
 app.get("/", async (c) => {
-  const user = c.get("user");
+  const user  = c.get("user");
+  const page  = Math.max(1, parseInt(c.req.query("page")  ?? "1"));
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query("limit") ?? "50")));
+  const offset = (page - 1) * limit;
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(conversations)
+    .where(eq(conversations.userId, user.sub));
 
   const convRows = await db
     .select()
     .from(conversations)
     .where(eq(conversations.userId, user.sub))
-    .orderBy(desc(conversations.lastMessageAt));
+    .orderBy(desc(conversations.lastMessageAt))
+    .limit(limit)
+    .offset(offset);
 
-  const result = await Promise.all(
+  const data = await Promise.all(
     convRows.map(async (conv) => {
       const msgs = await db
         .select()
         .from(messages)
         .where(eq(messages.convId, conv.id))
-        .orderBy(messages.timestamp);
+        .orderBy(desc(messages.timestamp))
+        .limit(50);
 
       return {
         id:            conv.id,
@@ -72,7 +90,7 @@ app.get("/", async (c) => {
         priority:      conv.priority,
         assignedTo:    conv.assignedTo ?? undefined,
         tags:          conv.tags,
-        messages:      msgs.map((m) => ({
+        messages:      msgs.reverse().map((m) => ({
           id:             m.id,
           conversationId: conv.id,
           direction:      m.direction,
@@ -88,7 +106,62 @@ app.get("/", async (c) => {
     })
   );
 
-  return c.json(result);
+  return c.json({
+    data,
+    pagination: { page, limit, total, hasMore: offset + data.length < total },
+  });
+});
+
+// GET /:id/messages — load older messages with cursor pagination
+app.get("/:id/messages", async (c) => {
+  const user   = c.get("user");
+  const convId = c.req.param("id");
+  const before = c.req.query("before"); // messageId cursor
+  const limit  = Math.min(50, Math.max(1, parseInt(c.req.query("limit") ?? "50")));
+
+  const [conv] = await db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(and(eq(conversations.id, convId), eq(conversations.userId, user.sub)))
+    .limit(1);
+  if (!conv) return c.json({ message: "Conversation not found" }, 404);
+
+  let baseQuery = db
+    .select()
+    .from(messages)
+    .where(eq(messages.convId, convId))
+    .orderBy(desc(messages.timestamp))
+    .limit(limit)
+    .$dynamic();
+
+  if (before) {
+    const [cursor] = await db
+      .select({ timestamp: messages.timestamp })
+      .from(messages)
+      .where(and(eq(messages.id, before), eq(messages.convId, convId)))
+      .limit(1);
+    if (cursor) {
+      const { lt } = await import("drizzle-orm");
+      baseQuery = baseQuery.where(lt(messages.timestamp, cursor.timestamp));
+    }
+  }
+
+  const rows = await baseQuery;
+  return c.json({
+    data: rows.reverse().map((m) => ({
+      id:             m.id,
+      conversationId: convId,
+      direction:      m.direction,
+      content:        m.content,
+      aiReply:        m.aiReply ?? undefined,
+      aiConfidence:   toConfidenceFloat(m.aiConfidence),
+      replyStatus:    m.replyStatus ?? undefined,
+      sentBy:         m.sentBy ?? undefined,
+      timestamp:      m.timestamp.toISOString(),
+      mediaUrl:       m.mediaUrl ?? undefined,
+    })),
+    hasMore: rows.length === limit,
+  });
 });
 
 // ── Generate AI reply for a conversation ─────────────────────────────────────
@@ -97,7 +170,7 @@ const generateReplySchema = z.object({
   conversationId: z.string().uuid(),
 });
 
-app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) => {
+app.post("/generate-reply", requireNotViewer, aiRateLimit, zValidator("json", generateReplySchema), async (c) => {
   const user = c.get("user");
   const { conversationId } = c.req.valid("json");
 
@@ -144,26 +217,65 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
     langStr === "ar_en" ? "Respond primarily in Arabic; you may use English words where natural." :
                           "Respond in English.";
 
-  // Fetch knowledge base context
-  const knowledge = await buildKnowledgeContext(user.sub);
+  // Fetch knowledge base context (pass platform so templates are filtered to this channel)
+  const knowledge = await buildKnowledgeContext(user.sub, platform);
 
-  // Build system prompt
+  // ── Channel-specific guidance ─────────────────────────────────────────────
+  const channelGuidance: Record<string, string> = {
+    instagram_comment:  "This is a PUBLIC Instagram comment — keep the reply short (1-2 sentences), warm, and brand-appropriate. Avoid sharing private details publicly.",
+    instagram_dm:       "This is a private Instagram DM — you can be more detailed and personal. Address the customer by name if possible.",
+    tiktok_comment:     "This is a PUBLIC TikTok comment — be brief, fun, and engaging. Use casual language that fits the TikTok vibe.",
+    tiktok_dm:          "This is a private TikTok DM — be helpful and conversational.",
+    facebook_comment:   "This is a PUBLIC Facebook comment — be professional yet approachable. Keep it concise.",
+    facebook_messenger: "This is a private Facebook Messenger conversation — you can be detailed and personal.",
+    whatsapp_business:  "This is a WhatsApp Business message — be helpful and conversational. Emojis are appropriate but don't overuse them.",
+    sms:                "This is an SMS — be very concise (under 160 characters ideally). No emojis unless the customer used them first.",
+    phone_call:         "This is a phone follow-up — write a natural, spoken-language response.",
+  };
+  const channelGuide = channelGuidance[conv.channel] ?? `This is a ${conv.channel} conversation.`;
+
+  // ── Priority & tag context ────────────────────────────────────────────────
+  const priorityGuide =
+    conv.priority === "urgent"
+      ? "URGENT: This customer needs immediate attention — prioritize speed and a resolution path."
+      : conv.priority === "low"
+      ? "Low priority — a helpful standard reply is fine."
+      : "";
+
+  const tagGuides: string[] = [];
+  if (conv.tags.includes("complaint"))      tagGuides.push("This customer is complaining — be empathetic, apologize sincerely, and offer a clear resolution.");
+  if (conv.tags.includes("order-inquiry"))  tagGuides.push("This is an order inquiry — provide clear, specific information about ordering.");
+  if (conv.tags.includes("dietary"))        tagGuides.push("This involves dietary or ingredient questions — be precise and accurate.");
+  if (conv.tags.includes("appointment"))    tagGuides.push("This involves an appointment — confirm details clearly.");
+  if (conv.tags.includes("purchase-intent")) tagGuides.push("This customer is interested in buying — be encouraging and guide them toward a purchase.");
+  if (conv.tags.includes("escalate"))       tagGuides.push("This conversation may need escalation — if unsure, suggest the customer contact us directly.");
+
+  // ── Build system prompt ───────────────────────────────────────────────────
   const systemParts: string[] = [
-    `You are an AI customer support assistant replying on behalf of a business on ${platform}.`,
+    `You are an AI customer support assistant replying on behalf of a business.`,
+    `You are replying to ${conv.contactName} (${conv.contactHandle}).`,
+    channelGuide,
     `Tone: ${toneStr}. ${langInstruction}`,
-    `Keep replies concise and natural (1–3 sentences for social media, up to 5 for DMs).`,
   ];
+
+  if (priorityGuide)        systemParts.push(priorityGuide);
+  if (tagGuides.length > 0) systemParts.push(tagGuides.join(" "));
+
   if (knowledge) {
     systemParts.push(`\nBUSINESS KNOWLEDGE BASE:\n${knowledge}`);
+    systemParts.push(`\nIMPORTANT: Use only facts from the knowledge base. If you don't know something, say you'll check and follow up rather than guessing.`);
+  } else {
+    systemParts.push(`\nIMPORTANT: If you don't have specific information about something, say you'll check and follow up rather than guessing.`);
   }
-  if (blocked) {
-    systemParts.push(`\nNever use these words: ${blocked}`);
-  }
-  if (extra) {
-    systemParts.push(`\nAdditional instructions: ${extra}`);
-  }
+
+  if (blocked) systemParts.push(`\nNever use these words or phrases: ${blocked}`);
+  if (extra)   systemParts.push(`\nAdditional business instructions: ${extra}`);
+
   systemParts.push(
-    `\nAfter writing your reply, rate your confidence (0–100) that it's accurate and helpful given the knowledge base.`,
+    `\nAfter writing your reply, rate your confidence (0–100) that it is accurate, helpful, and grounded in the knowledge base provided.`,
+    `High confidence (85+) = you are certain the information is correct.`,
+    `Medium confidence (50-84) = the reply is reasonable but the business should review it.`,
+    `Low confidence (0-49) = you are guessing or the topic needs human expertise.`,
     `Return ONLY valid JSON: { "reply": "<your reply>", "confidence": <integer 0-100> }`
   );
 
@@ -183,7 +295,7 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
       }));
 
       const response = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: AI_FAST_MODEL,
         max_tokens: 512,
         system: systemParts.join("\n"),
         messages: historyTurns.length > 0
@@ -215,10 +327,20 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
   }
 
   // Apply 3-tier confidence system
-  const replyStatus =
-    confidence >= 85 ? "auto_sent"  as const :
-    confidence >= 50 ? "pending"    as const :
-                       "escalated"  as const;
+  let replyStatus: "auto_sent" | "pending" | "escalated" =
+    confidence >= 85 ? "auto_sent"  :
+    confidence >= 50 ? "pending"    :
+                       "escalated"  ;
+
+  // Automation rules can override the confidence-based tier
+  const ruleMatch = await evaluateRules(user.sub, lastInbound.content, conv.channel);
+  if (ruleMatch) {
+    const overrideStatus = ruleActionToReplyStatus(ruleMatch.action);
+    if (overrideStatus) {
+      replyStatus = overrideStatus;
+      logger.info(`[conversations] rule "${ruleMatch.ruleName}" → ${overrideStatus}`);
+    }
+  }
 
   // Create outbound message with the AI reply
   const [newMsg] = await db
@@ -250,7 +372,7 @@ app.post("/generate-reply", zValidator("json", generateReplySchema), async (c) =
       text:            reply,
     })
       .then(result => logDelivery(result, `auto conv ${conversationId} → ${conv.channel}`))
-      .catch(err => console.error("[delivery] Unexpected error:", err));
+      .catch(err => logger.error({ err }, "[delivery] Unexpected error"));
   }
 
   return c.json({
@@ -268,7 +390,7 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("updateStatus"), id: z.string().uuid(), status: z.enum(["open", "pending", "resolved", "closed"]) }),
 ]);
 
-app.post("/action", zValidator("json", actionSchema), async (c) => {
+app.post("/action", requireNotViewer, zValidator("json", actionSchema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
 
@@ -280,7 +402,7 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
       .limit(1);
 
     if (!conv) return c.json({ message: "Not found" }, 404);
-    await db.update(conversations).set({ status: body.status }).where(eq(conversations.id, body.id));
+    await db.update(conversations).set({ status: body.status }).where(and(eq(conversations.id, body.id), eq(conversations.userId, user.sub)));
     return c.json({ ok: true });
   }
 
@@ -331,7 +453,7 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
       text:            replyText,
     })
       .then(result => logDelivery(result, `conv ${body.conversationId} → ${conv.channel}`))
-      .catch(err => console.error("[delivery] Unexpected error:", err));
+      .catch(err => logger.error({ err }, "[delivery] Unexpected error"));
   }
 
   return c.json({ ok: true });

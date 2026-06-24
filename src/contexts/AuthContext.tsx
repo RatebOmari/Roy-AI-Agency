@@ -5,10 +5,10 @@ import type { User, LoginResponse } from "@/types";
 
 interface AuthContextValue {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string, roleHint?: "client" | "agency") => Promise<User>;
+  login: (email: string, password: string) => Promise<User>;
+  teamLogin: (inviteToken: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -16,88 +16,60 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(authStorage.getUser());
-  const [token, setToken] = useState<string | null>(authStorage.getToken());
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const savedToken = authStorage.getToken();
-    const savedUser = authStorage.getUser();
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(savedUser);
-    }
-  }, []);
-
-  useEffect(() => {
     registerUnauthorizedHandler(() => {
-      setToken(null);
       setUser(null);
+      window.location.replace("/login");
     });
   }, []);
 
   const login = useCallback(async (
     email: string,
     password: string,
-    roleHint: "client" | "agency" = "client"
   ): Promise<User> => {
     setIsLoading(true);
 
-    const DEMO_PLATFORM_PERMISSIONS: User["platformPermissions"] = {
-      tiktok:    { comments: true,  messages: false },
-      instagram: { comments: true,  messages: true  },
-      facebook:  { comments: true,  messages: true  },
-      whatsapp:  { comments: false, messages: true  },
-      sms:       { comments: false, messages: true  },
-      phone:     { comments: false, messages: false },
-    };
-
-    const DEMO_ACCOUNTS: Record<string, { password: string; role: "client" | "agency"; name: string; businessName: string }> = {
-      "client@demo.com": { password: "demo123", role: "client", name: "Demo Business", businessName: "Raleigh Eats" },
-      "agency@demo.com": { password: "demo123", role: "agency", name: "Roy Agency", businessName: "Roy AI Agency" },
-    };
-
     try {
       const data = await api.post<LoginResponse>("/auth/login", { email, password });
-      authStorage.setToken(data.token);
+      // Token is set as httpOnly cookie by the server — only store user info
       authStorage.setUser(data.user);
-      setToken(data.token);
+      authStorage.setDemoMode(false);
       setUser(data.user);
       return data.user;
     } catch (err) {
-      // Always fall back to demo credentials if backend is unavailable or creds don't match
-      const demo = DEMO_ACCOUNTS[email.toLowerCase()];
-      if (demo && password === demo.password) {
-        const demoUser: User = {
-          id: "demo-" + demo.role,
-          email,
-          role: demo.role,
-          name: demo.name,
-          businessName: demo.businessName,
-          platformPermissions: demo.role === "client" ? DEMO_PLATFORM_PERMISSIONS : undefined,
+      // Demo fallback only available in development builds
+      if (import.meta.env.DEV) {
+        const DEMO_PLATFORM_PERMISSIONS: User["platformPermissions"] = {
+          tiktok:    { comments: true,  messages: false },
+          instagram: { comments: true,  messages: true  },
+          facebook:  { comments: true,  messages: true  },
+          whatsapp:  { comments: false, messages: true  },
+          sms:       { comments: false, messages: true  },
+          phone:     { comments: false, messages: false },
         };
-        const demoToken = "demo_token_" + Date.now();
-        authStorage.setToken(demoToken);
-        authStorage.setUser(demoUser);
-        setToken(demoToken);
-        setUser(demoUser);
-        return demoUser;
-      }
-      // No backend configured and no demo match — allow any credentials in pure demo mode
-      if (!import.meta.env.VITE_API_URL) {
-        const demoUser: User = {
-          id: "demo-1",
-          email,
-          role: roleHint,
-          name: roleHint === "agency" ? "Roy Agency" : "Demo Business",
-          businessName: roleHint === "agency" ? "Roy AI Agency" : "My Business",
-          platformPermissions: roleHint === "client" ? DEMO_PLATFORM_PERMISSIONS : undefined,
+
+        const DEMO_ACCOUNTS: Record<string, { password: string; role: "client" | "agency"; name: string; businessName: string }> = {
+          "client@demo.com": { password: "demo123", role: "client", name: "Demo Business", businessName: "Raleigh Eats" },
+          "agency@demo.com": { password: "demo123", role: "agency", name: "Roy Agency",    businessName: "Roy AI Agency" },
         };
-        const demoToken = "demo_token_" + Date.now();
-        authStorage.setToken(demoToken);
-        authStorage.setUser(demoUser);
-        setToken(demoToken);
-        setUser(demoUser);
-        return demoUser;
+
+        const demo = DEMO_ACCOUNTS[email.toLowerCase()];
+        if (demo && password === demo.password) {
+          const demoUser: User = {
+            id: "demo-" + demo.role,
+            email,
+            role: demo.role,
+            name: demo.name,
+            businessName: demo.businessName,
+            platformPermissions: demo.role === "client" ? DEMO_PLATFORM_PERMISSIONS : undefined,
+          };
+          authStorage.setUser(demoUser);
+          authStorage.setDemoMode(true);
+          setUser(demoUser);
+          return demoUser;
+        }
       }
       throw err;
     } finally {
@@ -105,9 +77,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const teamLogin = useCallback(async (inviteToken: string): Promise<User> => {
+    setIsLoading(true);
+    try {
+      const data = await api.post<LoginResponse>("/auth/team-login", { inviteToken });
+      authStorage.setUser(data.user);
+      authStorage.setDemoMode(false);
+      setUser(data.user);
+      return data.user;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(() => {
+    // Clear the httpOnly cookie server-side (fire-and-forget — local state is cleared regardless)
+    if (!authStorage.isDemoMode()) {
+      api.post("/auth/logout").catch(() => {});
+    }
     authStorage.clear();
-    setToken(null);
     setUser(null);
   }, []);
 
@@ -115,10 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        token,
-        isAuthenticated: !!token && !!user,
+        isAuthenticated: !!user,
         isLoading,
         login,
+        teamLogin,
         logout,
       }}
     >

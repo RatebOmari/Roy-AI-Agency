@@ -9,23 +9,28 @@ export function registerUnauthorizedHandler(cb: () => void) {
   _onUnauthorized = cb;
 }
 
+// Set by AgencyClientContext when an agency is acting on behalf of a client
+let _clientId: string | null = null;
+export function setClientId(id: string | null) { _clientId = id; }
+
 class ApiClient {
   private async request<T>(
     path: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const token = authStorage.getToken();
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
     };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+    if (_clientId) {
+      headers["x-client-id"] = _clientId;
     }
 
     const res = await fetch(`${BASE_URL}${path}`, {
       ...options,
       headers,
+      // Send httpOnly session cookie automatically; required for cookie-based auth
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -37,12 +42,11 @@ class ApiClient {
       } catch {
         // ignore parse errors
       }
-      if (res.status === 401) {
-        const currentToken = authStorage.getToken();
-        if (!currentToken?.startsWith("demo_token_")) {
-          authStorage.clear();
-          _onUnauthorized?.();
-        }
+      // On 401, clear local state and redirect to login — unless demo mode
+      // (demo mode has no real cookie, so 401s are expected on all API calls)
+      if (res.status === 401 && !authStorage.isDemoMode()) {
+        authStorage.clear();
+        _onUnauthorized?.();
       }
       throw err;
     }
@@ -64,6 +68,13 @@ class ApiClient {
   put<T>(path: string, body?: unknown) {
     return this.request<T>(path, {
       method: "PUT",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  patch<T>(path: string, body?: unknown) {
+    return this.request<T>(path, {
+      method: "PATCH",
       body: body ? JSON.stringify(body) : undefined,
     });
   }

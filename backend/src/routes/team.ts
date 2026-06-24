@@ -2,12 +2,18 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import { teamMembers, internalNotes } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
+import { requireAdmin, requireNotViewer } from "../middleware/teamRole.js";
+import { sendInviteEmail } from "../lib/email.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // ── Team Members ──────────────────────────────────────────────────────────────
 
@@ -28,27 +34,43 @@ const memberSchema = z.object({
   role:  z.enum(["admin", "agent", "viewer"]).optional(),
 });
 
-// POST /members — create team member
-app.post("/members", zValidator("json", memberSchema), async (c) => {
+// POST /members — create team member (admin only)
+app.post("/members", requireAdmin, zValidator("json", memberSchema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
+
+  const inviteToken    = randomBytes(32).toString("hex");
+  const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
   const [row] = await db
     .insert(teamMembers)
     .values({
-      userId: user.sub,
-      name:   body.name,
-      email:  body.email,
-      role:   body.role ?? "agent",
-      status: "invited",
+      userId:          user.sub,
+      name:            body.name,
+      email:           body.email,
+      role:            body.role ?? "agent",
+      status:          "invited",
+      inviteToken,
+      inviteExpiresAt,
     })
     .returning();
+
+  // Fire-and-forget invite email — failure must not block the response
+  sendInviteEmail({
+    to:            body.email,
+    recipientName: body.name,
+    role:          body.role ?? "agent",
+    inviteToken,
+    businessName:  user.businessName,
+  }).catch(err => logger.error({ err }, "[team] invite email failed"));
+
   return c.json(row, 201);
 });
 
-// PUT /members/:id — update team member (ownership check)
-app.put("/members/:id", zValidator("json", memberSchema.partial()), async (c) => {
+// PUT /members/:id — update team member (admin only)
+app.put("/members/:id", requireAdmin, zValidator("json", memberSchema.partial()), async (c) => {
   const user = c.get("user");
-  const id = c.req.param("id");
+  const id   = c.req.param("id") as string;
   const body = c.req.valid("json");
 
   const [row] = await db
@@ -65,10 +87,10 @@ app.put("/members/:id", zValidator("json", memberSchema.partial()), async (c) =>
   return c.json(row);
 });
 
-// DELETE /members/:id — delete team member (ownership check)
-app.delete("/members/:id", async (c) => {
+// DELETE /members/:id — delete team member (admin only)
+app.delete("/members/:id", requireAdmin, async (c) => {
   const user = c.get("user");
-  const id = c.req.param("id");
+  const id   = c.req.param("id") as string;
   await db
     .delete(teamMembers)
     .where(and(eq(teamMembers.id, id), eq(teamMembers.userId, user.sub)));

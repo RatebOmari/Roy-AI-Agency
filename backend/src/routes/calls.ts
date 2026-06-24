@@ -2,36 +2,103 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
+import { createHmac } from "crypto";
 import { db } from "../db/index.js";
+import { logger } from "../lib/logger.js";
 import { calls, conversations, messages } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { makePhoneCall, logDelivery } from "../lib/platformDelivery.js";
 
 const app = new Hono();
 
-// ── Twilio status webhook — no auth ───────────────────────────────────────────
+// ── Twilio HMAC-SHA1 signature verification ───────────────────────────────────
+
+function verifyTwilioSignature(
+  authToken: string,
+  url: string,
+  params: Record<string, string>,
+  signature: string,
+): boolean {
+  // Twilio: sort params alphabetically, append key+value to URL, HMAC-SHA1, base64
+  const sortedKeys = Object.keys(params).sort();
+  const str = url + sortedKeys.map(k => k + params[k]).join("");
+  const expected = createHmac("sha1", authToken).update(str).digest("base64");
+  if (expected.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  return diff === 0;
+}
+
+// ── Twilio status webhook — signature-verified ────────────────────────────────
 
 app.post("/webhook/status", async (c) => {
-  const body = await c.req.formData();
-  const sid      = body.get("CallSid") as string | null;
-  const status   = body.get("CallStatus") as string | null;
-  const duration = body.get("CallDuration") as string | null;
-  const recUrl   = body.get("RecordingUrl") as string | null;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (authToken) {
+    const sig = c.req.header("x-twilio-signature") ?? "";
+    const url = c.req.url;
+    const rawBody = await c.req.text();
+    const params = Object.fromEntries(new URLSearchParams(rawBody).entries());
+    if (!verifyTwilioSignature(authToken, url, params, sig)) {
+      logger.warn("[calls] Twilio signature verification failed");
+      return c.text("Forbidden", 403);
+    }
+    // Re-parse params since we already consumed the body
+    const sid      = params["CallSid"]        ?? null;
+    const status   = params["CallStatus"]     ?? null;
+    const duration = params["CallDuration"]   ?? null;
+    const recUrl   = params["RecordingUrl"]   ?? null;
 
-  if (!sid) return c.text("missing CallSid", 400);
+    if (!sid) return c.text("missing CallSid", 400);
 
-  const endStatuses = ["completed", "failed", "busy", "no-answer", "canceled"];
-  const updateData: Record<string, unknown> = { status };
-  if (endStatuses.includes(status ?? "")) {
-    if (duration) updateData.duration = parseInt(duration, 10);
-    if (recUrl)   updateData.recordingUrl = recUrl;
-    updateData.endedAt = new Date();
-  }
+    const endStatuses = ["completed", "failed", "busy", "no-answer", "canceled"];
+    if (endStatuses.includes(status ?? "")) {
+      try {
+        await db.update(calls).set({
+          status:       (status as typeof calls.$inferSelect.status),
+          duration:     duration ? parseInt(duration, 10) : undefined,
+          recordingUrl: recUrl ?? undefined,
+          endedAt:      new Date(),
+        }).where(eq(calls.twilioSid, sid));
+      } catch {
+        // call may not exist yet
+      }
+    } else {
+      try {
+        await db.update(calls).set({
+          status: (status as typeof calls.$inferSelect.status),
+        }).where(eq(calls.twilioSid, sid));
+      } catch {
+        // ignore
+      }
+    }
+  } else {
+    // No TWILIO_AUTH_TOKEN configured — process without verification (dev mode)
+    const body     = await c.req.formData();
+    const sid      = body.get("CallSid")      as string | null;
+    const status   = body.get("CallStatus")   as string | null;
+    const duration = body.get("CallDuration") as string | null;
+    const recUrl   = body.get("RecordingUrl") as string | null;
 
-  try {
-    await db.update(calls).set(updateData as any).where(eq(calls.twilioSid, sid));
-  } catch {
-    // ignore — call may not exist yet
+    if (!sid) return c.text("missing CallSid", 400);
+
+    const endStatuses = ["completed", "failed", "busy", "no-answer", "canceled"];
+    if (endStatuses.includes(status ?? "")) {
+      try {
+        await db.update(calls).set({
+          status:       (status as typeof calls.$inferSelect.status),
+          duration:     duration ? parseInt(duration, 10) : undefined,
+          recordingUrl: recUrl ?? undefined,
+          endedAt:      new Date(),
+        }).where(eq(calls.twilioSid, sid));
+      } catch { /* ignore */ }
+    } else {
+      try {
+        await db.update(calls).set({
+          status: (status as typeof calls.$inferSelect.status),
+        }).where(eq(calls.twilioSid, sid));
+      } catch { /* ignore */ }
+    }
   }
 
   return c.text(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`, 200, {
@@ -42,6 +109,7 @@ app.post("/webhook/status", async (c) => {
 // ── All routes below require auth ─────────────────────────────────────────────
 
 app.use("*", authMiddleware);
+app.use("*", clientContextMiddleware);
 
 // GET /api/calls — list calls for authenticated user
 app.get("/", async (c) => {
@@ -141,7 +209,7 @@ app.put("/:id/notes", zValidator("json", z.object({ notes: z.string() })), async
     .limit(1);
 
   if (!call) return c.json({ message: "Not found" }, 404);
-  await db.update(calls).set({ notes }).where(eq(calls.id, id));
+  await db.update(calls).set({ notes }).where(and(eq(calls.id, id), eq(calls.userId, user.sub)));
   return c.json({ ok: true });
 });
 

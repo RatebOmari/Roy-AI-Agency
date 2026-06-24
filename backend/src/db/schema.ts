@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, uuid, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, uuid, pgEnum, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const roleEnum       = pgEnum("role",        ["client", "agency"]);
@@ -20,7 +20,7 @@ export const channelEnum = pgEnum("channel", [
 ]);
 export const toneEnum = pgEnum("tone", ["friendly", "professional", "fun", "informative"]);
 export const langEnum = pgEnum("lang",  ["ar", "en", "ar_en"]);
-export const featureEnum = pgEnum("feature", ["comments", "messages"]);
+export const featureEnum = pgEnum("feature", ["comments", "messages", "publishing"]);
 
 export const users = pgTable("users", {
   id:           uuid("id").primaryKey().defaultRandom(),
@@ -33,11 +33,12 @@ export const users = pgTable("users", {
 });
 
 export const agencyClients = pgTable("agency_clients", {
-  id:        uuid("id").primaryKey().defaultRandom(),
-  agencyId:  uuid("agency_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  clientId:  uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  status:    clientStatusEnum("status").notNull().default("active"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  id:                      uuid("id").primaryKey().defaultRandom(),
+  agencyId:                uuid("agency_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId:                uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status:                  clientStatusEnum("status").notNull().default("active"),
+  contentApprovalEnabled:  boolean("content_approval_enabled").notNull().default(true),
+  createdAt:               timestamp("created_at").notNull().defaultNow(),
 });
 
 export const platformPermissions = pgTable("platform_permissions", {
@@ -60,6 +61,9 @@ export const platformCredentials = pgTable("platform_credentials", {
   expiresAt:       timestamp("expires_at"),
   scope:           text("scope"),
   connectedAt:     timestamp("connected_at").notNull().defaultNow(),
+  // Set by the scheduler when token refresh fails and the token has expired.
+  // Non-null means the credential requires reconnection.
+  disconnectedAt:  timestamp("disconnected_at"),
 });
 
 export const toneSettings = pgTable("tone_settings", {
@@ -88,7 +92,10 @@ export const conversations = pgTable("conversations", {
   assignedTo:    text("assigned_to"),
   tags:          text("tags").array().notNull().default([]),
   createdAt:     timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => ({
+  userIdIdx: index("conversations_user_id_idx").on(t.userId),
+  statusIdx: index("conversations_status_idx").on(t.status),
+}));
 
 export const messages = pgTable("messages", {
   id:           uuid("id").primaryKey().defaultRandom(),
@@ -101,23 +108,57 @@ export const messages = pgTable("messages", {
   sentBy:       sentByEnum("sent_by"),
   mediaUrl:     text("media_url"),
   timestamp:    timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => ({
+  convIdIdx: index("messages_conv_id_idx").on(t.convId),
+}));
 
 // ── Content Scheduler ─────────────────────────────────────────────────────────
 
-export const postStatusEnum = pgEnum("post_status", ["draft", "scheduled", "published", "failed"]);
+// `status` tracks the scheduling lifecycle: draft → scheduled → published | failed | skipped.
+// `pending_approval` and `changes_requested` are intermediate scheduling states
+// used when agency approval is required before the scheduler picks up the post.
+// `skipped` is set when all targeted platforms are currently unsupported for auto-publishing
+// (e.g. TikTok requires business API approval, WhatsApp requires Campaign API).
+//
+// `approvalStatus` tracks the agency-client approval workflow independently:
+// not_required | pending → approved | changes_requested.
+// The two columns overlap semantically — a post in `pending_approval` scheduling
+// status will also have `approvalStatus = "pending"`. The scheduler only
+// publishes posts whose `status = "scheduled"`, so approval must set both fields.
+export const postStatusEnum = pgEnum("post_status", [
+  "draft", "scheduled", "published", "failed", "skipped",
+  "pending_approval", "changes_requested",
+]);
+
+export const approvalStatusEnum = pgEnum("approval_status", [
+  "not_required", "pending", "approved", "changes_requested",
+]);
 
 export const scheduledPosts = pgTable("scheduled_posts", {
   id:          uuid("id").primaryKey().defaultRandom(),
   userId:      uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdBy:   uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   platforms:   text("platforms").array().notNull().default(sql`'{}'::text[]`),
   content:     text("content").notNull().default(""),
   mediaUrl:    text("media_url"),
   scheduledAt: timestamp("scheduled_at"),
+  publishedAt: timestamp("published_at"),
   status:      postStatusEnum("status").notNull().default("draft"),
   aiGenerated: boolean("ai_generated").notNull().default(false),
   createdAt:   timestamp("created_at").notNull().defaultNow(),
-});
+
+  // ── Approval flow ─────────────────────────────────────────────────────────
+  approvalRequired:        boolean("approval_required").notNull().default(true),
+  approvalStatus:          approvalStatusEnum("approval_status").notNull().default("not_required"),
+  submittedForApprovalAt:  timestamp("submitted_for_approval_at"),
+  approvedAt:              timestamp("approved_at"),
+  approvalFeedback:        text("approval_feedback"),
+  overridePublished:       boolean("override_published").notNull().default(false),
+  overridePublishedBy:     uuid("override_published_by").references(() => users.id, { onDelete: "set null" }),
+}, (t) => ({
+  userIdIdx: index("scheduled_posts_user_id_idx").on(t.userId),
+  statusIdx: index("scheduled_posts_status_idx").on(t.status),
+}));
 
 // ── Resources / Knowledge Base ────────────────────────────────────────────────
 
@@ -150,26 +191,51 @@ export const replyTemplates = pgTable("reply_templates", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// ── Campaigns ─────────────────────────────────────────────────────────────────
+// ── Outreach (multi-channel broadcast messages) ───────────────────────────────
 
-export const campaignStatusEnum   = pgEnum("campaign_status",   ["draft","scheduled","sending","sent","failed"]);
-export const campaignAudienceEnum = pgEnum("campaign_audience", ["all","tag","platform"]);
+export const outreachChannelEnum = pgEnum("outreach_channel", ["whatsapp", "sms", "email"]);
+export const outreachStatusEnum  = pgEnum("outreach_status",  ["draft", "scheduled", "sending", "sent", "failed"]);
 
-export const campaigns = pgTable("campaigns", {
-  id:            uuid("id").primaryKey().defaultRandom(),
-  userId:        uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name:          text("name").notNull(),
-  message:       text("message").notNull(),
-  mediaUrl:      text("media_url"),
-  platform:      text("platform").notNull().default("whatsapp"),
-  audienceType:  campaignAudienceEnum("audience_type").notNull().default("all"),
-  audienceValue: text("audience_value"),
-  scheduledAt:   timestamp("scheduled_at"),
-  status:        campaignStatusEnum("status").notNull().default("draft"),
-  sentCount:     integer("sent_count").notNull().default(0),
-  readCount:     integer("read_count").notNull().default(0),
-  replyCount:    integer("reply_count").notNull().default(0),
-  createdAt:     timestamp("created_at").notNull().defaultNow(),
+export const outreachMessages = pgTable("outreach_messages", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  userId:          uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdBy:       uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  title:           text("title").notNull(),
+  channel:         outreachChannelEnum("channel").notNull(),
+  messageBody:     text("message_body").notNull(),
+  subject:         text("subject"),                                        // email only
+  imageUrl:        text("image_url"),                                       // optional
+  quickReplies:    text("quick_replies").notNull().default("[]"),           // JSON: string[], WA only, max 3
+  audienceFilter:  text("audience_filter").notNull().default("{}"),         // JSON: { type, tagValue, platformValue, activeDays }
+  estimatedReach:  integer("estimated_reach").notNull().default(0),
+  actualReach:     integer("actual_reach").notNull().default(0),
+  sentCount:       integer("sent_count").notNull().default(0),
+  deliveredCount:  integer("delivered_count").notNull().default(0),
+  openedCount:     integer("opened_count").notNull().default(0),
+  clickedCount:    integer("clicked_count").notNull().default(0),
+  repliedCount:    integer("replied_count").notNull().default(0),
+  failedCount:     integer("failed_count").notNull().default(0),
+  status:          outreachStatusEnum("status").notNull().default("draft"),
+  scheduledAt:     timestamp("scheduled_at"),
+  sentAt:          timestamp("sent_at"),
+  createdAt:       timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  userIdIdx: index("outreach_messages_user_id_idx").on(t.userId),
+}));
+
+export const outreachResults = pgTable("outreach_results", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  outreachId:     uuid("outreach_id").notNull().references(() => outreachMessages.id, { onDelete: "cascade" }),
+  contactId:      uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  channel:        outreachChannelEnum("channel").notNull(),
+  sentAt:         timestamp("sent_at"),
+  deliveredAt:    timestamp("delivered_at"),
+  openedAt:       timestamp("opened_at"),
+  clickedAt:      timestamp("clicked_at"),
+  replied:        boolean("replied").notNull().default(false),
+  failed:         boolean("failed").notNull().default(false),
+  failureReason:  text("failure_reason"),
+  createdAt:      timestamp("created_at").notNull().defaultNow(),
 });
 
 // ── Chatbot Flows ─────────────────────────────────────────────────────────────
@@ -195,13 +261,15 @@ export const teamRoleEnum         = pgEnum("team_role",          ["admin","agent
 export const teamMemberStatusEnum = pgEnum("team_member_status", ["active","invited","disabled"]);
 
 export const teamMembers = pgTable("team_members", {
-  id:        uuid("id").primaryKey().defaultRandom(),
-  userId:    uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name:      text("name").notNull(),
-  email:     text("email").notNull(),
-  role:      teamRoleEnum("role").notNull().default("agent"),
-  status:    teamMemberStatusEnum("status").notNull().default("invited"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  id:              uuid("id").primaryKey().defaultRandom(),
+  userId:          uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:            text("name").notNull(),
+  email:           text("email").notNull(),
+  role:            teamRoleEnum("role").notNull().default("agent"),
+  status:          teamMemberStatusEnum("status").notNull().default("invited"),
+  inviteToken:     text("invite_token").unique(),
+  inviteExpiresAt: timestamp("invite_expires_at"),
+  createdAt:       timestamp("created_at").notNull().defaultNow(),
 });
 
 export const internalNotes = pgTable("internal_notes", {
@@ -224,6 +292,25 @@ export const listeningKeywords = pgTable("listening_keywords", {
   mentionCount: integer("mention_count").notNull().default(0),
   createdAt:    timestamp("created_at").notNull().defaultNow(),
 });
+
+// ── Listening Mentions ────────────────────────────────────────────────────────
+
+export const listeningMentions = pgTable("listening_mentions", {
+  id:         uuid("id").primaryKey().defaultRandom(),
+  userId:     uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  keywordId:  uuid("keyword_id").references(() => listeningKeywords.id, { onDelete: "set null" }),
+  keyword:    text("keyword").notNull(),
+  platform:   text("platform").notNull(),
+  username:   text("username").notNull(),
+  content:    text("content").notNull(),
+  url:        text("url"),
+  sentiment:  text("sentiment").notNull().default("neutral"),
+  handled:    boolean("handled").notNull().default(false),
+  handledAt:  timestamp("handled_at"),
+  timestamp:  timestamp("timestamp").notNull().defaultNow(),
+}, (t) => ({
+  userIdIdx: index("listening_mentions_user_id_idx").on(t.userId),
+}));
 
 // ── Brand Settings ────────────────────────────────────────────────────────────
 
@@ -270,7 +357,95 @@ export const calls = pgTable("calls", {
   createdAt:    timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── Contacts CRM ─────────────────────────────────────────────────────────────
+
+export const contacts = pgTable("contacts", {
+  id:                 uuid("id").primaryKey().defaultRandom(),
+  userId:             uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:               text("name").notNull(),
+  phone:              text("phone"),
+  email:              text("email"),
+  handles:            text("handles").notNull().default("[]"),   // JSON: [{channel, username}]
+  tags:               text("tags").notNull().default("[]"),      // JSON: string[]
+  notes:              text("notes").notNull().default(""),
+  totalConversations: integer("total_conversations").notNull().default(0),
+  lastSeenAt:         timestamp("last_seen_at").notNull().defaultNow(),
+  createdAt:          timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  userIdIdx: index("contacts_user_id_idx").on(t.userId),
+}));
+
+// ── Automation Rules ─────────────────────────────────────────────────────────
+
+export const automationTriggerEnum = pgEnum("automation_trigger", [
+  "contains_word", "is_question", "sentiment_positive", "sentiment_negative", "new_follower",
+]);
+export const automationActionEnum = pgEnum("automation_action", [
+  "auto_send", "skip_review", "escalate", "assign_to",
+]);
+
+export const automationRules = pgTable("automation_rules", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:         text("name").notNull(),
+  trigger:      automationTriggerEnum("trigger").notNull(),
+  triggerValue: text("trigger_value"),
+  action:       automationActionEnum("action").notNull(),
+  actionValue:  text("action_value"),
+  channels:     text("channels").notNull().default("[]"),  // JSON array of channel strings
+  active:       boolean("active").notNull().default(true),
+  createdAt:    timestamp("created_at").notNull().defaultNow(),
+});
+
 // ── Social Comments ───────────────────────────────────────────────────────────
+
+// ── Flow Sessions (persisted multi-turn chatbot state) ────────────────────────
+
+export const flowSessions = pgTable("flow_sessions", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  conversationId:  uuid("conversation_id").notNull().unique().references(() => conversations.id, { onDelete: "cascade" }),
+  flowId:          uuid("flow_id").notNull().references(() => chatbotFlows.id, { onDelete: "cascade" }),
+  userId:          uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  channel:         text("channel").notNull(),
+  recipientHandle: text("recipient_handle").notNull().default(""),
+  stepIndex:       integer("step_index").notNull().default(0),
+  collectedValues: text("collected_values").notNull().default("{}"),
+  updatedAt:       timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ── Agency-wide Configuration ─────────────────────────────────────────────────
+
+export const agencyConfig = pgTable("agency_config", {
+  id:            uuid("id").primaryKey().defaultRandom(),
+  agencyId:      uuid("agency_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  globalBlocked: text("global_blocked").notNull().default(""),
+  updatedAt:     timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ── Client Invites (one-time setup links issued by agency) ───────────────────
+
+export const clientInvites = pgTable("client_invites", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  token:     text("token").notNull().unique(),
+  clientId:  uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  agencyId:  uuid("agency_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt:    timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  clientIdIdx: index("client_invites_client_id_idx").on(t.clientId),
+}));
+
+// ── Email Reminders (approval flow) ──────────────────────────────────────────
+
+export const emailReminders = pgTable("email_reminders", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  postId:         uuid("post_id").notNull().references(() => scheduledPosts.id, { onDelete: "cascade" }),
+  clientId:       uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reminderNumber: integer("reminder_number").notNull(), // 1 | 2 | 3
+  sentAt:         timestamp("sent_at").notNull().defaultNow(),
+  emailAddress:   text("email_address").notNull(),
+});
 
 export const comments = pgTable("comments", {
   id:                uuid("id").primaryKey().defaultRandom(),
@@ -287,4 +462,6 @@ export const comments = pgTable("comments", {
   platformVideoId:   text("platform_video_id"),
   timestamp:         timestamp("timestamp").notNull().defaultNow(),
   createdAt:         timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => ({
+  userIdIdx: index("comments_user_id_idx").on(t.userId),
+}));

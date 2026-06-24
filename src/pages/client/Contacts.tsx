@@ -7,10 +7,11 @@ import type { Contact, Channel } from "@/types";
 import {
   Users, Search, ArrowLeft, X, Plus,
   Smartphone, Phone,
-  Megaphone, CheckCircle2, Clock,
+  Megaphone, CheckCircle2, Clock, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PLATFORM_CONFIG } from "@/constants/platforms";
+import { useContacts, useUpdateContact } from "@/hooks/useContacts";
 
 // ── Channel config ─────────────────────────────────────────────────────────
 
@@ -54,80 +55,6 @@ function initials(name: string) {
   return name.split(" ").map(w => w[0] ?? "").join("").toUpperCase().slice(0, 2) || "?";
 }
 
-// ── Mock data ──────────────────────────────────────────────────────────────
-
-const MOCK_CONTACTS: Contact[] = [
-  {
-    id: "u1", name: "Jessica Martinez", email: "jessica@email.com",
-    handles: [{ channel: "instagram_dm", username: "@jessica_nc" }],
-    totalConversations: 4, lastSeenAt: new Date(Date.now() - 3 * 60_000).toISOString(),
-    tags: ["vip", "order-inquiry"], notes: "Loves the custom cake menu",
-  },
-  {
-    id: "u2", name: "Marcus Thompson", phone: "9197550234",
-    handles: [{ channel: "sms", username: "9197550234" }, { channel: "facebook_comment", username: "marcus.thompson" }],
-    totalConversations: 7, lastSeenAt: new Date(Date.now() - 12 * 60_000).toISOString(),
-    tags: ["regular"], notes: "",
-  },
-  {
-    id: "u3", name: "Priya Patel",
-    handles: [{ channel: "tiktok_comment", username: "@priya.eats.raleigh" }, { channel: "instagram_comment", username: "@priya.nc" }],
-    totalConversations: 2, lastSeenAt: new Date(Date.now() - 28 * 60_000).toISOString(),
-    tags: ["dietary"], notes: "Halal only",
-  },
-  {
-    id: "u4", name: "David Kim",
-    handles: [{ channel: "facebook_comment", username: "david.kim.clt" }],
-    totalConversations: 3, lastSeenAt: new Date(Date.now() - 45 * 60_000).toISOString(),
-    tags: ["complaint"], notes: "Had a bad experience 5/20 — follow up",
-  },
-  {
-    id: "u5", name: "Ashley Brooks",
-    handles: [{ channel: "instagram_comment", username: "@ashleyb_beauty" }],
-    totalConversations: 1, lastSeenAt: new Date(Date.now() - 62 * 60_000).toISOString(),
-    tags: ["purchase-intent"], notes: "",
-  },
-  {
-    id: "u6", name: "Robert Johnson", phone: "9196440087",
-    handles: [{ channel: "sms", username: "9196440087" }],
-    totalConversations: 5, lastSeenAt: new Date(Date.now() - 90 * 60_000).toISOString(),
-    tags: ["appointment"], notes: "",
-  },
-  {
-    id: "u7", name: "Sofia Ramirez",
-    handles: [{ channel: "instagram_dm", username: "@sofia_charlotte" }, { channel: "whatsapp_business", username: "+1 919 555 0198" }],
-    totalConversations: 2, lastSeenAt: new Date(Date.now() - 120 * 60_000).toISOString(),
-    tags: ["vip", "spanish"], notes: "Prefers Spanish — respond in Spanish",
-  },
-];
-
-const MOCK_RECENT: Record<string, { text: string; channel: Channel; time: string }[]> = {
-  u1: [
-    { text: "Hey! Do you guys do custom cake orders?",   channel: "instagram_dm",      time: "3m ago"  },
-    { text: "Is the red velvet available this weekend?", channel: "instagram_dm",      time: "2d ago"  },
-  ],
-  u2: [
-    { text: "What are your hours on Sunday?",            channel: "sms",               time: "12m ago" },
-    { text: "Do you have a loyalty program?",            channel: "facebook_comment",  time: "4d ago"  },
-  ],
-  u3: [
-    { text: "This place looks amazing!! Is it halal?",   channel: "tiktok_comment",    time: "28m ago" },
-    { text: "Do you have vegan options too?",            channel: "instagram_comment", time: "5d ago"  },
-  ],
-  u4: [
-    { text: "I had a terrible experience last week.",    channel: "facebook_comment",  time: "45m ago" },
-  ],
-  u5: [
-    { text: "How much are the macarons?",                channel: "instagram_comment", time: "1h ago"  },
-  ],
-  u6: [
-    { text: "Can I book a table for Saturday?",          channel: "sms",               time: "1.5h ago"},
-  ],
-  u7: [
-    { text: "¿Tienen opciones sin gluten?",              channel: "instagram_dm",      time: "2h ago"  },
-    { text: "Is there parking near the location?",       channel: "whatsapp_business", time: "3d ago"  },
-  ],
-};
 
 // ── Contact Profile Panel ──────────────────────────────────────────────────
 
@@ -164,7 +91,7 @@ function ContactProfile({
     setNewTag("");
   };
 
-  const recentActivity = MOCK_RECENT[contact.id] ?? [];
+  const recentActivity: { text: string; channel: Channel; time: string }[] = [];
 
   return (
     <div className="flex flex-col h-full">
@@ -309,21 +236,23 @@ function ContactProfile({
 export default function Contacts() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [search,          setSearch]          = useState("");
-  const [platformFilter,  setPlatformFilter]  = useState("all");
-  const [tagFilter,       setTagFilter]       = useState("all");
-  const [selectedId,      setSelectedId]      = useState<string | null>(null);
-  const [contacts,        setContacts]        = useState<Contact[]>(MOCK_CONTACTS);
+  const [search,         setSearch]         = useState("");
+  const [platformFilter, setPlatformFilter] = useState("all");
+  const [tagFilter,      setTagFilter]      = useState("all");
+  const [selectedId,     setSelectedId]     = useState<string | null>(null);
 
-  const selectedContact = contacts.find(c => c.id === selectedId) ?? null;
+  const { data: allContacts = [], isLoading } = useContacts();
+  const updateContactMutation = useUpdateContact();
 
-  const allTags = Array.from(new Set(contacts.flatMap(c => c.tags))).sort();
+  const selectedContact = allContacts.find(c => c.id === selectedId) ?? null;
+
+  const allTags = Array.from(new Set(allContacts.flatMap(c => c.tags))).sort();
 
   const PLATFORM_ORDER = ["instagram", "tiktok", "facebook", "whatsapp", "sms"];
-  const contactPlatforms = new Set(contacts.flatMap(c => c.handles.map(h => channelPlatform(h.channel))));
-  const allPlatforms = PLATFORM_ORDER.filter(pl => contactPlatforms.has(pl));
+  const contactPlatforms = new Set(allContacts.flatMap(c => c.handles.map(h => channelPlatform(h.channel))));
+  const availablePlatforms = PLATFORM_ORDER.filter(pl => contactPlatforms.has(pl));
 
-  const filtered = contacts.filter(c => {
+  const filtered = allContacts.filter(c => {
     const matchSearch   = !search || c.name.toLowerCase().includes(search.toLowerCase())
       || c.handles.some(h => h.username.toLowerCase().includes(search.toLowerCase()));
     const matchPlatform = platformFilter === "all" || c.handles.some(h => channelPlatform(h.channel) === platformFilter);
@@ -331,8 +260,9 @@ export default function Contacts() {
     return matchSearch && matchPlatform && matchTag;
   });
 
-  const updateContact = (id: string, updates: Partial<Contact>) =>
-    setContacts(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  const updateContact = (id: string, updates: Partial<Contact>) => {
+    updateContactMutation.mutate({ id, ...updates });
+  };
 
   const showList    = !selectedId;
   const showProfile = !!selectedId;
@@ -351,7 +281,7 @@ export default function Contacts() {
 
   return (
     <AppLayout role="client" businessName={user?.businessName}>
-      <div className="flex h-[calc(100vh-56px)] -m-6 lg:-m-8 overflow-hidden border-t border-border">
+      <div className="flex h-[calc(100vh-56px)] -m-4 lg:-m-8 overflow-hidden border-t border-border">
 
         {/* ── Left: Contact list ── */}
         <div className={cn(
@@ -362,7 +292,7 @@ export default function Contacts() {
           <div className="px-4 pt-4 pb-3 border-b border-border space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-foreground text-base">{t("contacts.title")}</h2>
-              <span className="text-xs text-muted-foreground">{t("contacts.total", { count: contacts.length })}</span>
+              <span className="text-xs text-muted-foreground">{t("contacts.total", { count: allContacts.length })}</span>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
@@ -376,7 +306,7 @@ export default function Contacts() {
 
             {/* Platform filter */}
             <div className="flex gap-1.5 flex-wrap">
-              {["all", ...allPlatforms].map(pl => (
+              {["all", ...availablePlatforms].map(pl => (
                 <button key={pl} onClick={() => setPlatformFilter(pl)}
                   className={cn(
                     "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
@@ -411,10 +341,23 @@ export default function Contacts() {
 
           {/* List */}
           <div className="flex-1 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm gap-2">
-                <Users className="w-6 h-6 opacity-30" />
-                {t("contacts.noResults")}
+            {isLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center gap-3">
+                <Users className="w-10 h-10 text-muted-foreground opacity-20" />
+                {allContacts.length === 0 ? (
+                  <>
+                    <p className="text-sm font-medium text-foreground">No contacts yet</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Contacts appear automatically as customers message you on connected platforms.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t("contacts.noResults")}</p>
+                )}
               </div>
             ) : filtered.map(contact => {
               const isSelected = contact.id === selectedId;

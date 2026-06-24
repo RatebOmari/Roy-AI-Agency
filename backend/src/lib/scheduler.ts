@@ -46,6 +46,9 @@ async function publishDuePosts(): Promise<void> {
       // "ok"      — API call succeeded, post is live
       // "error"   — API call attempted but failed
       // "stubbed" — platform not yet supported; intentionally not attempted
+      // "ok"      — API call succeeded, post is live
+      // "error"   — API call attempted but failed
+      // "stubbed" — not attempted: platform unsupported, OR no credential connected
       const outcomes = new Map<string, "ok" | "error" | "stubbed">();
       const deliveryLog: string[] = [];
 
@@ -53,14 +56,14 @@ async function publishDuePosts(): Promise<void> {
         if (platform === "instagram") {
           const r = await publishInstagramPost(post.userId, post.content, post.mediaUrl);
           logDelivery(r, `post ${post.id} → instagram`);
-          const o = "skipped" in r ? "error" : r.ok ? "ok" : "error";
+          const o = "skipped" in r ? "stubbed" : r.ok ? "ok" : "error";
           outcomes.set(platform, o);
           deliveryLog.push(`instagram:${o}`);
 
         } else if (platform === "facebook") {
           const r = await publishFacebookPost(post.userId, post.content, post.mediaUrl);
           logDelivery(r, `post ${post.id} → facebook`);
-          const o = "skipped" in r ? "error" : r.ok ? "ok" : "error";
+          const o = "skipped" in r ? "stubbed" : r.ok ? "ok" : "error";
           outcomes.set(platform, o);
           deliveryLog.push(`facebook:${o}`);
 
@@ -87,7 +90,9 @@ async function publishDuePosts(): Promise<void> {
       const vals = [...outcomes.values()];
       const anyRealOk    = vals.some(v => v === "ok");
       const anyRealError = vals.some(v => v === "error");
-      const allStubbed   = vals.every(v => v === "stubbed");
+      // Guard against an empty platforms array: vals.every(...) is vacuously
+      // true on [], which would wrongly mark a post with no targets "skipped".
+      const allStubbed   = vals.length > 0 && vals.every(v => v === "stubbed");
 
       type FinalStatus = "published" | "failed" | "skipped";
       let finalStatus: FinalStatus;
@@ -99,7 +104,7 @@ async function publishDuePosts(): Promise<void> {
       } else if (allStubbed) {
         finalStatus = "skipped";
       } else {
-        // anyRealError (and possibly some stubbed)
+        // anyRealError, or a malformed post with no platforms at all
         finalStatus = "failed";
       }
 

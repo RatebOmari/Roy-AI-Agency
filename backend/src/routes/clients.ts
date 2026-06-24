@@ -222,7 +222,7 @@ const setPlatformCredentialSchema = z.object({
   action:      z.literal("setPlatformCredential"),
   clientId:    z.string().uuid(),
   platform:    z.enum(["tiktok", "instagram", "facebook", "whatsapp", "sms", "phone"]),
-  feature:     z.enum(["comments", "messages"]),
+  feature:     z.enum(["comments", "messages", "publishing"]),
   accessToken: z.string().min(1),
 });
 
@@ -230,7 +230,7 @@ const revokeCredentialSchema = z.object({
   action:   z.literal("revokeCredential"),
   clientId: z.string().uuid(),
   platform: z.enum(["tiktok", "instagram", "facebook", "whatsapp", "sms", "phone"]),
-  feature:  z.enum(["comments", "messages"]),
+  feature:  z.enum(["comments", "messages", "publishing"]),
 });
 
 const resetAiSettingsSchema = z.object({
@@ -333,7 +333,7 @@ app.post("/action", zValidator("json", actionSchema), async (c) => {
     if (existing) {
       await db
         .update(platformCredentials)
-        .set({ accessTokenEnc: encryptToken(accessToken), connectedAt: new Date() })
+        .set({ accessTokenEnc: encryptToken(accessToken), connectedAt: new Date(), disconnectedAt: null })
         .where(eq(platformCredentials.id, existing.id));
     } else {
       await db.insert(platformCredentials).values({

@@ -356,9 +356,9 @@ app.put("/:id", zValidator("json", updateSchema), async (c) => {
   const id   = c.req.param("id");
   const body = c.req.valid("json");
 
-  // Fetch current status
+  // Fetch current status + channel
   const [existing] = await db
-    .select({ status: outreachMessages.status })
+    .select({ status: outreachMessages.status, channel: outreachMessages.channel })
     .from(outreachMessages)
     .where(and(eq(outreachMessages.id, id), eq(outreachMessages.userId, user.sub)))
     .limit(1);
@@ -378,8 +378,10 @@ app.put("/:id", zValidator("json", updateSchema), async (c) => {
   if (body.audienceFilter !== undefined) {
     updates.audienceFilter = JSON.stringify(body.audienceFilter);
 
-    // Recompute estimated reach if audience filter changed
-    const channelTarget = body.channel ?? "whatsapp";
+    // Recompute estimated reach if audience filter changed.
+    // Fall back to the message's stored channel (not a hardcoded default) so
+    // email/SMS outreach reach is computed against the right channel.
+    const channelTarget = body.channel ?? existing.channel;
     const allContacts = await db
       .select()
       .from(contacts)
@@ -435,6 +437,12 @@ app.post("/:id/send", outreachSendRateLimit, async (c) => {
     .limit(1);
 
   if (!outreach) return c.json({ message: "Not found" }, 404);
+
+  // Idempotency guard — only draft/scheduled messages may be sent. Blocks
+  // double-submits and retries from re-broadcasting to the whole audience.
+  if (outreach.status !== "draft" && outreach.status !== "scheduled") {
+    return c.json({ message: `Cannot send an outreach message with status "${outreach.status}"` }, 409);
+  }
 
   // Mark as sending
   await db

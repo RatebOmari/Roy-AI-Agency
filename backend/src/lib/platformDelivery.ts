@@ -22,7 +22,11 @@ export type DeliveryResult =
 
 // ── Meta token refresh ────────────────────────────────────────────────────────
 
-const META_PLATFORMS = new Set(["instagram", "facebook", "whatsapp"]);
+// Only Instagram/Facebook user tokens are refreshable via fb_exchange_token.
+// WhatsApp Cloud API uses non-expiring System User tokens and must NOT go
+// through this flow — the exchange endpoint rejects them and would wrongly
+// mark a valid credential as disconnected.
+const META_PLATFORMS = new Set(["instagram", "facebook"]);
 const TOKEN_REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // refresh if < 7 days remain
 
 async function refreshAndUpdateMetaToken(
@@ -477,8 +481,11 @@ export async function publishInstagramPost(
   // Discover IG Business Account ID if not stored at connect time
   let igUserId = cred.accountId;
   if (!igUserId) {
+    // Pass the token via header, never the query string — URLs leak into
+    // proxy/load-balancer access logs.
     const meRes = await fetch(
-      `https://graph.facebook.com/v19.0/me?fields=instagram_business_account&access_token=${cred.token}`
+      `https://graph.facebook.com/v19.0/me?fields=instagram_business_account`,
+      { headers: { Authorization: `Bearer ${cred.token}` } }
     );
     if (!meRes.ok) return { ok: false, error: `Instagram account discovery failed: ${meRes.status}` };
     const me = await meRes.json() as { instagram_business_account?: { id: string } };
@@ -486,17 +493,20 @@ export async function publishInstagramPost(
   }
   if (!igUserId) return { ok: false, skipped: true, reason: "no_instagram_business_account_linked" };
 
+  // Instagram's Content Publishing API has no text-only post type — every
+  // media container requires an image_url (or video_url). Skip gracefully
+  // rather than sending a container the Graph API is guaranteed to reject.
+  if (!imageUrl) {
+    return { ok: false, skipped: true, reason: "instagram_requires_media" };
+  }
+
   // Step 1: Create media container
   const containerBody: Record<string, string> = {
     caption,
     access_token: cred.token,
+    image_url:    imageUrl,
+    media_type:   "IMAGE",
   };
-  if (imageUrl) {
-    containerBody.image_url = imageUrl;
-    containerBody.media_type = "IMAGE";
-  } else {
-    containerBody.media_type = "IMAGE"; // carousel requires image; fallback for text-only
-  }
 
   const containerRes = await fetch(`https://graph.facebook.com/v19.0/${igUserId}/media`, {
     method: "POST",

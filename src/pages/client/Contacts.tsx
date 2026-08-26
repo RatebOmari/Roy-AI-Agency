@@ -220,7 +220,7 @@ function ContactProfile({
           </p>
         )}
         <button
-          onClick={() => navigate("/campaigns")}
+          onClick={() => navigate("/outreach")}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors"
         >
           <Megaphone className="w-4 h-4" />

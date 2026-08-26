@@ -10,6 +10,7 @@ import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { aiRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
+import { logger } from "../lib/logger.js";
 
 const anthropic = new Anthropic();
 
@@ -79,7 +80,12 @@ app.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// GET /mentions — list persisted mentions, seeding mock data if empty
+// GET /mentions — list persisted mentions.
+// When there are none and SEED_DEMO_DATA=true, a batch of fabricated demo
+// mentions is inserted so the listening feed looks alive for demos. This is
+// OFF by default: a read endpoint must not silently write fake rows to a real
+// database. Real mentions arrive via the webhook ingestion pipeline
+// (scanForMentions); until then the honest state for a fresh account is empty.
 app.get("/mentions", async (c) => {
   const user = c.get("user");
 
@@ -95,7 +101,13 @@ app.get("/mentions", async (c) => {
     return c.json(existing);
   }
 
-  // Seed mock mentions into DB on first load so they have stable IDs
+  if (process.env.SEED_DEMO_DATA !== "true") {
+    return c.json([]);
+  }
+
+  logger.info(`[listening] SEED_DEMO_DATA on — seeding demo mentions for ${user.sub}`);
+
+  // Seed mock mentions into DB so they have stable IDs
   const userKeywords = await db
     .select()
     .from(listeningKeywords)

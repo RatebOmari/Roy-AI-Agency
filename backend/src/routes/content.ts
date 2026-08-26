@@ -10,27 +10,11 @@ import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { aiRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
-import { createMiddleware } from "hono/factory";
+import { agencyOnly, clientOnly } from "../lib/shared/roleGuards.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
 app.use("*", clientContextMiddleware);
-
-// ── Role guards ────────────────────────────────────────────────────────────────
-
-const agencyOnly = createMiddleware(async (c, next) => {
-  if (c.get("user").role !== "agency") {
-    return c.json({ message: "Agency access required" }, 403);
-  }
-  await next();
-});
-
-const clientOnly = createMiddleware(async (c, next) => {
-  if (c.get("user").role !== "client") {
-    return c.json({ message: "Client access required" }, 403);
-  }
-  await next();
-});
 
 // ── GET / — list posts for current user (client) or selected client (agency via x-client-id) ──
 

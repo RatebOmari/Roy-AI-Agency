@@ -9,6 +9,7 @@
  */
 
 import { logger } from "./logger.js";
+import { resendSend } from "./shared/resend.js";
 
 interface InviteParams {
   to:            string;
@@ -23,12 +24,12 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
   const appUrl    = (process.env.APP_URL ?? "http://localhost:5174").replace(/\/$/, "");
   const inviteUrl = `${appUrl}/team-login/${inviteToken}`;
 
-  const subject = `You're invited to join ${businessName} on SocialPilot`;
+  const subject = `You're invited to join ${businessName} on Royto Social`;
 
   const text = [
     `Hi ${recipientName},`,
     ``,
-    `You've been invited to join ${businessName} on SocialPilot as a ${role}.`,
+    `You've been invited to join ${businessName} on Royto Social as a ${role}.`,
     ``,
     `Click the link below to set up your account (expires in 7 days):`,
     inviteUrl,
@@ -38,7 +39,7 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
 
   const html = `
 <div style="font-family:sans-serif;max-width:480px;padding:24px">
-  <h2 style="margin:0 0 16px">You're invited to SocialPilot</h2>
+  <h2 style="margin:0 0 16px">You're invited to Royto Social</h2>
   <p>Hi ${recipientName},</p>
   <p>You've been invited to join <strong>${businessName}</strong> as a <strong>${role}</strong>.</p>
   <p style="margin:20px 0">
@@ -55,25 +56,17 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
   const resendKey = process.env.RESEND_API_KEY;
 
   if (resendKey) {
-    const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "socialpilot.app";
-    const res = await fetch("https://api.resend.com/emails", {
-      method:  "POST",
-      headers: {
-        Authorization:  `Bearer ${resendKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from:    `SocialPilot <noreply@${fromDomain}>`,
-        to:      [to],
-        subject,
-        text,
-        html,
-      }),
+    const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "roytosocial.app";
+    const result = await resendSend(resendKey, {
+      from:    `Royto Social <noreply@${fromDomain}>`,
+      to,
+      subject,
+      text,
+      html,
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      logger.error({ err }, "[email] Resend delivery failed");
+    if (!result.ok) {
+      logger.error({ err: result.error }, "[email] Resend delivery failed");
     } else {
       logger.info(`[email] Invite sent to ${to} via Resend`);
     }
@@ -112,31 +105,21 @@ export async function sendBroadcastEmail(params: {
     return { ok: false, skipped: true, reason: "resend_api_key_not_set" };
   }
 
-  const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "socialpilot.app";
-  const fromName   = params.fromName ?? "Roy AI Agency";
+  const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "roytosocial.app";
+  const fromName   = params.fromName ?? "Royto Social";
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method:  "POST",
-    headers: {
-      Authorization:  `Bearer ${resendKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from:    `${fromName} <noreply@${fromDomain}>`,
-      to:      [params.to],
-      subject: params.subject,
-      text:    params.text,
-    }),
+  const result = await resendSend(resendKey, {
+    from:    `${fromName} <noreply@${fromDomain}>`,
+    to:      params.to,
+    subject: params.subject,
+    text:    params.text,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { message?: string; name?: string };
-    const msg = err.message ?? `Resend API ${res.status}`;
-    logger.error({ err }, `[email/broadcast] Delivery failed to ${params.to}`);
-    return { ok: false, error: msg };
+  if (!result.ok) {
+    logger.error({ err: result.error }, `[email/broadcast] Delivery failed to ${params.to}`);
+    return { ok: false, error: result.error };
   }
 
-  const data = await res.json() as { id: string };
-  logger.info(`[email/broadcast] Sent id=${data.id} → ${params.to}`);
+  logger.info(`[email/broadcast] Sent id=${result.id} → ${params.to}`);
   return { ok: true };
 }

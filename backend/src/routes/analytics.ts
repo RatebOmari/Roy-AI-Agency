@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { conversations, messages, outreachMessages as campaigns } from "../db/schema.js";
+import { conversations, messages, outreachMessages } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 
@@ -114,27 +114,27 @@ app.get("/", async (c) => {
     .sort((a, b) => b[1] - a[1])
     .map(([channel, count]) => ({ channel, count }));
 
-  // ── Outreach (formerly Campaigns) ────────────────────────────────────────
+  // ── Outreach ─────────────────────────────────────────────────────────────
 
-  const userCampaigns = await db
+  const userOutreach = await db
     .select({
-      sentCount:   campaigns.sentCount,
-      openedCount: campaigns.openedCount,
-      repliedCount: campaigns.repliedCount,
-      status:      campaigns.status,
-      createdAt:   campaigns.createdAt,
+      sentCount:   outreachMessages.sentCount,
+      openedCount: outreachMessages.openedCount,
+      repliedCount: outreachMessages.repliedCount,
+      status:      outreachMessages.status,
+      createdAt:   outreachMessages.createdAt,
     })
-    .from(campaigns)
+    .from(outreachMessages)
     .where(
       and(
-        eq(campaigns.userId, user.sub),
-        gte(campaigns.createdAt, since),
+        eq(outreachMessages.userId, user.sub),
+        gte(outreachMessages.createdAt, since),
       )
     );
 
-  const campSent  = userCampaigns.reduce((s, c) => s + c.sentCount,   0);
-  const campRead  = userCampaigns.reduce((s, c) => s + c.openedCount, 0);
-  const campReply = userCampaigns.reduce((s, c) => s + c.repliedCount, 0);
+  const outreachSent  = userOutreach.reduce((s, o) => s + o.sentCount,   0);
+  const outreachRead  = userOutreach.reduce((s, o) => s + o.openedCount, 0);
+  const outreachReply = userOutreach.reduce((s, o) => s + o.repliedCount, 0);
 
   return c.json({
     range,
@@ -149,12 +149,12 @@ app.get("/", async (c) => {
     },
     msgChart:       msgBuckets,
     channelBreakdown,
-    campaigns: {
-      sent:  campSent,
-      read:  campRead,
-      reply: campReply,
-      readRate:  campSent > 0 ? Math.round((campRead  / campSent) * 100) : 0,
-      replyRate: campSent > 0 ? Math.round((campReply / campSent) * 100) : 0,
+    outreach: {
+      sent:  outreachSent,
+      read:  outreachRead,
+      reply: outreachReply,
+      readRate:  outreachSent > 0 ? Math.round((outreachRead  / outreachSent) * 100) : 0,
+      replyRate: outreachSent > 0 ? Math.round((outreachReply / outreachSent) * 100) : 0,
     },
   });
 });

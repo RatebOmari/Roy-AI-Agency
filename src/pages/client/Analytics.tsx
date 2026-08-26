@@ -226,7 +226,7 @@ export default function Analytics() {
     const campSent    = sent.reduce((s, m) => s + m.sentCount, 0);
     const campOpened  = sent.reduce((s, m) => s + m.openedCount, 0);
     const campReplied = sent.reduce((s, m) => s + m.repliedCount, 0);
-    const campStats   = analytics?.campaigns;
+    const campStats   = analytics?.outreach;
     return {
       sentOutreach:   sent,
       totalCampSent:  campSent,

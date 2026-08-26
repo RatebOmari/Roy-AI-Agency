@@ -2,9 +2,7 @@ import { db } from "../db/index.js";
 import { resources, replyTemplates } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
 
-function parseJSON<T>(s: string, fallback: T): T {
-  try { return JSON.parse(s) as T; } catch { return fallback; }
-}
+import { parseJSON } from "./shared/json.js";
 
 export async function buildKnowledgeContext(userId: string, platform?: string): Promise<string> {
   const [rows, templates] = await Promise.all([

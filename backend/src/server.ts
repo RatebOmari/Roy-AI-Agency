@@ -29,7 +29,6 @@ import platformsRoutes     from "./routes/platforms.js";
 import contentRoutes       from "./routes/content.js";
 import resourcesRoutes     from "./routes/resources.js";
 import templatesRoutes     from "./routes/templates.js";
-import campaignsRoutes     from "./routes/campaigns.js";
 import flowsRoutes         from "./routes/flows.js";
 import automationRoutes    from "./routes/automation.js";
 import contactsRoutes      from "./routes/contacts.js";
@@ -93,7 +92,6 @@ api.route("/platforms",      platformsRoutes);
 api.route("/content",        contentRoutes);
 api.route("/resources",      resourcesRoutes);
 api.route("/templates",      templatesRoutes);
-api.route("/campaigns",      campaignsRoutes);
 api.route("/flows",          flowsRoutes);
 api.route("/automation",     automationRoutes);
 api.route("/contacts",       contactsRoutes);
@@ -129,7 +127,7 @@ if (!process.env.RESEND_API_KEY) {
 }
 
 const port = Number(process.env.PORT ?? 3001);
-logger.info({ port }, "SocialPilot backend running");
+logger.info({ port }, "Royto Social backend running");
 
 const server = serve({ fetch: app.fetch, port });
 

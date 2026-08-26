@@ -73,8 +73,9 @@ export interface PlatformConnection {
 export interface DashboardStats {
   totalReplies: number;
   pendingReview: number;
-  avgResponseTime: string;
-  engagementRate: number;
+  // null until a real computation exists — the UI renders "–" for null
+  avgResponseTime: string | null;
+  engagementRate: number | null;
   platforms: PlatformConnection[];
   platformsV2?: PlatformConnectionV2[];
 }

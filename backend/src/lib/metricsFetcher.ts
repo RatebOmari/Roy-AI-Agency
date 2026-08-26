@@ -7,14 +7,16 @@
  * The scheduler calls refreshMetrics() periodically for posts published
  * in the last 7 days so the dashboard stays current.
  *
- * With real platform credentials: metrics are fetched from each platform's
- * Insights API. In demo/absent-credential mode: realistic values are
- * simulated based on time since publish so charts look alive.
+ * IMPORTANT: metrics are currently SIMULATED. There is no real platform
+ * Insights integration yet — values are generated from time-since-publish so
+ * charts look alive in the demo. See simulateMetrics below; the real
+ * integration is a TODO (it will look up the publishing credential per
+ * platform and call each Insights API).
  */
 
 import { eq, and, gte, isNotNull } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { scheduledPosts, postMetrics, platformCredentials } from "../db/schema.js";
+import { scheduledPosts, postMetrics } from "../db/schema.js";
 import { logger } from "./logger.js";
 
 // ── Demo metric simulation ────────────────────────────────────────────────────
@@ -51,25 +53,9 @@ async function upsertMetrics(
   postId: string,
   platform: string,
   publishedAt: Date,
-  accessToken?: string,
 ): Promise<void> {
-  let likes: number, comments: number, reach: number, shares: number;
-
-  if (accessToken && !accessToken.startsWith("demo_token_")) {
-    // Real platform API call (Instagram Graph API, TikTok Research API, etc.)
-    // Stubbed: replace with actual SDK call per platform.
-    const sim = simulateMetrics(publishedAt, platform);
-    likes    = sim.likes;
-    comments = sim.comments;
-    reach    = sim.reach;
-    shares   = sim.shares;
-  } else {
-    const sim = simulateMetrics(publishedAt, platform);
-    likes    = sim.likes;
-    comments = sim.comments;
-    reach    = sim.reach;
-    shares   = sim.shares;
-  }
+  // Simulated — no real Insights API call yet (see module header).
+  const { likes, comments, reach, shares } = simulateMetrics(publishedAt, platform);
 
   // Check if a metrics row already exists
   const [existing] = await db
@@ -99,21 +85,12 @@ export async function recordInitialMetrics(
   platforms:  string[],
   publishedAt: Date,
 ): Promise<void> {
+  // userId is kept in the signature for the future real-Insights integration
+  // (which will look up the publishing credential per platform). Metrics are
+  // simulated for now, so it is intentionally unused here.
+  void userId;
   for (const platform of platforms) {
-    // Look up stored access token for this platform/feature combination
-    const [cred] = await db
-      .select({ accessToken: platformCredentials.accessTokenEnc })
-      .from(platformCredentials)
-      .where(
-        and(
-          eq(platformCredentials.userId, userId),
-          eq(platformCredentials.platform, platform as "instagram" | "tiktok" | "facebook" | "whatsapp"),
-          eq(platformCredentials.feature, "messages"),
-        ),
-      )
-      .limit(1);
-
-    await upsertMetrics(postId, platform, publishedAt, cred?.accessToken ?? undefined);
+    await upsertMetrics(postId, platform, publishedAt);
   }
 }
 

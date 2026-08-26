@@ -71,8 +71,11 @@ app.get("/", async (c) => {
   return c.json({
     totalReplies:    replyCount.count,
     pendingReview:   pendingCount.count,
-    avgResponseTime: "< 3 min",
-    engagementRate:  87,
+    // Not yet computed from real data — return null so the UI shows "–"
+    // rather than a fabricated figure. TODO: derive from message timestamps
+    // (avg response time) and engagement metrics.
+    avgResponseTime: null,
+    engagementRate:  null,
     platforms:       [],
     platformsV2,
   });

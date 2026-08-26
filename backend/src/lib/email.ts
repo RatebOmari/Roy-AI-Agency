@@ -24,12 +24,12 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
   const appUrl    = (process.env.APP_URL ?? "http://localhost:5174").replace(/\/$/, "");
   const inviteUrl = `${appUrl}/team-login/${inviteToken}`;
 
-  const subject = `You're invited to join ${businessName} on SocialPilot`;
+  const subject = `You're invited to join ${businessName} on Royto Social`;
 
   const text = [
     `Hi ${recipientName},`,
     ``,
-    `You've been invited to join ${businessName} on SocialPilot as a ${role}.`,
+    `You've been invited to join ${businessName} on Royto Social as a ${role}.`,
     ``,
     `Click the link below to set up your account (expires in 7 days):`,
     inviteUrl,
@@ -39,7 +39,7 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
 
   const html = `
 <div style="font-family:sans-serif;max-width:480px;padding:24px">
-  <h2 style="margin:0 0 16px">You're invited to SocialPilot</h2>
+  <h2 style="margin:0 0 16px">You're invited to Royto Social</h2>
   <p>Hi ${recipientName},</p>
   <p>You've been invited to join <strong>${businessName}</strong> as a <strong>${role}</strong>.</p>
   <p style="margin:20px 0">
@@ -56,9 +56,9 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
   const resendKey = process.env.RESEND_API_KEY;
 
   if (resendKey) {
-    const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "socialpilot.app";
+    const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "roytosocial.app";
     const result = await resendSend(resendKey, {
-      from:    `SocialPilot <noreply@${fromDomain}>`,
+      from:    `Royto Social <noreply@${fromDomain}>`,
       to,
       subject,
       text,
@@ -105,8 +105,8 @@ export async function sendBroadcastEmail(params: {
     return { ok: false, skipped: true, reason: "resend_api_key_not_set" };
   }
 
-  const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "socialpilot.app";
-  const fromName   = params.fromName ?? "Roy AI Agency";
+  const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "roytosocial.app";
+  const fromName   = params.fromName ?? "Royto Social";
 
   const result = await resendSend(resendKey, {
     from:    `${fromName} <noreply@${fromDomain}>`,

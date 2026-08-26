@@ -7,7 +7,7 @@ import {
 } from "./schema.js";
 import { eq } from "drizzle-orm";
 
-// Fixed UUID for Roy AI Agency — single-agency platform
+// Fixed UUID for Royto Social — single-agency platform
 const AGENCY_ID = "00000000-0000-0000-0000-000000000001";
 
 const hash = (p: string) => bcrypt.hash(p, 10);
@@ -50,7 +50,7 @@ async function grantPlatformPerms(clientId: string, perms: { platform: string; c
 }
 
 async function seed() {
-  console.log("🌱 Seeding Roy AI Agency database…");
+  console.log("🌱 Seeding Royto Social database…");
 
   // ── 1. Agency user ────────────────────────────────────────────────────────────
   let [agencyUser] = await db.select().from(users).where(eq(users.email, "agency@demo.com")).limit(1);
@@ -60,8 +60,8 @@ async function seed() {
       email:        "agency@demo.com",
       passwordHash: await hash("demo123"),
       role:         "agency",
-      name:         "Roy Agency",
-      businessName: "Roy AI Agency",
+      name:         "Royto Social",
+      businessName: "Royto Social",
     }).returning();
     console.log("  ✅ Created agency@demo.com");
   }
@@ -213,7 +213,7 @@ async function seed() {
     console.log("  ✅ Seeded 4 demo conversations for Raleigh Eats");
   }
 
-  console.log("\n🎉 Seed complete — Roy AI Agency is ready!");
+  console.log("\n🎉 Seed complete — Royto Social is ready!");
   process.exit(0);
 }
 

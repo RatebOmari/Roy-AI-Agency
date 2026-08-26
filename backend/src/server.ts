@@ -127,7 +127,7 @@ if (!process.env.RESEND_API_KEY) {
 }
 
 const port = Number(process.env.PORT ?? 3001);
-logger.info({ port }, "SocialPilot backend running");
+logger.info({ port }, "Royto Social backend running");
 
 const server = serve({ fetch: app.fetch, port });
 

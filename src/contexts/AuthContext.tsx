@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const DEMO_ACCOUNTS: Record<string, { password: string; role: "client" | "agency"; name: string; businessName: string }> = {
           "client@demo.com": { password: "demo123", role: "client", name: "Demo Business", businessName: "Raleigh Eats" },
-          "agency@demo.com": { password: "demo123", role: "agency", name: "Roy Agency",    businessName: "Roy AI Agency" },
+          "agency@demo.com": { password: "demo123", role: "agency", name: "Royto Social",    businessName: "Royto Social" },
         };
 
         const demo = DEMO_ACCOUNTS[email.toLowerCase()];

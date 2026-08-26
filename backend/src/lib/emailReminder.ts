@@ -19,7 +19,7 @@ import { resendSend } from "./shared/resend.js";
 
 const APP_URL = (process.env.APP_URL ?? "http://localhost:5174").replace(/\/$/, "");
 const RESEND_KEY = process.env.RESEND_API_KEY;
-const FROM_DOMAIN = process.env.EMAIL_FROM_DOMAIN ?? "socialpilot.app";
+const FROM_DOMAIN = process.env.EMAIL_FROM_DOMAIN ?? "roytosocial.app";
 
 const REMINDER_HOURS = [24, 48, 72] as const;
 
@@ -108,7 +108,7 @@ async function sendReminderEmail(
 
   if (RESEND_KEY) {
     const result = await resendSend(RESEND_KEY, {
-      from:    `Roy AI Agency <noreply@${FROM_DOMAIN}>`,
+      from:    `Royto Social <noreply@${FROM_DOMAIN}>`,
       to,
       subject,
       text,

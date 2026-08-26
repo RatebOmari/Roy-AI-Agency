@@ -147,7 +147,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <AppLayout role="client" businessName={user?.businessName ?? "SocialPilot"}>
+    <AppLayout role="client" businessName={user?.businessName ?? "Royto Social"}>
       <div className="space-y-6 max-w-6xl">
 
         {/* ── Greeting ─────────────────────────────────────────────────────── */}

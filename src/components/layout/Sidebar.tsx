@@ -200,7 +200,7 @@ export function Sidebar({ role, businessName }: SidebarProps) {
                 <Zap className="w-3.5 h-3.5 text-white" />
               </div>
               <span className="font-bold text-foreground">
-                {role === "agency" ? AGENCY_NAME : "SocialPilot"}
+                {role === "agency" ? AGENCY_NAME : "Royto Social"}
               </span>
             </div>
           )}
@@ -250,7 +250,7 @@ export function Sidebar({ role, businessName }: SidebarProps) {
             <Zap className="w-3 h-3 text-white" />
           </div>
           <span className="font-bold text-foreground text-sm">
-            {role === "agency" ? AGENCY_NAME : "SocialPilot"}
+            {role === "agency" ? AGENCY_NAME : "Royto Social"}
           </span>
         </div>
         <div className="w-9" /> {/* spacer to center logo */}

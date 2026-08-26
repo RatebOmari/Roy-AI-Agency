@@ -16,20 +16,12 @@ export interface AnalyticsData {
   };
   msgChart: { date: string; autoSent: number; manual: number; escalated: number }[];
   channelBreakdown: { channel: string; count: number }[];
-  campaigns: {
+  outreach: {
     sent:      number;
     read:      number;
     reply:     number;
     readRate:  number;
     replyRate: number;
-  };
-  outreach?: {
-    sent:        number;
-    opened:      number;
-    replied:     number;
-    openRate:    number;
-    replyRate:   number;
-    byChannel:   { channel: string; sent: number; opened: number }[];
   };
 }
 

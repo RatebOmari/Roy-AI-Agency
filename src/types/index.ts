@@ -176,8 +176,6 @@ export interface ChannelBreakdown {
 
 export type PostStatus = "draft" | "scheduled" | "published" | "failed" | "skipped" | "pending_approval" | "changes_requested";
 
-export type ApprovalStatus = "not_required" | "pending" | "approved" | "changes_requested";
-
 export interface ScheduledPost {
   id: string;
   userId?: string;
@@ -188,9 +186,8 @@ export interface ScheduledPost {
   status: PostStatus;
   aiGenerated: boolean;
   createdAt: string;
-  // approval fields
+  // approval fields — approval state lives in `status`
   approvalRequired?: boolean;
-  approvalStatus?: ApprovalStatus;
   submittedForApprovalAt?: string | null;
   approvedAt?: string | null;
   approvalFeedback?: string | null;

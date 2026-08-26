@@ -49,7 +49,6 @@ async function seedDemo() {
         mediaUrl:    "https://images.unsplash.com/photo-1574484284002-952d92456975?w=1080",
         scheduledAt: inOneHour,
         status:      "scheduled",
-        approvalStatus: "approved",
         aiGenerated: true,
       },
       {
@@ -59,7 +58,6 @@ async function seedDemo() {
         mediaUrl:    "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?w=1080",
         scheduledAt: tomorrow10,
         status:      "scheduled",
-        approvalStatus: "approved",
         aiGenerated: false,
       },
       {
@@ -68,7 +66,6 @@ async function seedDemo() {
         content:     "✨ New on the menu: Truffle Hummus with warm pita! The creamiest hummus you've ever tasted, drizzled with premium truffle oil. Available this week only — tag a friend who needs to try this 👇",
         scheduledAt: tomorrow18,
         status:      "pending_approval",
-        approvalStatus: "pending",
         approvalRequired: true,
         aiGenerated: true,
       },
@@ -78,7 +75,6 @@ async function seedDemo() {
         content:     "🎉 We're turning 5! To celebrate our 5th anniversary, we're offering 50% off ALL orders this Saturday from 12pm–4pm. No code needed — just walk in! Share this with everyone you know 🙌 #RaleighEats5Years",
         scheduledAt: nextWeek,
         status:      "draft",
-        approvalStatus: "not_required",
         aiGenerated: false,
       },
     ]);
@@ -92,7 +88,6 @@ async function seedDemo() {
       scheduledAt: yesterday,
       publishedAt: yesterday,
       status:      "published",
-      approvalStatus: "approved",
       aiGenerated: false,
     });
     console.log("  ✅ Seeded 5 scheduled posts for Raleigh Eats");

@@ -120,18 +120,15 @@ export const messages = pgTable("messages", {
 // `skipped` is set when all targeted platforms are currently unsupported for auto-publishing
 // (e.g. TikTok requires business API approval, WhatsApp requires Campaign API).
 //
-// `approvalStatus` tracks the agency-client approval workflow independently:
-// not_required | pending → approved | changes_requested.
-// The two columns overlap semantically — a post in `pending_approval` scheduling
-// status will also have `approvalStatus = "pending"`. The scheduler only
-// publishes posts whose `status = "scheduled"`, so approval must set both fields.
+// `post_status` is the single source of truth for the approval workflow too:
+// `pending_approval` and `changes_requested` are approval states, and a post is
+// only publishable once it reaches `scheduled`. The approvalRequired flag plus
+// the approvedAt / submittedForApprovalAt / approvalFeedback fields carry the
+// rest of the approval history. (A separate `approval_status` enum used to
+// duplicate this and had to be hand-synced — it was removed.)
 export const postStatusEnum = pgEnum("post_status", [
   "draft", "scheduled", "published", "failed", "skipped",
   "pending_approval", "changes_requested",
-]);
-
-export const approvalStatusEnum = pgEnum("approval_status", [
-  "not_required", "pending", "approved", "changes_requested",
 ]);
 
 export const scheduledPosts = pgTable("scheduled_posts", {
@@ -148,8 +145,9 @@ export const scheduledPosts = pgTable("scheduled_posts", {
   createdAt:   timestamp("created_at").notNull().defaultNow(),
 
   // ── Approval flow ─────────────────────────────────────────────────────────
+  // Approval state lives in `status` (pending_approval / changes_requested);
+  // these fields carry the rest of the history.
   approvalRequired:        boolean("approval_required").notNull().default(true),
-  approvalStatus:          approvalStatusEnum("approval_status").notNull().default("not_required"),
   submittedForApprovalAt:  timestamp("submitted_for_approval_at"),
   approvedAt:              timestamp("approved_at"),
   approvalFeedback:        text("approval_feedback"),

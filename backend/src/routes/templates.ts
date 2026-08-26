@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { replyTemplates } from "../db/schema.js";
+import { replyTemplates, platformEnum, langEnum } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { aiRateLimit } from "../middleware/rateLimit.js";
@@ -42,8 +42,8 @@ app.get("/", async (c) => {
 const templateSchema = z.object({
   title:     z.string().min(1),
   content:   z.string().min(1),
-  platforms: z.array(z.string()).min(1),
-  language:  z.string(),
+  platforms: z.array(z.enum(platformEnum.enumValues)).min(1),
+  language:  z.enum(langEnum.enumValues),
   active:    z.boolean().optional(),
   category:  z.string().optional().default(""),
 });

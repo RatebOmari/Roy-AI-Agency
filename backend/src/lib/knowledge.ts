@@ -1,5 +1,5 @@
 import { db } from "../db/index.js";
-import { resources, replyTemplates } from "../db/schema.js";
+import { resources, replyTemplates, type PlatformValue } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
 
 import { parseJSON } from "./shared/json.js";
@@ -81,7 +81,7 @@ export async function buildKnowledgeContext(userId: string, platform?: string): 
   // ── Active reply templates (style examples) ────────────────────────────────
   // Filter to templates that apply to this platform (or universal ones)
   const relevantTemplates = platform
-    ? templates.filter(t => t.platforms.length === 0 || t.platforms.includes(platform))
+    ? templates.filter(t => t.platforms.length === 0 || t.platforms.includes(platform as PlatformValue))
     : templates;
 
   if (relevantTemplates.length > 0) {

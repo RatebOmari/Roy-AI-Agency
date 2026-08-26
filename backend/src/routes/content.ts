@@ -58,7 +58,6 @@ app.get("/all-clients", agencyOnly, async (c) => {
       aiGenerated:            scheduledPosts.aiGenerated,
       createdAt:              scheduledPosts.createdAt,
       approvalRequired:       scheduledPosts.approvalRequired,
-      approvalStatus:         scheduledPosts.approvalStatus,
       submittedForApprovalAt: scheduledPosts.submittedForApprovalAt,
       approvedAt:             scheduledPosts.approvedAt,
       approvalFeedback:       scheduledPosts.approvalFeedback,
@@ -94,7 +93,6 @@ app.post("/", agencyOnly, zValidator("json", postSchema), async (c) => {
   // check if the client has content approval enabled.
   let finalStatus: string = body.status ?? "draft";
   let approvalRequired = false;
-  let approvalStatus: "not_required" | "pending" = "not_required";
   let submittedForApprovalAt: Date | null = null;
 
   const clientId = user.sub;
@@ -108,7 +106,6 @@ app.post("/", agencyOnly, zValidator("json", postSchema), async (c) => {
     // Approval enabled (default) — submit for approval
     finalStatus = "pending_approval";
     approvalRequired = true;
-    approvalStatus = "pending";
     submittedForApprovalAt = new Date();
   }
 
@@ -123,7 +120,6 @@ app.post("/", agencyOnly, zValidator("json", postSchema), async (c) => {
       status:                 finalStatus as "draft" | "pending_approval",
       aiGenerated:            body.aiGenerated ?? false,
       approvalRequired,
-      approvalStatus,
       submittedForApprovalAt,
     })
     .returning();
@@ -176,7 +172,6 @@ app.post("/:id/submit-for-approval", agencyOnly, async (c) => {
     .set({
       status:                 "pending_approval",
       approvalRequired:       true,
-      approvalStatus:         "pending",
       submittedForApprovalAt: new Date(),
       approvalFeedback:       null,
     })
@@ -197,7 +192,6 @@ app.post("/:id/approve", clientOnly, async (c) => {
     .update(scheduledPosts)
     .set({
       status:         "scheduled",
-      approvalStatus: "approved",
       approvedAt:     new Date(),
     })
     .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.userId, user.sub)))
@@ -220,7 +214,6 @@ app.post("/:id/request-changes", clientOnly, zValidator("json", changesSchema), 
     .update(scheduledPosts)
     .set({
       status:           "changes_requested",
-      approvalStatus:   "changes_requested",
       approvalFeedback: feedback,
     })
     .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.userId, user.sub)))
@@ -242,7 +235,6 @@ app.post("/:id/override-publish", agencyOnly, async (c) => {
     .set({
       status:              "scheduled",
       overridePublished:   true,
-      approvalStatus:      "approved",
       approvedAt:          new Date(),
     })
     .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.userId, user.sub)))

@@ -5,7 +5,7 @@ import { eq, and, count, inArray, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
-import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages, clientInvites, toneSettings, replyTemplates } from "../db/schema.js";
+import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages, clientInvites, toneSettings, replyTemplates, platformEnum, langEnum } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { encryptToken } from "../lib/crypto.js";
 
@@ -390,8 +390,8 @@ app.post("/push-template", zValidator("json", z.object({
   clientIds: z.array(z.string().uuid()).min(1),
   title:     z.string().min(1),
   content:   z.string().min(1),
-  platforms: z.array(z.string()),
-  language:  z.string().default("en"),
+  platforms: z.array(z.enum(platformEnum.enumValues)),
+  language:  z.enum(langEnum.enumValues).default("en"),
   category:  z.string().default(""),
 })), async (c) => {
   const user = c.get("user");

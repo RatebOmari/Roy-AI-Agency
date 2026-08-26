@@ -21,6 +21,9 @@ export const channelEnum = pgEnum("channel", [
 export const toneEnum = pgEnum("tone", ["friendly", "professional", "fun", "informative"]);
 export const langEnum = pgEnum("lang",  ["ar", "en", "ar_en"]);
 export const featureEnum = pgEnum("feature", ["comments", "messages", "publishing"]);
+export const sentimentEnum = pgEnum("sentiment", ["positive", "negative", "neutral"]);
+
+export type PlatformValue = (typeof platformEnum.enumValues)[number];
 
 export const users = pgTable("users", {
   id:           uuid("id").primaryKey().defaultRandom(),
@@ -120,18 +123,15 @@ export const messages = pgTable("messages", {
 // `skipped` is set when all targeted platforms are currently unsupported for auto-publishing
 // (e.g. TikTok requires business API approval, WhatsApp requires Campaign API).
 //
-// `approvalStatus` tracks the agency-client approval workflow independently:
-// not_required | pending → approved | changes_requested.
-// The two columns overlap semantically — a post in `pending_approval` scheduling
-// status will also have `approvalStatus = "pending"`. The scheduler only
-// publishes posts whose `status = "scheduled"`, so approval must set both fields.
+// `post_status` is the single source of truth for the approval workflow too:
+// `pending_approval` and `changes_requested` are approval states, and a post is
+// only publishable once it reaches `scheduled`. The approvalRequired flag plus
+// the approvedAt / submittedForApprovalAt / approvalFeedback fields carry the
+// rest of the approval history. (A separate `approval_status` enum used to
+// duplicate this and had to be hand-synced — it was removed.)
 export const postStatusEnum = pgEnum("post_status", [
   "draft", "scheduled", "published", "failed", "skipped",
   "pending_approval", "changes_requested",
-]);
-
-export const approvalStatusEnum = pgEnum("approval_status", [
-  "not_required", "pending", "approved", "changes_requested",
 ]);
 
 export const scheduledPosts = pgTable("scheduled_posts", {
@@ -148,8 +148,9 @@ export const scheduledPosts = pgTable("scheduled_posts", {
   createdAt:   timestamp("created_at").notNull().defaultNow(),
 
   // ── Approval flow ─────────────────────────────────────────────────────────
+  // Approval state lives in `status` (pending_approval / changes_requested);
+  // these fields carry the rest of the history.
   approvalRequired:        boolean("approval_required").notNull().default(true),
-  approvalStatus:          approvalStatusEnum("approval_status").notNull().default("not_required"),
   submittedForApprovalAt:  timestamp("submitted_for_approval_at"),
   approvedAt:              timestamp("approved_at"),
   approvalFeedback:        text("approval_feedback"),
@@ -183,8 +184,8 @@ export const replyTemplates = pgTable("reply_templates", {
   userId:    uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title:     text("title").notNull(),
   content:   text("content").notNull(),
-  platforms: text("platforms").array().notNull().default(sql`'{}'::text[]`),
-  language:  text("language").notNull().default("en"),
+  platforms: platformEnum("platforms").array().notNull().default(sql`'{}'::platform[]`),
+  language:  langEnum("language").notNull().default("en"),
   active:    boolean("active").notNull().default(true),
   category:  text("category").notNull().default(""),
   usedCount: integer("used_count").notNull().default(0),
@@ -248,7 +249,7 @@ export const chatbotFlows = pgTable("chatbot_flows", {
   name:         text("name").notNull(),
   trigger:      flowTriggerEnum("trigger").notNull().default("greeting"),
   triggerValue: text("trigger_value"),
-  platform:     text("platform").notNull().default("whatsapp"),
+  platform:     platformEnum("platform").notNull().default("whatsapp"),
   steps:        text("steps").notNull().default("[]"),
   active:       boolean("active").notNull().default(false),
   triggerCount: integer("trigger_count").notNull().default(0),
@@ -287,7 +288,7 @@ export const listeningKeywords = pgTable("listening_keywords", {
   id:           uuid("id").primaryKey().defaultRandom(),
   userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   keyword:      text("keyword").notNull(),
-  platforms:    text("platforms").array().notNull().default(sql`'{}'::text[]`),
+  platforms:    platformEnum("platforms").array().notNull().default(sql`'{}'::platform[]`),
   active:       boolean("active").notNull().default(true),
   mentionCount: integer("mention_count").notNull().default(0),
   createdAt:    timestamp("created_at").notNull().defaultNow(),
@@ -300,11 +301,11 @@ export const listeningMentions = pgTable("listening_mentions", {
   userId:     uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   keywordId:  uuid("keyword_id").references(() => listeningKeywords.id, { onDelete: "set null" }),
   keyword:    text("keyword").notNull(),
-  platform:   text("platform").notNull(),
+  platform:   platformEnum("platform").notNull(),
   username:   text("username").notNull(),
   content:    text("content").notNull(),
   url:        text("url"),
-  sentiment:  text("sentiment").notNull().default("neutral"),
+  sentiment:  sentimentEnum("sentiment").notNull().default("neutral"),
   handled:    boolean("handled").notNull().default(false),
   handledAt:  timestamp("handled_at"),
   timestamp:  timestamp("timestamp").notNull().defaultNow(),

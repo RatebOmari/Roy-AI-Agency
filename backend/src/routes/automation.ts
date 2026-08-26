@@ -6,6 +6,7 @@ import { db } from "../db/index.js";
 import { automationRules } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
+import { parseJSON } from "../lib/shared/json.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -32,7 +33,7 @@ app.get("/", async (c) => {
 
   return c.json(rows.map(r => ({
     ...r,
-    channels: (() => { try { return JSON.parse(r.channels) as string[]; } catch { return []; } })(),
+    channels: parseJSON<string[]>(r.channels, []),
   })));
 });
 
@@ -81,8 +82,7 @@ app.patch("/:id", zValidator("json", ruleBodySchema.partial()), async (c) => {
 
   if (!updated) return c.json({ message: "Rule not found" }, 404);
 
-  let channels: string[] = [];
-  try { channels = JSON.parse(updated.channels) as string[]; } catch { /* */ }
+  const channels = parseJSON<string[]>(updated.channels, []);
   return c.json({ ...updated, channels });
 });
 

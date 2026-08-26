@@ -15,9 +15,7 @@ interface Handle {
   username: string;
 }
 
-function parseJSON<T>(raw: string, fallback: T): T {
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
-}
+import { parseJSON } from "./shared/json.js";
 
 /**
  * Upsert a contact from an inbound message event.

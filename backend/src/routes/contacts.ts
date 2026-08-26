@@ -11,9 +11,7 @@ const app = new Hono();
 app.use("*", authMiddleware);
 app.use("*", clientContextMiddleware);
 
-function parseJSON<T>(raw: string, fallback: T): T {
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
-}
+import { parseJSON } from "../lib/shared/json.js";
 
 function serializeContact(row: typeof contacts.$inferSelect) {
   return {

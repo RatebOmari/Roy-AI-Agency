@@ -25,13 +25,11 @@ import { aiRateLimit, outreachSendRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
 import { sendWhatsAppMessage, sendSmsMessage } from "../lib/platformDelivery.js";
 import { sendBroadcastEmail } from "../lib/email.js";
-import { createMiddleware } from "hono/factory";
+import { agencyOnly } from "../lib/shared/roleGuards.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function parseJSON<T>(raw: string, fallback: T): T {
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
-}
+import { parseJSON } from "../lib/shared/json.js";
 
 interface AudienceFilter {
   type: "all" | "tag" | "platform";
@@ -91,15 +89,6 @@ function filterByChannel(
       return contacts.filter(c => c.email != null);
   }
 }
-
-// ── Role guards ────────────────────────────────────────────────────────────────
-
-const agencyOnly = createMiddleware(async (c, next) => {
-  if (c.get("user").role !== "agency") {
-    return c.json({ message: "Agency access required" }, 403);
-  }
-  await next();
-});
 
 // ── App & global middleware ────────────────────────────────────────────────────
 

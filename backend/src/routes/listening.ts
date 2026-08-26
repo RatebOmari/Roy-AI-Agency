@@ -4,7 +4,7 @@ import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db/index.js";
-import { listeningKeywords, listeningMentions } from "../db/schema.js";
+import { listeningKeywords, listeningMentions, platformEnum } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
@@ -31,7 +31,7 @@ app.get("/", async (c) => {
 
 const keywordSchema = z.object({
   keyword:   z.string().min(1),
-  platforms: z.array(z.string()).min(1),
+  platforms: z.array(z.enum(platformEnum.enumValues)).min(1),
 });
 
 // POST / — create keyword
@@ -117,7 +117,7 @@ app.get("/mentions", async (c) => {
     ? userKeywords.map((k) => ({ id: k.id, keyword: k.keyword }))
     : [{ id: null as string | null, keyword: "brand" }];
 
-  const platforms   = ["instagram", "tiktok", "facebook", "twitter"];
+  const platforms   = ["instagram", "tiktok", "facebook"] as const;
   const sentiments  = ["positive", "negative", "neutral"] as const;
   const usernames   = ["foodie_adventures","sara_eats_out","ahmed_reviews","layla_foodblog","the_real_critic","yummy_bites99","local_explorer","taste_hunter","casual_diner","street_food_fan"];
   const templates   = [
@@ -193,7 +193,7 @@ app.patch("/mentions/:id/unhandle", async (c) => {
 // POST /generate-reply — AI-suggested reply for a mention
 app.post("/generate-reply", aiRateLimit, zValidator("json", z.object({
   content:  z.string().min(1).max(5000),
-  platform: z.string(),
+  platform: z.enum(platformEnum.enumValues),
   username: z.string().optional(),
   keyword:  z.string().optional(),
 })), async (c) => {

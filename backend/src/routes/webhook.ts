@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { logger } from "../lib/logger.js";
 import { conversations, messages, listeningKeywords, listeningMentions } from "../db/schema.js";
-import type { channelEnum } from "../db/schema.js";
+import type { channelEnum, PlatformValue } from "../db/schema.js";
 import type { InferSelectModel } from "drizzle-orm";
 import {
   checkFlowTrigger,
@@ -166,7 +166,7 @@ async function scanForMentions(userId: string, event: InboundEvent): Promise<voi
   if (keywords.length === 0) return;
 
   const text = event.text.toLowerCase();
-  const platform = event.channel.split("_")[0]; // "instagram", "facebook", etc.
+  const platform = event.channel.split("_")[0] as PlatformValue; // "instagram", "facebook", etc.
 
   for (const kw of keywords) {
     if (!text.includes(kw.keyword.toLowerCase())) continue;

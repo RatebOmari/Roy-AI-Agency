@@ -12,7 +12,7 @@
 import { eq, and } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { chatbotFlows, conversations, messages, flowSessions } from "../db/schema.js";
+import { chatbotFlows, conversations, messages, flowSessions, type PlatformValue } from "../db/schema.js";
 import { deliverReply, type DeliveryChannel } from "./platformDelivery.js";
 import { logger } from "./logger.js";
 
@@ -163,7 +163,7 @@ export async function checkFlowTrigger(
     .where(
       and(
         eq(chatbotFlows.userId, userId),
-        eq(chatbotFlows.platform, platform),
+        eq(chatbotFlows.platform, platform as PlatformValue),
         eq(chatbotFlows.active, true),
       ),
     );

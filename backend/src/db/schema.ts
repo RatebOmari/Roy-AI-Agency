@@ -21,6 +21,9 @@ export const channelEnum = pgEnum("channel", [
 export const toneEnum = pgEnum("tone", ["friendly", "professional", "fun", "informative"]);
 export const langEnum = pgEnum("lang",  ["ar", "en", "ar_en"]);
 export const featureEnum = pgEnum("feature", ["comments", "messages", "publishing"]);
+export const sentimentEnum = pgEnum("sentiment", ["positive", "negative", "neutral"]);
+
+export type PlatformValue = (typeof platformEnum.enumValues)[number];
 
 export const users = pgTable("users", {
   id:           uuid("id").primaryKey().defaultRandom(),
@@ -181,8 +184,8 @@ export const replyTemplates = pgTable("reply_templates", {
   userId:    uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title:     text("title").notNull(),
   content:   text("content").notNull(),
-  platforms: text("platforms").array().notNull().default(sql`'{}'::text[]`),
-  language:  text("language").notNull().default("en"),
+  platforms: platformEnum("platforms").array().notNull().default(sql`'{}'::platform[]`),
+  language:  langEnum("language").notNull().default("en"),
   active:    boolean("active").notNull().default(true),
   category:  text("category").notNull().default(""),
   usedCount: integer("used_count").notNull().default(0),
@@ -246,7 +249,7 @@ export const chatbotFlows = pgTable("chatbot_flows", {
   name:         text("name").notNull(),
   trigger:      flowTriggerEnum("trigger").notNull().default("greeting"),
   triggerValue: text("trigger_value"),
-  platform:     text("platform").notNull().default("whatsapp"),
+  platform:     platformEnum("platform").notNull().default("whatsapp"),
   steps:        text("steps").notNull().default("[]"),
   active:       boolean("active").notNull().default(false),
   triggerCount: integer("trigger_count").notNull().default(0),
@@ -285,7 +288,7 @@ export const listeningKeywords = pgTable("listening_keywords", {
   id:           uuid("id").primaryKey().defaultRandom(),
   userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   keyword:      text("keyword").notNull(),
-  platforms:    text("platforms").array().notNull().default(sql`'{}'::text[]`),
+  platforms:    platformEnum("platforms").array().notNull().default(sql`'{}'::platform[]`),
   active:       boolean("active").notNull().default(true),
   mentionCount: integer("mention_count").notNull().default(0),
   createdAt:    timestamp("created_at").notNull().defaultNow(),
@@ -298,11 +301,11 @@ export const listeningMentions = pgTable("listening_mentions", {
   userId:     uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   keywordId:  uuid("keyword_id").references(() => listeningKeywords.id, { onDelete: "set null" }),
   keyword:    text("keyword").notNull(),
-  platform:   text("platform").notNull(),
+  platform:   platformEnum("platform").notNull(),
   username:   text("username").notNull(),
   content:    text("content").notNull(),
   url:        text("url"),
-  sentiment:  text("sentiment").notNull().default("neutral"),
+  sentiment:  sentimentEnum("sentiment").notNull().default("neutral"),
   handled:    boolean("handled").notNull().default(false),
   handledAt:  timestamp("handled_at"),
   timestamp:  timestamp("timestamp").notNull().defaultNow(),

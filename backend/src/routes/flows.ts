@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { chatbotFlows } from "../db/schema.js";
+import { chatbotFlows, platformEnum } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { clientContextMiddleware } from "../middleware/clientContext.js";
 
@@ -25,7 +25,7 @@ app.get("/", async (c) => {
 const flowSchema = z.object({
   name:         z.string().min(1),
   trigger:      z.enum(["greeting", "keyword", "order", "inquiry", "fallback"]),
-  platform:     z.string().min(1),
+  platform:     z.enum(platformEnum.enumValues),
   triggerValue: z.string().nullable().optional(),
   steps:        z.string().optional(),
   active:       z.boolean().optional(),

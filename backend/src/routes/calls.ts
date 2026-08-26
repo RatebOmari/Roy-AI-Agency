@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
-import { createHmac } from "crypto";
+import { verifyTwilioSignature } from "../lib/shared/twilioSignature.js";
 import { db } from "../db/index.js";
 import { logger } from "../lib/logger.js";
 import { calls, conversations, messages } from "../db/schema.js";
@@ -11,24 +11,6 @@ import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { makePhoneCall, logDelivery } from "../lib/platformDelivery.js";
 
 const app = new Hono();
-
-// ── Twilio HMAC-SHA1 signature verification ───────────────────────────────────
-
-function verifyTwilioSignature(
-  authToken: string,
-  url: string,
-  params: Record<string, string>,
-  signature: string,
-): boolean {
-  // Twilio: sort params alphabetically, append key+value to URL, HMAC-SHA1, base64
-  const sortedKeys = Object.keys(params).sort();
-  const str = url + sortedKeys.map(k => k + params[k]).join("");
-  const expected = createHmac("sha1", authToken).update(str).digest("base64");
-  if (expected.length !== signature.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
-  return diff === 0;
-}
 
 // ── Twilio status webhook — signature-verified ────────────────────────────────
 

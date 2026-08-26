@@ -9,6 +9,7 @@
  */
 
 import { logger } from "./logger.js";
+import { resendSend } from "./shared/resend.js";
 
 interface InviteParams {
   to:            string;
@@ -56,24 +57,16 @@ export async function sendInviteEmail(params: InviteParams): Promise<void> {
 
   if (resendKey) {
     const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "socialpilot.app";
-    const res = await fetch("https://api.resend.com/emails", {
-      method:  "POST",
-      headers: {
-        Authorization:  `Bearer ${resendKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from:    `SocialPilot <noreply@${fromDomain}>`,
-        to:      [to],
-        subject,
-        text,
-        html,
-      }),
+    const result = await resendSend(resendKey, {
+      from:    `SocialPilot <noreply@${fromDomain}>`,
+      to,
+      subject,
+      text,
+      html,
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      logger.error({ err }, "[email] Resend delivery failed");
+    if (!result.ok) {
+      logger.error({ err: result.error }, "[email] Resend delivery failed");
     } else {
       logger.info(`[email] Invite sent to ${to} via Resend`);
     }
@@ -115,28 +108,18 @@ export async function sendBroadcastEmail(params: {
   const fromDomain = process.env.EMAIL_FROM_DOMAIN ?? "socialpilot.app";
   const fromName   = params.fromName ?? "Roy AI Agency";
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method:  "POST",
-    headers: {
-      Authorization:  `Bearer ${resendKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from:    `${fromName} <noreply@${fromDomain}>`,
-      to:      [params.to],
-      subject: params.subject,
-      text:    params.text,
-    }),
+  const result = await resendSend(resendKey, {
+    from:    `${fromName} <noreply@${fromDomain}>`,
+    to:      params.to,
+    subject: params.subject,
+    text:    params.text,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { message?: string; name?: string };
-    const msg = err.message ?? `Resend API ${res.status}`;
-    logger.error({ err }, `[email/broadcast] Delivery failed to ${params.to}`);
-    return { ok: false, error: msg };
+  if (!result.ok) {
+    logger.error({ err: result.error }, `[email/broadcast] Delivery failed to ${params.to}`);
+    return { ok: false, error: result.error };
   }
 
-  const data = await res.json() as { id: string };
-  logger.info(`[email/broadcast] Sent id=${data.id} → ${params.to}`);
+  logger.info(`[email/broadcast] Sent id=${result.id} → ${params.to}`);
   return { ok: true };
 }

@@ -15,6 +15,7 @@ import { scheduledPosts, agencyClients, emailReminders, users } from "../db/sche
 import { eq, and, isNotNull, lte } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger.js";
+import { resendSend } from "./shared/resend.js";
 
 const APP_URL = (process.env.APP_URL ?? "http://localhost:5174").replace(/\/$/, "");
 const RESEND_KEY = process.env.RESEND_API_KEY;
@@ -106,19 +107,15 @@ async function sendReminderEmail(
   ].join("\n");
 
   if (RESEND_KEY) {
-    const res = await fetch("https://api.resend.com/emails", {
-      method:  "POST",
-      headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from:    `Roy AI Agency <noreply@${FROM_DOMAIN}>`,
-        to:      [to],
-        subject,
-        text,
-        html,
-      }),
+    const result = await resendSend(RESEND_KEY, {
+      from:    `Roy AI Agency <noreply@${FROM_DOMAIN}>`,
+      to,
+      subject,
+      text,
+      html,
     });
-    if (!res.ok) {
-      logger.error({ err: await res.json().catch(() => ({})) }, "[emailReminder] Resend failed");
+    if (!result.ok) {
+      logger.error({ err: result.error }, "[emailReminder] Resend failed");
     } else {
       logger.info(`[emailReminder] Reminder ${reminderNumber} sent to ${to}`);
     }

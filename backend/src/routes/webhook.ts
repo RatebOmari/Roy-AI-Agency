@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac } from "crypto";
+import { verifyTwilioSignature } from "../lib/shared/twilioSignature.js";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { logger } from "../lib/logger.js";
@@ -32,22 +33,6 @@ function verifyHmacSha256(
   let diff = 0;
   for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
   return diff === 0;
-}
-
-function verifyTwilioSmsSignature(
-  authToken: string,
-  url: string,
-  params: Record<string, string>,
-  signature: string,
-): boolean {
-  const sortedKeys = Object.keys(params).sort();
-  const str = url + sortedKeys.map(k => k + params[k]).join("");
-  const expected = createHmac("sha1", authToken).update(str).digest("base64");
-  try {
-    return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
-  } catch {
-    return false;
-  }
 }
 
 /** Normalised inbound event extracted from any platform payload */
@@ -295,7 +280,7 @@ app.post("/:platform/:userId", async (c) => {
     if (authToken) {
       const sig    = c.req.header("x-twilio-signature") ?? "";
       const params = Object.fromEntries(new URLSearchParams(rawBody).entries());
-      if (!verifyTwilioSmsSignature(authToken, c.req.url, params, sig)) {
+      if (!verifyTwilioSignature(authToken, c.req.url, params, sig)) {
         logger.warn(`[webhook] Twilio SMS signature mismatch for ${userId}`);
         return c.json({ message: "Invalid signature" }, 401);
       }

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc, count } from "drizzle-orm";
-import Anthropic from "@anthropic-ai/sdk";
+import { generateModeratedReply } from "../lib/aiModeration.js";
 import { db } from "../db/index.js";
 import { logger } from "../lib/logger.js";
 import { conversations, messages, toneSettings } from "../db/schema.js";
@@ -13,7 +13,6 @@ import { deliverReply, makePhoneCall, logDelivery, type DeliveryChannel } from "
 import { evaluateRules, ruleActionToReplyStatus } from "../lib/automationRules.js";
 import { requireNotViewer } from "../middleware/teamRole.js";
 import { aiRateLimit } from "../middleware/rateLimit.js";
-import { AI_FAST_MODEL } from "../lib/constants.js";
 
 const app = new Hono();
 app.use("*", authMiddleware);
@@ -279,58 +278,25 @@ app.post("/generate-reply", requireNotViewer, aiRateLimit, zValidator("json", ge
     `Return ONLY valid JSON: { "reply": "<your reply>", "confidence": <integer 0-100> }`
   );
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Build conversation turns for context (oldest → newest)
+  const historyTurns = [...history].reverse().map(m => ({
+    role: m.direction === "inbound" ? "user" as const : "assistant" as const,
+    content: m.aiReply ?? m.content,
+  }));
 
-  let reply: string;
-  let confidence: number;
-
-  if (apiKey) {
-    try {
-      const anthropic = new Anthropic({ apiKey });
-
-      // Build conversation turns for context
-      const historyTurns = [...history].reverse().map(m => ({
-        role: m.direction === "inbound" ? "user" as const : "assistant" as const,
-        content: m.aiReply ?? m.content,
-      }));
-
-      const response = await anthropic.messages.create({
-        model: AI_FAST_MODEL,
-        max_tokens: 512,
-        system: systemParts.join("\n"),
-        messages: historyTurns.length > 0
-          ? historyTurns
-          : [{ role: "user", content: lastInbound.content }],
-      });
-
-      const raw = response.content[0].type === "text" ? response.content[0].text : "";
-      // Extract JSON — Claude sometimes wraps it in markdown
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON in response");
-      const parsed = JSON.parse(jsonMatch[0]) as { reply: string; confidence: number };
-      reply      = parsed.reply;
-      confidence = Math.max(0, Math.min(100, Math.round(parsed.confidence)));
-    } catch {
-      // Fallback to mock if API call fails
-      reply      = `Thank you for your message! We'll get back to you shortly.`;
-      confidence = 55;
-    }
-  } else {
-    // Demo mode — return a plausible mock reply
-    const demoReplies = [
+  const { reply, confidence, replyStatus: baseStatus } = await generateModeratedReply({
+    system:      systemParts.join("\n"),
+    messages:    historyTurns.length > 0 ? historyTurns : [{ role: "user", content: lastInbound.content }],
+    maxTokens:   512,
+    fallbackReply: `Thank you for your message! We'll get back to you shortly.`,
+    demoReplies: [
       "Thank you for reaching out! We'd love to help — could you share a few more details?",
       "Great question! Feel free to DM us and we'll sort it out right away 😊",
       "Hi there! We appreciate you contacting us. Our team will follow up shortly.",
-    ];
-    reply      = demoReplies[Math.floor(Math.random() * demoReplies.length)];
-    confidence = 60 + Math.floor(Math.random() * 30); // 60–89
-  }
+    ],
+  });
 
-  // Apply 3-tier confidence system
-  let replyStatus: "auto_sent" | "pending" | "escalated" =
-    confidence >= 85 ? "auto_sent"  :
-    confidence >= 50 ? "pending"    :
-                       "escalated"  ;
+  let replyStatus = baseStatus;
 
   // Automation rules can override the confidence-based tier
   const ruleMatch = await evaluateRules(user.sub, lastInbound.content, conv.channel);

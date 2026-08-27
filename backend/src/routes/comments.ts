@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc, count } from "drizzle-orm";
-import Anthropic from "@anthropic-ai/sdk";
+import { generateModeratedReply } from "../lib/aiModeration.js";
 import { db } from "../db/index.js";
 import { logger } from "../lib/logger.js";
 import { comments, toneSettings } from "../db/schema.js";
@@ -11,7 +11,6 @@ import { clientContextMiddleware } from "../middleware/clientContext.js";
 import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { deliverReply, logDelivery, type DeliveryChannel } from "../lib/platformDelivery.js";
 import { aiRateLimit } from "../middleware/rateLimit.js";
-import { AI_FAST_MODEL } from "../lib/constants.js";
 
 function platformToCommentChannel(platform: string): DeliveryChannel {
   if (platform === "instagram") return "instagram_comment";
@@ -188,47 +187,17 @@ app.post("/generate-reply", aiRateLimit, zValidator("json", generateReplySchema)
     `Return ONLY valid JSON: { "reply": "<your reply>", "confidence": <integer 0-100> }`
   );
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-
-  let reply: string;
-  let confidence: number;
-
-  if (apiKey) {
-    try {
-      const anthropic = new Anthropic({ apiKey });
-      const response = await anthropic.messages.create({
-        model: AI_FAST_MODEL,
-        max_tokens: 256,
-        system: systemParts.join("\n"),
-        messages: [{ role: "user", content: comment.text }],
-      });
-
-      const raw = response.content[0].type === "text" ? response.content[0].text : "";
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON in response");
-      const parsed = JSON.parse(jsonMatch[0]) as { reply: string; confidence: number };
-      reply      = parsed.reply;
-      confidence = Math.max(0, Math.min(100, Math.round(parsed.confidence)));
-    } catch {
-      reply      = "Thank you for your comment! Feel free to DM us for more details 😊";
-      confidence = 55;
-    }
-  } else {
-    // Demo mode
-    const demoReplies = [
+  const { reply, confidence, replyStatus } = await generateModeratedReply({
+    system:      systemParts.join("\n"),
+    messages:    [{ role: "user", content: comment.text }],
+    maxTokens:   256,
+    fallbackReply: "Thank you for your comment! Feel free to DM us for more details 😊",
+    demoReplies: [
       "Thank you so much! We really appreciate your kind words 🙏",
       "Great question! Feel free to DM us and we'll help you right away 😊",
       "We're so glad you reached out! Check the link in our bio for more info ✨",
-    ];
-    reply      = demoReplies[Math.floor(Math.random() * demoReplies.length)];
-    confidence = 60 + Math.floor(Math.random() * 30);
-  }
-
-  // 3-tier confidence system — same thresholds as inbox
-  const replyStatus =
-    confidence >= 85 ? "auto_sent"  as const :
-    confidence >= 50 ? "pending"    as const :
-                       "escalated"  as const;
+    ],
+  });
 
   // Update comment with the AI reply
   await db

@@ -20,6 +20,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Build the frontend directly into the backend's static dir so a single
+  // Railway service (Hono) can serve the SPA and the API from one origin.
+  build: {
+    outDir: path.resolve(__dirname, "./backend/public"),
+    emptyOutDir: true,
+  },
   server: {
     host: "0.0.0.0",
     port: 5174,

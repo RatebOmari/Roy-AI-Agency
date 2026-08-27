@@ -108,6 +108,16 @@ app.route("/webhook", webhookRoutes);
 
 app.route("/api", api);
 
+// Unknown API paths return JSON 404 (never the SPA HTML below).
+app.all("/api/*", (c) => c.json({ message: "Not found" }, 404));
+
+// ── Serve the built frontend (single-service deploy) ──────────────────────────
+// The Vite build outputs to backend/public. Serve its assets, and fall back to
+// index.html for any other GET so client-side routes (/login, /dashboard, …)
+// resolve. API and webhook routes are registered above, so they take priority.
+app.use("/*", serveStatic({ root: "./public" }));
+app.get("/*", serveStatic({ path: "./public/index.html" }));
+
 // ── Startup environment checks ────────────────────────────────────────────────
 
 if (!process.env.ANTHROPIC_API_KEY) {

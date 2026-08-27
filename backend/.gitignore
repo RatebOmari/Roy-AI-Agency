@@ -3,3 +3,6 @@ dist/
 .env
 .env.local
 *.tsbuildinfo
+
+# Frontend build output served by the backend (generated at build time)
+public/

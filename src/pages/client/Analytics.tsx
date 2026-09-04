@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
+  BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
@@ -23,65 +23,7 @@ import { cn } from "@/lib/utils";
 type Tab = "overview" | "inbox" | "content" | "listening" | "outreach";
 type DateRange = "7d" | "30d" | "90d";
 
-// ── Static chart data (mock — replace with API when available) ────────────────
-
-const MSG_7D = [
-  { date: "Mon", autoSent: 31, manual: 8, escalated: 3 },
-  { date: "Tue", autoSent: 44, manual: 11, escalated: 3 },
-  { date: "Wed", autoSent: 28, manual: 5, escalated: 2 },
-  { date: "Thu", autoSent: 51, manual: 13, escalated: 3 },
-  { date: "Fri", autoSent: 70, manual: 15, escalated: 4 },
-  { date: "Sat", autoSent: 89, manual: 19, escalated: 4 },
-  { date: "Sun", autoSent: 60, manual: 12, escalated: 4 },
-];
-
-const MSG_30D = [
-  { date: "W1", autoSent: 198, manual: 52, escalated: 16 },
-  { date: "W2", autoSent: 243, manual: 65, escalated: 19 },
-  { date: "W3", autoSent: 312, manual: 78, escalated: 22 },
-  { date: "W4", autoSent: 373, manual: 83, escalated: 25 },
-];
-
-const MSG_90D = [
-  { date: "May",  autoSent: 820,  manual: 195, escalated: 64 },
-  { date: "Apr",  autoSent: 1120, manual: 270, escalated: 88 },
-  { date: "Mar",  autoSent: 940,  manual: 228, escalated: 72 },
-];
-
-const RESP_7D = [
-  { date: "Mon", time: 1.8 },
-  { date: "Tue", time: 1.6 },
-  { date: "Wed", time: 1.7 },
-  { date: "Thu", time: 1.4 },
-  { date: "Fri", time: 1.3 },
-  { date: "Sat", time: 1.5 },
-  { date: "Sun", time: 1.4 },
-];
-
-const CHANNEL_PIE = [
-  { name: "Instagram", value: 38, color: "#a855f7" },
-  { name: "TikTok",    value: 27, color: "#1a1a1a" },
-  { name: "Facebook",  value: 18, color: "#3b82f6" },
-  { name: "SMS",       value: 12, color: "#f97316" },
-  { name: "WhatsApp",  value: 5,  color: "#22c55e" },
-];
-
-const SENTIMENT_7D = [
-  { date: "Mon", positive: 8,  neutral: 5, negative: 2 },
-  { date: "Tue", positive: 12, neutral: 6, negative: 3 },
-  { date: "Wed", positive: 7,  neutral: 4, negative: 1 },
-  { date: "Thu", positive: 15, neutral: 8, negative: 4 },
-  { date: "Fri", positive: 11, neutral: 7, negative: 2 },
-  { date: "Sat", positive: 9,  neutral: 5, negative: 1 },
-  { date: "Sun", positive: 6,  neutral: 3, negative: 2 },
-];
-
-const MENTIONS_BY_PLATFORM = [
-  { platform: "Instagram", mentions: 28 },
-  { platform: "TikTok",    mentions: 19 },
-  { platform: "Facebook",  mentions: 12 },
-  { platform: "WhatsApp",  mentions: 5  },
-];
+// ── Static chart data ─────────────────────────────────────────────────────────
 
 const PLATFORM_COLOR: Record<string, string> = {
   instagram: "bg-gradient-to-br from-purple-500 to-pink-500",
@@ -201,7 +143,7 @@ export default function Analytics() {
   const msgData = useMemo(
     () => (analytics?.msgChart?.length ?? 0) > 0
       ? analytics!.msgChart
-      : (range === "7d" ? MSG_7D : range === "30d" ? MSG_30D : MSG_90D),
+      : [],
     [analytics, range]
   );
 
@@ -210,15 +152,15 @@ export default function Analytics() {
     [summary, msgData]
   );
 
-  const autoSentCount  = summary?.totalAutoSent  ?? 6;
-  const manualCount    = summary?.totalManual    ?? 2;
-  const escalatedCount = summary?.totalEscalated ?? 1;
+  const autoSentCount  = summary?.totalAutoSent  ?? 0;
+  const manualCount    = summary?.totalManual    ?? 0;
+  const escalatedCount = summary?.totalEscalated ?? 0;
   const pendingCount   = summary?.pendingConversations ?? 0;
 
   const confidencePie = useMemo(() => [
-    { name: "Auto-sent (≥85%)",  value: autoSentCount  || 6, color: "#22c55e" },
-    { name: "Reviewed (50–84%)", value: manualCount     || 2, color: "#eab308" },
-    { name: "Escalated (<50%)",  value: escalatedCount  || 1, color: "#ef4444" },
+    { name: "Auto-sent (≥85%)",  value: autoSentCount, color: "#22c55e" },
+    { name: "Reviewed (50–84%)", value: manualCount, color: "#eab308" },
+    { name: "Escalated (<50%)",  value: escalatedCount, color: "#ef4444" },
   ], [autoSentCount, manualCount, escalatedCount]);
 
   const { sentOutreach, totalCampSent, readRate, replyRate } = useMemo(() => {
@@ -260,6 +202,59 @@ export default function Analytics() {
     const neg = mentions.filter(m => m.sentiment === "negative").length;
     return { negMentions: neg, posRate: mentions.length > 0 ? Math.round((pos / mentions.length) * 100) : 0 };
   }, [mentions]);
+
+  // Sentiment over time, derived from real mentions rather than a fixed array.
+  const sentimentData = useMemo(() => {
+    const byDay = new Map<string, { date: string; positive: number; neutral: number; negative: number }>();
+    for (const m of mentions) {
+      const d = new Date(m.timestamp);
+      if (isNaN(d.getTime())) continue;
+      const key = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const row = byDay.get(key) ?? { date: key, positive: 0, neutral: 0, negative: 0 };
+      if (m.sentiment === "positive")      row.positive += 1;
+      else if (m.sentiment === "negative") row.negative += 1;
+      else                                 row.neutral  += 1;
+      byDay.set(key, row);
+    }
+    return [...byDay.values()];
+  }, [mentions]);
+
+  // Mentions per platform, derived from real mentions.
+  const mentionsByPlatform = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const m of mentions) {
+      counts.set(m.platform, (counts.get(m.platform) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([platform, count]) => ({
+        platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+        mentions: count,
+      }))
+      .sort((a, b) => b.mentions - a.mentions);
+  }, [mentions]);
+
+  const platformsTracked = mentionsByPlatform.length;
+
+  // Real count of distinct people who have messaged, from the inbox.
+  const uniqueContacts = useMemo(
+    () => new Set(conversations.map(c => c.contactId)).size,
+    [conversations]
+  );
+
+  // Channel split from the real analytics response (was a fixed array).
+  const channelPie = useMemo(() => {
+    const palette: Record<string, string> = {
+      instagram_comment: "#a855f7", instagram_dm: "#c084fc",
+      tiktok_comment: "#1a1a1a",    tiktok_dm: "#404040",
+      facebook_comment: "#3b82f6",  facebook_messenger: "#60a5fa",
+      whatsapp_business: "#22c55e", sms: "#f97316", phone_call: "#eab308",
+    };
+    return (analytics?.channelBreakdown ?? []).map(c => ({
+      name:  c.channel.replace(/_/g, " ").replace(/\b\w/g, ch => ch.toUpperCase()),
+      value: c.count,
+      color: palette[c.channel] ?? "#94a3b8",
+    }));
+  }, [analytics]);
 
   const allMsgs = conversations;
 
@@ -318,20 +313,20 @@ export default function Analytics() {
           <div className="space-y-5">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard label="Total Messages" value={totalMsgs} icon={MessageCircle}
-                iconBg="bg-primary/10" iconColor="text-primary" trend="+12%" />
+                iconBg="bg-primary/10" iconColor="text-primary"/>
               <KpiCard label="Auto-Sent by AI" value={`${Math.round((msgData.reduce((s,d)=>s+d.autoSent,0)/totalMsgs)*100)||0}%`}
-                icon={Zap} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600" trend="+9%" sub="of all replies" />
-              <KpiCard label="Avg Response Time" value="1.4 min"
-                icon={Clock} iconBg="bg-blue-100 dark:bg-blue-900/20" iconColor="text-blue-600" trend="-0.3m" trendInverse />
-              <KpiCard label="Unique Contacts" value="214"
-                icon={Users} iconBg="bg-purple-100 dark:bg-purple-900/20" iconColor="text-purple-600" trend="+18%" />
+                icon={Zap} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600"sub="of all replies" />
+              <KpiCard label="Avg Response Time" value="–"
+                icon={Clock} iconBg="bg-blue-100 dark:bg-blue-900/20" iconColor="text-blue-600" />
+              <KpiCard label="Unique Contacts" value={uniqueContacts}
+                icon={Users} iconBg="bg-purple-100 dark:bg-purple-900/20" iconColor="text-purple-600"/>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard label="Posts Published" value={postMetrics.length}
-                icon={Eye} iconBg="bg-orange-100 dark:bg-orange-900/20" iconColor="text-orange-600" trend="+3" />
+                icon={Eye} iconBg="bg-orange-100 dark:bg-orange-900/20" iconColor="text-orange-600"/>
               <KpiCard label="Brand Mentions" value={mentions.length}
-                icon={Radio} iconBg="bg-pink-100 dark:bg-pink-900/20" iconColor="text-pink-600" trend="+8%" />
+                icon={Radio} iconBg="bg-pink-100 dark:bg-pink-900/20" iconColor="text-pink-600"/>
               <KpiCard label="Outreach Sent" value={totalCampSent.toLocaleString()}
                 icon={Megaphone} iconBg="bg-amber-100 dark:bg-amber-900/20" iconColor="text-amber-600" sub={`${readRate}% open rate`} />
               <KpiCard label="Active Flows" value={activeFlows}
@@ -358,14 +353,14 @@ export default function Analytics() {
                 <div className="flex flex-col items-center gap-4">
                   <ResponsiveContainer width="100%" height={160}>
                     <PieChart>
-                      <Pie data={CHANNEL_PIE} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value" paddingAngle={2}>
-                        {CHANNEL_PIE.map(e => <Cell key={e.name} fill={e.color} />)}
+                      <Pie data={channelPie} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value" paddingAngle={2}>
+                        {channelPie.map(e => <Cell key={e.name} fill={e.color} />)}
                       </Pie>
                       <Tooltip contentStyle={TOOLTIP_STYLE} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="w-full space-y-1.5">
-                    {CHANNEL_PIE.map(d => (
+                    {channelPie.map(d => (
                       <div key={d.name} className="flex items-center gap-2 text-xs">
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
                         <span className="text-muted-foreground flex-1">{d.name}</span>
@@ -384,15 +379,15 @@ export default function Analytics() {
           <div className="space-y-5">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard label="Total Replies" value={allMsgs.length || 9}
-                icon={MessageCircle} iconBg="bg-primary/10" iconColor="text-primary" trend="+12%" />
+                icon={MessageCircle} iconBg="bg-primary/10" iconColor="text-primary"/>
               <KpiCard label="AI Auto-Sent" value={autoSentCount || 6}
                 icon={Zap} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600"
-                trend="+3" sub={`${Math.round(((autoSentCount||6)/((allMsgs.length||9)))*100)}% of replies`} />
+sub={`${Math.round(((autoSentCount||6)/((allMsgs.length||9)))*100)}% of replies`} />
               <KpiCard label="Pending Review" value={pendingCount}
                 icon={Clock} iconBg="bg-yellow-100 dark:bg-yellow-900/20" iconColor="text-yellow-600" />
               <KpiCard label="Escalated" value={escalatedCount || 1}
                 icon={TrendingDown} iconBg="bg-red-100 dark:bg-red-900/20" iconColor="text-red-600"
-                trend="-2" trendInverse sub="low confidence" />
+ sub="low confidence" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -434,17 +429,6 @@ export default function Analytics() {
               </ChartCard>
             </div>
 
-            <ChartCard title="Response Time Trend (minutes)" icon={Clock}>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={RESP_7D}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis domain={[0.5, 2.5]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`${v} min`, "Avg Response"]} />
-                  <Line type="monotone" dataKey="time" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: "hsl(var(--primary))" }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartCard>
 
             {/* Recent conversations */}
             <ChartCard title="Recent Conversations" icon={MessageSquare}>
@@ -488,13 +472,13 @@ export default function Analytics() {
           <div className="space-y-5">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard label="Posts Published" value={postMetrics.length}
-                icon={Eye} iconBg="bg-primary/10" iconColor="text-primary" trend="+3" />
+                icon={Eye} iconBg="bg-primary/10" iconColor="text-primary"/>
               <KpiCard label="Total Reach" value={postMetrics.reduce((s,m)=>s+m.reach,0).toLocaleString()}
-                icon={Users} iconBg="bg-blue-100 dark:bg-blue-900/20" iconColor="text-blue-600" trend="+22%" />
+                icon={Users} iconBg="bg-blue-100 dark:bg-blue-900/20" iconColor="text-blue-600"/>
               <KpiCard label="Total Likes" value={postMetrics.reduce((s,m)=>s+m.likes,0).toLocaleString()}
-                icon={Heart} iconBg="bg-pink-100 dark:bg-pink-900/20" iconColor="text-pink-600" trend="+14%" />
+                icon={Heart} iconBg="bg-pink-100 dark:bg-pink-900/20" iconColor="text-pink-600"/>
               <KpiCard label="Total Shares" value={postMetrics.reduce((s,m)=>s+m.shares,0).toLocaleString()}
-                icon={Share2} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600" trend="+7%" />
+                icon={Share2} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600"/>
             </div>
 
             {/* Post performance table */}
@@ -554,20 +538,20 @@ export default function Analytics() {
         {tab === "listening" && (
           <div className="space-y-5">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard label="Total Mentions" value={mentions.length || 10}
-                icon={Radio} iconBg="bg-primary/10" iconColor="text-primary" trend="+8%" />
+              <KpiCard label="Total Mentions" value={mentions.length}
+                icon={Radio} iconBg="bg-primary/10" iconColor="text-primary"/>
               <KpiCard label="Positive Sentiment" value={`${posRate || 62}%`}
-                icon={CheckCircle2} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600" trend="+5%" />
-              <KpiCard label="Negative Mentions" value={negMentions || 3}
+                icon={CheckCircle2} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600"/>
+              <KpiCard label="Negative Mentions" value={negMentions}
                 icon={TrendingDown} iconBg="bg-red-100 dark:bg-red-900/20" iconColor="text-red-600"
-                trend="-2" trendInverse sub="this period" />
-              <KpiCard label="Platforms Tracked" value={4}
+ sub="this period" />
+              <KpiCard label="Platforms Tracked" value={platformsTracked}
                 icon={Users} iconBg="bg-purple-100 dark:bg-purple-900/20" iconColor="text-purple-600" />
             </div>
 
             <ChartCard title="Sentiment Over Time" icon={TrendingUp}>
               <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={SENTIMENT_7D}>
+                <AreaChart data={sentimentData}>
                   <defs>
                     <linearGradient id="gPos" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.15} />
@@ -592,7 +576,7 @@ export default function Analytics() {
 
             <ChartCard title="Mentions by Platform" icon={Radio}>
               <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={MENTIONS_BY_PLATFORM} layout="vertical">
+                <BarChart data={mentionsByPlatform} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                   <YAxis dataKey="platform" type="category" width={72} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
@@ -632,11 +616,11 @@ export default function Analytics() {
           <div className="space-y-5">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard label="Total Sent" value={totalCampSent.toLocaleString()}
-                icon={Send} iconBg="bg-primary/10" iconColor="text-primary" trend="+854" />
+                icon={Send} iconBg="bg-primary/10" iconColor="text-primary"/>
               <KpiCard label="Open Rate" value={`${readRate}%`}
-                icon={Eye} iconBg="bg-blue-100 dark:bg-blue-900/20" iconColor="text-blue-600" trend="+3%" />
+                icon={Eye} iconBg="bg-blue-100 dark:bg-blue-900/20" iconColor="text-blue-600"/>
               <KpiCard label="Reply Rate" value={`${replyRate}%`}
-                icon={MessageCircle} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600" trend="+2%" />
+                icon={MessageCircle} iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600"/>
               <KpiCard label="Broadcasts" value={outreachMsgs.length}
                 icon={Megaphone} iconBg="bg-violet-100 dark:bg-violet-900/20" iconColor="text-violet-600"
                 sub={`${sentOutreach.length} sent`} />

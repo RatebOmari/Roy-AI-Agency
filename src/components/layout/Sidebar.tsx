@@ -58,14 +58,15 @@ interface NavGroup {
   items: NavItem[];
 }
 
+// Ordered by how often a business owner actually needs each area. The daily
+// loop (replying to customers) leads; power features are grouped last under
+// ADVANCED so they no longer sit beside the core and dilute it.
 const CLIENT_NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
-      { label: "Inbox",      href: "/inbox",       icon: Inbox, badge: true },
+      { label: "Inbox",      href: "/inbox",      icon: Inbox, badge: true },
       { label: "Comments",   href: "/comments",   icon: MessageSquare },
-      { label: "Phone",      href: "/phone",      icon: Phone },
-      { label: "Listening",  href: "/listening",  icon: Radio },
     ],
   },
   {
@@ -76,23 +77,32 @@ const CLIENT_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "INSIGHTS",
+    // The knowledge base is what makes AI replies good, so it sits with the
+    // day-to-day work rather than buried at the bottom under "setup".
+    label: "YOUR BUSINESS",
     items: [
-      { label: "Analytics",  href: "/analytics",  icon: BarChart2 },
-      { label: "Contacts",   href: "/contacts",   icon: UserCircle },
+      { label: "Knowledge Base", href: "/resources", icon: BookOpen },
+      { label: "Contacts",       href: "/contacts",  icon: UserCircle },
+      { label: "Templates",      href: "/templates", icon: FileText },
     ],
   },
   {
-    label: "AUTOMATE",
+    label: "INSIGHTS",
     items: [
-      { label: "Flows",      href: "/flows",      icon: GitBranch },
-      { label: "Templates",  href: "/templates",  icon: FileText },
+      { label: "Analytics",  href: "/analytics",  icon: BarChart2 },
+    ],
+  },
+  {
+    label: "ADVANCED",
+    items: [
+      { label: "Phone & SMS", href: "/phone",     icon: Phone },
+      { label: "Chatbot Flows", href: "/flows",   icon: GitBranch },
+      { label: "Listening",   href: "/listening", icon: Radio },
     ],
   },
   {
     label: "SETUP",
     items: [
-      { label: "Resources",  href: "/resources",  icon: BookOpen },
       { label: "Team",       href: "/team",       icon: Users },
       { label: "Settings",   href: "/settings",   icon: Settings },
     ],

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -13,7 +12,8 @@ import {
 import type { AgencyClient, ClientStatus, ExtendedPlatform, PlatformFeatureType } from "@/types";
 import {
   useClients, useUpdateClientStatus, useUpdateClientPermissions,
-  useClientPlatforms, useSetClientPlatformCredential, useRevokeClientPlatformCredential,
+  useClientPlatforms, useClientPermissions, useSetClientPlatformCredential, useRevokeClientPlatformCredential,
+  useRegenerateClientInvite,
   useResetClientAiSettings, usePushTemplate,
 } from "@/hooks/useClients";
 import { cn } from "@/lib/utils";
@@ -77,6 +77,23 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
   const credMutation    = useSetClientPlatformCredential();
   const revokeMutation  = useRevokeClientPlatformCredential();
   const { data: platformData = [], isLoading: platformsLoading } = useClientPlatforms(client.id);
+  const { data: savedPerms, isLoading: permsLoading } = useClientPermissions(client.id);
+
+  // Show what's actually saved for this client. Platforms with no stored row
+  // fall back to the defaults; without this the panel rendered defaults for
+  // everyone and saving could overwrite real settings.
+  useEffect(() => {
+    if (!savedPerms) return;
+    setPerms(prev => {
+      const next = { ...prev };
+      for (const row of savedPerms) {
+        const platform = row.platform as ExtendedPlatform;
+        if (!next[platform]) continue;
+        next[platform] = { comments: row.commentsEnabled, messages: row.messagesEnabled };
+      }
+      return next;
+    });
+  }, [savedPerms]);
 
   const isConnected = (platform: string, feature: string) =>
     platformData.some(p => p.platform === platform && p.feature === feature);
@@ -286,10 +303,10 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
 
               <button
                 onClick={handleSavePerms}
-                disabled={permsMutation.isPending}
+                disabled={permsMutation.isPending || permsLoading}
                 className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {permsMutation.isPending
+                {permsMutation.isPending || permsLoading
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : permSaved
                     ? <><CheckCircle2 className="w-4 h-4" /> Saved!</>
@@ -444,13 +461,15 @@ export default function AgencyClients() {
   const statusMutation = useUpdateClientStatus();
   const { selectClient } = useAgencyClient();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const resetAi = useResetClientAiSettings();
   const [clients, setClients] = useState<AgencyClient[]>([]);
   const [search, setSearch] = useState("");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [permClient, setPermClient] = useState<AgencyClient | null>(null);
+  const [inviteFor, setInviteFor]   = useState<{ client: AgencyClient; url: string } | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const regenInvite = useRegenerateClientInvite();
   const [needsAttention, setNeedsAttention] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -654,13 +673,13 @@ export default function AgencyClients() {
                         {openMenu === c.id && (
                           <div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-lg py-1 w-52">
                             <button
-                              onClick={() => { queryClient.clear(); selectClient(c); setOpenMenu(null); navigate("/inbox"); }}
+                              onClick={() => { selectClient(c); setOpenMenu(null); navigate("/inbox"); }}
                               className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-primary font-medium"
                             >
                               <Inbox className="w-4 h-4" /> View Inbox
                             </button>
                             <button
-                              onClick={() => { queryClient.clear(); selectClient(c); setOpenMenu(null); navigate("/dashboard"); }}
+                              onClick={() => { selectClient(c); setOpenMenu(null); navigate("/dashboard"); }}
                               className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
                             >
                               <Eye className="w-4 h-4" /> View as Client
@@ -673,6 +692,15 @@ export default function AgencyClients() {
                               className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
                             >
                               <Users className="w-4 h-4" /> Manage Permissions
+                            </button>
+                            <button
+                              onClick={() => { regenInvite.mutate(c.id, {
+                                onSuccess: res => setInviteFor({ client: c, url: `${window.location.origin}/accept-invite/${res.token}` }),
+                              }); setOpenMenu(null); }}
+                              disabled={regenInvite.isPending}
+                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
+                            >
+                              <Send className="w-4 h-4" /> Resend Invite Link
                             </button>
                             <div className="border-t border-border my-1" />
                             <button
@@ -693,6 +721,55 @@ export default function AgencyClients() {
           )}
         </motion.div>
       </div>
+
+      {/* Regenerated invite link */}
+      <AnimatePresence>
+        {inviteFor && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            onClick={() => { setInviteFor(null); setInviteCopied(false); }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 8 }}
+              className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-md p-5 space-y-3"
+              onClick={e => e.stopPropagation()}
+            >
+              <div>
+                <p className="font-semibold text-foreground">New invite link</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Send this to {inviteFor.client.owner} at {inviteFor.client.email}. It expires in 7 days
+                  and replaces any earlier link.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={inviteFor.url}
+                  className="flex-1 px-3 py-2 rounded-xl border border-border bg-muted text-xs font-mono"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteFor.url).then(() => {
+                      setInviteCopied(true);
+                      setTimeout(() => setInviteCopied(false), 2000);
+                    });
+                  }}
+                  className="px-3 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 shrink-0"
+                >
+                  {inviteCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <button
+                onClick={() => { setInviteFor(null); setInviteCopied(false); }}
+                className="w-full py-2 rounded-xl border border-border text-sm hover:bg-muted"
+              >
+                Done
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Permissions modal */}
       <AnimatePresence>

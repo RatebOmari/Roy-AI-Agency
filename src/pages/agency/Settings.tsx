@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Globe, Bell, Shield, Brain } from "lucide-react";
 import { AGENCY_NAME } from "@/lib/constants";
@@ -18,6 +18,29 @@ export default function AgencySettings() {
   const { data: config } = useAgencyConfig();
   const updateConfig = useUpdateAgencyConfig();
   const [blocked, setBlocked] = useState("");
+
+  // Contact info — loaded from the saved config, saved back on demand.
+  const [contact, setContact] = useState({ website: "", contactEmail: "", phone: "" });
+  const [contactSaved, setContactSaved] = useState(false);
+
+  useEffect(() => {
+    if (!config) return;
+    setContact({
+      website:      config.website ?? "",
+      contactEmail: config.contactEmail ?? "",
+      phone:        config.phone ?? "",
+    });
+    setBlocked(config.globalBlocked ?? "");
+  }, [config]);
+
+  const saveContact = () => {
+    updateConfig.mutate(contact, {
+      onSuccess: () => {
+        setContactSaved(true);
+        setTimeout(() => setContactSaved(false), 2000);
+      },
+    });
+  };
 
   return (
     <AppLayout role="agency">
@@ -65,23 +88,29 @@ export default function AgencySettings() {
               <div className="space-y-5">
                 <h2 className="font-semibold text-foreground">Contact Info</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    { label: "Website",       placeholder: "https://royaiagency.com",   type: "url"   },
-                    { label: "Contact Email", placeholder: "contact@royaiagency.com",   type: "email" },
-                    { label: "Phone",         placeholder: "+1 (919) 555-0100",         type: "tel"   },
-                  ].map(f => (
-                    <div key={f.label} className="space-y-1.5">
+                  {([
+                    { key: "website",      label: "Website",       placeholder: "https://roytosocial.com",  type: "url"   },
+                    { key: "contactEmail", label: "Contact Email", placeholder: "contact@roytosocial.com",  type: "email" },
+                    { key: "phone",        label: "Phone",         placeholder: "+966 50 000 0000",         type: "tel"   },
+                  ] as const).map(f => (
+                    <div key={f.key} className="space-y-1.5">
                       <label className="text-sm font-medium text-foreground">{f.label}</label>
                       <input
                         type={f.type}
                         placeholder={f.placeholder}
+                        value={contact[f.key]}
+                        onChange={e => setContact(prev => ({ ...prev, [f.key]: e.target.value }))}
                         className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                       />
                     </div>
                   ))}
                 </div>
-                <button className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors">
-                  Save Changes
+                <button
+                  onClick={saveContact}
+                  disabled={updateConfig.isPending}
+                  className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60"
+                >
+                  {updateConfig.isPending ? "Saving…" : contactSaved ? "Saved!" : "Save Changes"}
                 </button>
               </div>
             )}
@@ -101,14 +130,14 @@ export default function AgencySettings() {
                   </p>
                   <textarea
                     rows={4}
-                    value={blocked || config?.globalBlocked || ""}
+                    value={blocked}
                     onChange={e => setBlocked(e.target.value)}
                     placeholder="e.g. competitor, free, discount, guaranteed"
                     className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                   />
                 </div>
                 <button
-                  onClick={() => updateConfig.mutate({ globalBlocked: blocked || config?.globalBlocked || "" })}
+                  onClick={() => updateConfig.mutate({ globalBlocked: blocked })}
                   disabled={updateConfig.isPending}
                   className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60"
                 >

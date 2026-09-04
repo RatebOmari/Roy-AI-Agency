@@ -11,6 +11,7 @@ import { buildKnowledgeContext } from "../lib/knowledge.js";
 import { aiRateLimit } from "../middleware/rateLimit.js";
 import { AI_FAST_MODEL } from "../lib/constants.js";
 import { logger } from "../lib/logger.js";
+import { LANGUAGE_INSTRUCTION } from "../lib/aiModeration.js";
 
 const anthropic = new Anthropic();
 
@@ -207,6 +208,7 @@ app.post("/generate-reply", aiRateLimit, zValidator("json", z.object({
     username ? `You are replying to @${username}.` : "",
     keyword  ? `The mention involves the keyword: "${keyword}".` : "",
     "Write a single short, friendly, on-brand reply. 1-2 sentences max. No hashtags unless natural.",
+    LANGUAGE_INSTRUCTION,
   ].filter(Boolean);
 
   if (knowledgeCtx) systemParts.push(`\n${knowledgeCtx}`);

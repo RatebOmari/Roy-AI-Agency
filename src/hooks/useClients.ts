@@ -17,8 +17,9 @@ const MOCK_CLIENTS: AgencyClient[] = [
   { id: "5", name: "شركة تقنية",    owner: "عمر النجدي",   email: "omar@techco.com",       platforms: ["facebook", "whatsapp"],            replies: 0,   status: "setup"  },
 ];
 
-export function useClients() {
+export function useClients(opts?: { enabled?: boolean }) {
   return useQuery({
+    enabled: opts?.enabled ?? true,
     queryKey: ["clients"],
     queryFn: async () => {
       try {
@@ -47,6 +48,37 @@ export function useUpdateClientPermissions() {
     mutationFn: ({ clientId, permissions }: { clientId: string; permissions: Record<string, { comments: boolean; messages: boolean }> }) =>
       api.post<void>("/clients/action", { action: "updatePermissions", clientId, permissions }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+/** Issues a fresh invite link, replacing any outstanding unused one. */
+export function useRegenerateClientInvite() {
+  return useMutation({
+    mutationFn: (clientId: string) =>
+      api.post<{ token: string; expiresAt: string }>(`/clients/${clientId}/invite`, {}),
+  });
+}
+
+export interface ClientPlatformPermission {
+  platform:        string;
+  commentsEnabled: boolean;
+  messagesEnabled: boolean;
+}
+
+/** The client's saved feature permissions, so the UI shows what's actually stored. */
+export function useClientPermissions(clientId: string | null) {
+  return useQuery({
+    queryKey: ["clientPermissions", clientId],
+    queryFn: async () => {
+      if (!clientId) return [] as ClientPlatformPermission[];
+      try {
+        return await api.get<ClientPlatformPermission[]>(`/clients/${clientId}/permissions`);
+      } catch {
+        return [] as ClientPlatformPermission[];
+      }
+    },
+    enabled: !!clientId,
+    staleTime: 30_000,
   });
 }
 

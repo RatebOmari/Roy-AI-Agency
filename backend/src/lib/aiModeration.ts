@@ -12,6 +12,19 @@ import { AI_FAST_MODEL } from "./constants.js";
  * demo/no-key fallback, and the single definition of the confidence tiers.
  */
 
+/**
+ * Language rule shared by every reply-generation prompt.
+ *
+ * The UI is English-only, but customers write in whatever language they like —
+ * so replies always mirror the customer rather than a configured preference.
+ * This is a single definition so the inbox and comment pipelines can't drift.
+ */
+export const LANGUAGE_INSTRUCTION =
+  "Write your reply in the SAME language the customer used. " +
+  "If they wrote in Arabic, reply in Arabic; if in English, reply in English; " +
+  "if they mixed languages, mirror that mix. Match their level of formality and " +
+  "dialect where it reads naturally. Never reply in a different language than the customer used.";
+
 /** Confidence at/above which a reply is auto-sent without human review. */
 export const AUTO_SEND_THRESHOLD = 85;
 /** Confidence at/above which a reply waits for review; below it, it is escalated. */

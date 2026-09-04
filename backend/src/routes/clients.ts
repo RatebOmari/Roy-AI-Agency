@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, count, inArray, sql } from "drizzle-orm";
+import { eq, and, count, inArray, sql, isNull } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
-import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages, clientInvites, toneSettings, replyTemplates, platformEnum, langEnum } from "../db/schema.js";
+import { agencyClients, users, platformPermissions, platformCredentials, conversations, messages, clientInvites, toneSettings, replyTemplates, resources, platformEnum, langEnum, type PlatformValue } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { encryptToken } from "../lib/crypto.js";
 
@@ -100,6 +100,64 @@ app.get("/stats", async (c) => {
   });
 });
 
+// ── POST /:id/invite — issue a fresh invite link for an existing client ───────
+// The onboarding wizard shows the invite URL once; if the agency navigates away
+// without copying it, the link was previously unrecoverable.
+
+app.post("/:id/invite", async (c) => {
+  const user = c.get("user");
+  if (user.role !== "agency") return c.json({ message: "Forbidden" }, 403);
+
+  const clientId = c.req.param("id");
+
+  const [rel] = await db
+    .select({ id: agencyClients.id })
+    .from(agencyClients)
+    .where(and(eq(agencyClients.agencyId, user.sub), eq(agencyClients.clientId, clientId)))
+    .limit(1);
+  if (!rel) return c.json({ message: "Not found" }, 404);
+
+  // Invalidate any outstanding unused invites so only the newest link works.
+  await db
+    .delete(clientInvites)
+    .where(and(eq(clientInvites.clientId, clientId), isNull(clientInvites.usedAt)));
+
+  const token     = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await db.insert(clientInvites).values({ token, clientId, agencyId: user.sub, expiresAt });
+
+  return c.json({ token, expiresAt });
+});
+
+// ── GET /:id/permissions — saved feature permissions for a client ─────────────
+// Without this the agency UI had no way to read what was actually saved, so it
+// rendered hardcoded defaults and could overwrite real settings on save.
+
+app.get("/:id/permissions", async (c) => {
+  const user = c.get("user");
+  if (user.role !== "agency") return c.json({ message: "Forbidden" }, 403);
+
+  const clientId = c.req.param("id");
+
+  const [rel] = await db
+    .select({ id: agencyClients.id })
+    .from(agencyClients)
+    .where(and(eq(agencyClients.agencyId, user.sub), eq(agencyClients.clientId, clientId)))
+    .limit(1);
+  if (!rel) return c.json({ message: "Not found" }, 404);
+
+  const rows = await db
+    .select({
+      platform:        platformPermissions.platform,
+      commentsEnabled: platformPermissions.commentsEnabled,
+      messagesEnabled: platformPermissions.messagesEnabled,
+    })
+    .from(platformPermissions)
+    .where(eq(platformPermissions.clientId, clientId));
+
+  return c.json(rows);
+});
+
 // ── GET /:id/platforms — credential status for a client ───────────────────────
 
 app.get("/:id/platforms", async (c) => {
@@ -151,20 +209,53 @@ app.get("/:id/platforms", async (c) => {
 
 // ── POST /create — agency creates a new client + one-time invite link ────────
 
+// Accepts the full onboarding wizard payload. Everything past `platforms` is
+// optional so a bare create still works, but when the wizard collects working
+// hours, products, FAQs, tone, and platform tokens we persist them here rather
+// than dropping them on the floor.
 const createClientSchema = z.object({
   name:         z.string().min(1),
   owner:        z.string().min(1),
   email:        z.string().email(),
   businessType: z.string().optional(),
   description:  z.string().optional(),
-  platforms:    z.array(z.string()).optional(),
+  platforms:    z.array(z.enum(platformEnum.enumValues)).optional(),
+
+  credentials: z.array(z.object({
+    platform:    z.enum(platformEnum.enumValues),
+    feature:     z.enum(["comments", "messages", "publishing"]),
+    accessToken: z.string().min(1),
+  })).optional(),
+
+  knowledge: z.object({
+    hours:    z.array(z.object({
+      day:  z.string(),
+      open: z.boolean(),
+      from: z.string(),
+      to:   z.string(),
+    })).optional(),
+    products: z.array(z.object({
+      name:  z.string(),
+      price: z.string().optional(),
+    })).optional(),
+    faqs:     z.array(z.object({
+      question: z.string(),
+      answer:   z.string(),
+    })).optional(),
+  }).optional(),
+
+  tones: z.record(z.object({
+    tone:  z.enum(["friendly", "professional", "fun", "informative"]),
+    extra: z.string().optional(),
+  })).optional(),
 });
 
 app.post("/create", zValidator("json", createClientSchema), async (c) => {
   const user = c.get("user");
   if (user.role !== "agency") return c.json({ message: "Forbidden" }, 403);
 
-  const { name, owner, email } = c.req.valid("json");
+  const { name, owner, email, description, platforms, credentials, knowledge, tones } =
+    c.req.valid("json");
 
   const [existing] = await db.select({ id: users.id }).from(users)
     .where(eq(users.email, email.toLowerCase())).limit(1);
@@ -172,31 +263,106 @@ app.post("/create", zValidator("json", createClientSchema), async (c) => {
 
   // Create client user with a randomised password — client sets their own via the invite link
   const tempHash = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
-  const [newClient] = await db.insert(users).values({
-    email:        email.toLowerCase(),
-    passwordHash: tempHash,
-    role:         "client",
-    name:         owner,
-    businessName: name,
-  }).returning({ id: users.id });
-
-  await db.insert(agencyClients).values({
-    agencyId: user.sub,
-    clientId: newClient.id,
-    status:   "setup",
-  });
-
-  // 7-day invite token
   const token     = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  await db.insert(clientInvites).values({
-    token,
-    clientId:  newClient.id,
-    agencyId:  user.sub,
-    expiresAt,
+
+  const clientId = await db.transaction(async (tx) => {
+    const [newClient] = await tx.insert(users).values({
+      email:        email.toLowerCase(),
+      passwordHash: tempHash,
+      role:         "client",
+      name:         owner,
+      businessName: name,
+    }).returning({ id: users.id });
+
+    await tx.insert(agencyClients).values({
+      agencyId: user.sub,
+      clientId: newClient.id,
+      status:   "setup",
+    });
+
+    await tx.insert(clientInvites).values({
+      token,
+      clientId: newClient.id,
+      agencyId: user.sub,
+      expiresAt,
+    });
+
+    // Selected platforms become feature permissions.
+    if (platforms?.length) {
+      await tx.insert(platformPermissions).values(
+        platforms.map((platform) => ({
+          clientId:        newClient.id,
+          grantedBy:       user.sub,
+          platform,
+          commentsEnabled: true,
+          messagesEnabled: true,
+        }))
+      );
+    }
+
+    // Platform tokens, encrypted at rest.
+    if (credentials?.length) {
+      await tx.insert(platformCredentials).values(
+        credentials.map((cred) => ({
+          userId:         newClient.id,
+          platform:       cred.platform,
+          feature:        cred.feature,
+          accessTokenEnc: encryptToken(cred.accessToken),
+        }))
+      );
+    }
+
+    // Knowledge base — shapes must match what buildKnowledgeContext() reads.
+    const resourceRows: {
+      userId: string;
+      type: "info" | "hours" | "menu_item" | "faq";
+      title: string;
+      content: string;
+    }[] = [];
+
+    if (description) {
+      resourceRows.push({
+        userId: newClient.id, type: "info", title: name,
+        content: JSON.stringify({ name, description }),
+      });
+    }
+    if (knowledge?.hours?.length) {
+      resourceRows.push({
+        userId: newClient.id, type: "hours", title: "Working hours",
+        content: JSON.stringify(knowledge.hours),
+      });
+    }
+    for (const p of knowledge?.products ?? []) {
+      resourceRows.push({
+        userId: newClient.id, type: "menu_item", title: p.name,
+        content: JSON.stringify({ name: p.name, price: p.price ?? "" }),
+      });
+    }
+    for (const f of knowledge?.faqs ?? []) {
+      resourceRows.push({
+        userId: newClient.id, type: "faq", title: f.question,
+        content: JSON.stringify({ question: f.question, answer: f.answer }),
+      });
+    }
+    if (resourceRows.length) await tx.insert(resources).values(resourceRows);
+
+    // Per-platform AI tone. Reply language is not stored — replies always
+    // mirror the customer's language.
+    const toneRows = Object.entries(tones ?? {})
+      .filter(([platform]) => (platformEnum.enumValues as readonly string[]).includes(platform))
+      .map(([platform, cfg]) => ({
+        userId:   newClient.id,
+        platform: platform as PlatformValue,
+        tone:     cfg.tone,
+        extra:    cfg.extra ?? "",
+      }));
+    if (toneRows.length) await tx.insert(toneSettings).values(toneRows);
+
+    return newClient.id;
   });
 
-  return c.json({ clientId: newClient.id, token });
+  return c.json({ clientId, token });
 });
 
 // ── POST /action — agency actions on clients ──────────────────────────────────

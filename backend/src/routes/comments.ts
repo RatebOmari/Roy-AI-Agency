@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc, count } from "drizzle-orm";
-import { generateModeratedReply } from "../lib/aiModeration.js";
+import { generateModeratedReply, LANGUAGE_INSTRUCTION } from "../lib/aiModeration.js";
 import { db } from "../db/index.js";
 import { logger } from "../lib/logger.js";
 import { comments, toneSettings } from "../db/schema.js";
@@ -154,14 +154,11 @@ app.post("/generate-reply", aiRateLimit, zValidator("json", generateReplySchema)
     .limit(1);
 
   const toneStr = tone?.tone     ?? "friendly";
-  const langStr = tone?.language ?? "en";
   const blocked = tone?.blockedWords ?? "";
   const extra   = tone?.extra ?? "";
 
-  const langInstruction =
-    langStr === "ar"    ? "Always respond in Arabic." :
-    langStr === "ar_en" ? "Respond primarily in Arabic; you may use English words where natural." :
-                          "Respond in English.";
+  // Replies always mirror the customer's language — see LANGUAGE_INSTRUCTION.
+  const langInstruction = LANGUAGE_INSTRUCTION;
 
   // Fetch knowledge base context
   const knowledge = await buildKnowledgeContext(user.sub);

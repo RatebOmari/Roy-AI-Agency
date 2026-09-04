@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import {
   CheckCircle2, Loader2, Bell, Palette, Wand2,
   Zap, Clock, Shield, Plus, ToggleLeft, ToggleRight,
@@ -26,7 +25,6 @@ const AI_PLATFORMS: { id: Platform; label: string; emoji: string }[] = [
 ];
 
 const toneKeys     = ["friendly", "professional", "fun", "informative"] as const;
-const languageKeys = ["ar", "en", "ar_en"] as const;
 
 const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = { tone: "friendly", language: "ar", blocked: "", extra: "" };
 
@@ -576,22 +574,21 @@ export default function ToneSettings() {
                   </div>
                 </SectionCard>
 
-                {/* Language */}
+                {/* Language — automatic, no setting needed */}
                 <SectionCard title="Reply Language">
                   <div className="py-4">
-                    <div className="flex gap-2">
-                      {languageKeys.map(key => (
-                        <button key={key} onClick={() => updateCfg("language", key)}
-                          className={cn(
-                            "flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors",
-                            cfg.language === key
-                              ? "bg-primary text-white border-primary"
-                              : "border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
-                          )}
-                        >
-                          {t(`settings.languages.${key}`)}
-                        </button>
-                      ))}
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+                        <Globe className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-foreground">Matches your customer automatically</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Replies are written in the same language the customer used. If someone
+                          writes in Arabic, they get an Arabic reply; in English, an English one.
+                          No setting needed.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </SectionCard>
@@ -854,23 +851,6 @@ export default function ToneSettings() {
                     <p className="text-xs text-muted-foreground mt-0.5">Auto follows system schedule — light at 6 am, dark at 7 pm</p>
                     <div className="mt-3">
                       <ThemeToggle />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Language">
-              <div className="py-5 space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
-                    <Globe className="w-4 h-4 text-blue-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">App Interface Language</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Changes labels, menus, and all UI text. Saved to your account.</p>
-                    <div className="mt-3">
-                      <LanguageSwitcher expanded />
                     </div>
                   </div>
                 </div>

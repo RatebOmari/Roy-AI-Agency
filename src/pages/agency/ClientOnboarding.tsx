@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import {
   Building2, Globe, ListChecks, Zap, CheckCircle2,
   ArrowLeft, ArrowRight, Save, Send, Loader2,
-  Check, Copy, ExternalLink,
+  Check, Copy, ExternalLink, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -68,6 +68,15 @@ const PLATFORM_OPTIONS: { id: string; label: string; color: string; hint: string
 ];
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+
+// The wizard collects one token per platform; register it against the features
+// that platform actually supports (mirrors the Clients → Connections matrix).
+const PLATFORM_FEATURES: Record<string, ("comments" | "messages")[]> = {
+  instagram: ["comments", "messages"],
+  facebook:  ["comments", "messages"],
+  tiktok:    ["comments"],
+  whatsapp:  ["messages"],
+};
 
 const DEFAULT_HOURS = Object.fromEntries(
   DAYS.map(d => [d, { open: d !== "Sunday", from: "09:00", to: "17:00" }])
@@ -487,7 +496,7 @@ function Step4({ data, setData }: { data: WizardData; setData: (d: WizardData) =
 
 function Step5({ data, setData }: { data: WizardData; setData: (d: WizardData) => void }) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ reply: string; confidence: number } | null>(null);
+  const [result, setResult] = useState<{ reply: string; confidence: number; demo?: boolean } | null>(null);
   const [error, setError]   = useState("");
 
   const platforms = data.platforms.length > 0 ? data.platforms : ["instagram"];
@@ -498,23 +507,20 @@ function Step5({ data, setData }: { data: WizardData; setData: (d: WizardData) =
     setError("");
     setResult(null);
     try {
-      const res = await api.post<{ reply: string; confidence: number }>("/agency/onboarding/test-reply", {
+      const res = await api.post<{ reply: string; confidence: number; demo?: boolean }>("/agency/onboarding/test-reply", {
         platform: data.testPlatform || platforms[0],
         message: data.testMessage,
         tone: data.tones[data.testPlatform || platforms[0]]?.tone ?? "friendly",
-        lang: data.tones[data.testPlatform || platforms[0]]?.lang ?? "en",
         extra: data.tones[data.testPlatform || platforms[0]]?.extra ?? "",
         businessName: data.businessName,
         description: data.description,
       });
       setResult(res);
-    } catch {
-      // Fallback: simulate AI response for demo
-      await new Promise(r => setTimeout(r, 1200));
-      setResult({
-        reply: `Hi! Thanks for reaching out to ${data.businessName || "us"}. We'd love to help you with that. Please feel free to DM us or visit us during our working hours. 😊`,
-        confidence: 84,
-      });
+    } catch (err: unknown) {
+      // Report the real failure. This step used to fabricate a successful
+      // reply on error, telling the agency setup worked when it hadn't.
+      const msg = err instanceof Error ? err.message : "";
+      setError(msg || "Couldn't reach the AI service. Check the client's setup and try again.");
     } finally {
       setLoading(false);
     }
@@ -590,10 +596,19 @@ function Step5({ data, setData }: { data: WizardData; setData: (d: WizardData) =
               </span>
             </div>
             <p className="text-sm text-foreground leading-relaxed">{result.reply}</p>
-            <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
-              <CheckCircle2 className="w-4 h-4" />
-              <span className="text-xs font-medium">AI is working correctly for this client</span>
-            </div>
+            {result.demo ? (
+              <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-xs font-medium">
+                  Sample reply — no AI key is configured yet, so this isn't a real AI response
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-xs font-medium">AI is working correctly for this client</span>
+              </div>
+            )}
           </motion.div>
         )}
         {error && (
@@ -647,6 +662,16 @@ export default function ClientOnboarding() {
   const handleComplete = async () => {
     setSubmitting(true);
     try {
+      // Everything the wizard collected is sent — previously steps 2-4 (tokens,
+      // knowledge base, tone) were gathered and then silently dropped.
+      const credentials = data.platforms.flatMap(platform => {
+        const token = data.tokens[platform]?.trim();
+        if (!token) return [];
+        return (PLATFORM_FEATURES[platform] ?? []).map(feature => ({
+          platform, feature, accessToken: token,
+        }));
+      });
+
       const res = await api.post<{ clientId: string; token: string }>("/clients/create", {
         name:         data.businessName,
         owner:        data.ownerName,
@@ -654,6 +679,26 @@ export default function ClientOnboarding() {
         platforms:    data.platforms,
         businessType: data.businessType,
         description:  data.description,
+        credentials,
+        knowledge: {
+          hours: DAYS.map(day => ({
+            day,
+            open: data.hours[day]?.open ?? false,
+            from: data.hours[day]?.from ?? "",
+            to:   data.hours[day]?.to   ?? "",
+          })),
+          products: data.products
+            .filter(p => p.name.trim())
+            .map(p => ({ name: p.name.trim(), price: p.price?.trim() ?? "" })),
+          faqs: data.faqs
+            .filter(f => f.q.trim() && f.a.trim())
+            .map(f => ({ question: f.q.trim(), answer: f.a.trim() })),
+        },
+        tones: Object.fromEntries(
+          Object.entries(data.tones).map(([platform, cfg]) => [
+            platform, { tone: cfg.tone, extra: cfg.extra ?? "" },
+          ])
+        ),
       });
       localStorage.removeItem(DRAFT_KEY);
       const url = `${window.location.origin}/accept-invite/${res.token}`;

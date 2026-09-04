@@ -74,9 +74,12 @@ const CHANNEL_OPTIONS: { value: Channel; label: string }[] = [
 const CHANNEL_LABEL: Record<string, string> = Object.fromEntries(CHANNEL_OPTIONS.map(c => [c.value, c.label]));
 const TRIGGER_LABEL: Record<AutomationRule["trigger"], string> = Object.fromEntries(TRIGGER_OPTIONS.map(t => [t.value, t.label])) as Record<AutomationRule["trigger"], string>;
 
+// Gulf zones first — that's where the businesses using this actually are.
 const TIMEZONES = [
-  "UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
-  "Europe/London", "Europe/Paris", "Europe/Berlin", "Asia/Dubai", "Asia/Riyadh",
+  "Asia/Riyadh", "Asia/Dubai", "Asia/Kuwait", "Asia/Qatar", "Asia/Bahrain",
+  "Africa/Cairo", "Europe/Istanbul", "UTC",
+  "Europe/London", "Europe/Paris", "Europe/Berlin",
+  "America/New_York", "America/Chicago", "America/Los_Angeles",
   "Asia/Tokyo", "Asia/Shanghai", "Australia/Sydney",
 ];
 

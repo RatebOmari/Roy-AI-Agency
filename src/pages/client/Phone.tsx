@@ -6,6 +6,7 @@ import {
   Phone, PhoneOutgoing, PhoneIncoming, PhoneMissed,
   MessageSquare, Search, Plus, Loader2, X, Check,
   ArrowLeft, Send, Clock, Smartphone, Bot, User,
+  CalendarClock,
 } from "lucide-react";
 import {
   usePhoneData, useSendSms, buildTimeline,
@@ -14,6 +15,7 @@ import {
 import { useInitiateOutboundCall, useUpdateCallNotes } from "@/hooks/useCalls";
 import type { Call, CallStatus, CallDirection, Message } from "@/types";
 import { cn } from "@/lib/utils";
+import { BookingDialog } from "@/components/shared/BookingDialog";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -346,6 +348,7 @@ function ContactDetail({
   onCallContact: (contact: PhoneContact) => void;
 }) {
   const [smsText, setSmsText] = useState("");
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sendSms   = useSendSms();
@@ -415,6 +418,14 @@ function ContactDetail({
           <p className="text-xs text-muted-foreground">{contact.number}</p>
         </div>
         <button
+          onClick={() => setBookingOpen(true)}
+          title={`Book for ${contact.name}`}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-border rounded-xl hover:bg-muted transition-colors flex-shrink-0"
+        >
+          <CalendarClock className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Book</span>
+        </button>
+        <button
           onClick={() => onCallContact(contact)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors flex-shrink-0"
         >
@@ -422,6 +433,17 @@ function ContactDetail({
           Call
         </button>
       </div>
+
+      <AnimatePresence>
+        {bookingOpen && (
+          <BookingDialog
+            source="call"
+            contactName={contact.name}
+            contactPhone={contact.number}
+            onClose={() => setBookingOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Timeline */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 flex flex-col gap-3">

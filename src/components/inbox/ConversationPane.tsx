@@ -8,9 +8,11 @@ import {
   CheckCheck, X, Edit3, Send,
   Tag, AlertTriangle, CheckCircle2,
   AtSign, Smartphone, MessageCircle, MessageSquare, Phone,
+  CalendarClock,
   ArrowLeft, Sparkles, Loader2, FileText, Bot,
 } from "lucide-react";
 import { ConfidenceBanner } from "@/components/shared/ConfidenceBanner";
+import { BookingDialog } from "@/components/shared/BookingDialog";
 
 interface ConversationPaneProps {
   conversation:       Conversation | null;
@@ -94,6 +96,7 @@ export function ConversationPane({
   const [editContent, setEditContent]   = useState("");
   const [composeText, setComposeText]   = useState("");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [bookingOpen, setBookingOpen]   = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -184,6 +187,16 @@ export function ConversationPane({
             ))}
           </div>
         </div>
+
+        {/* Take a booking straight from the conversation */}
+        <button
+          onClick={() => setBookingOpen(true)}
+          title={`Book for ${conversation.contactName}`}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-border rounded-xl hover:bg-muted transition-colors flex-shrink-0"
+        >
+          <CalendarClock className="w-4 h-4" />
+          <span className="hidden sm:inline">Book</span>
+        </button>
 
         {/* Call button — phone_call channel only */}
         {conversation.channel === "phone_call" && onCall && (
@@ -381,6 +394,20 @@ export function ConversationPane({
           </div>
         );
       })()}
+
+      <AnimatePresence>
+        {bookingOpen && (
+          <BookingDialog
+            source="message"
+            convId={conversation.id}
+            contactName={conversation.contactName}
+            contactPhone={conversation.channel === "sms" || conversation.channel === "phone_call"
+              ? conversation.contactHandle
+              : ""}
+            onClose={() => setBookingOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

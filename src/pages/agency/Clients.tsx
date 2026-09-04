@@ -13,6 +13,7 @@ import type { AgencyClient, ClientStatus, ExtendedPlatform, PlatformFeatureType 
 import {
   useClients, useUpdateClientStatus, useUpdateClientPermissions,
   useClientPlatforms, useClientPermissions, useSetClientPlatformCredential, useRevokeClientPlatformCredential,
+  useRegenerateClientInvite,
   useResetClientAiSettings, usePushTemplate,
 } from "@/hooks/useClients";
 import { cn } from "@/lib/utils";
@@ -466,6 +467,9 @@ export default function AgencyClients() {
   const [search, setSearch] = useState("");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [permClient, setPermClient] = useState<AgencyClient | null>(null);
+  const [inviteFor, setInviteFor]   = useState<{ client: AgencyClient; url: string } | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const regenInvite = useRegenerateClientInvite();
   const [needsAttention, setNeedsAttention] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -689,6 +693,15 @@ export default function AgencyClients() {
                             >
                               <Users className="w-4 h-4" /> Manage Permissions
                             </button>
+                            <button
+                              onClick={() => { regenInvite.mutate(c.id, {
+                                onSuccess: res => setInviteFor({ client: c, url: `${window.location.origin}/accept-invite/${res.token}` }),
+                              }); setOpenMenu(null); }}
+                              disabled={regenInvite.isPending}
+                              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
+                            >
+                              <Send className="w-4 h-4" /> Resend Invite Link
+                            </button>
                             <div className="border-t border-border my-1" />
                             <button
                               onClick={() => { resetAi.mutate(c.id); setOpenMenu(null); }}
@@ -708,6 +721,55 @@ export default function AgencyClients() {
           )}
         </motion.div>
       </div>
+
+      {/* Regenerated invite link */}
+      <AnimatePresence>
+        {inviteFor && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            onClick={() => { setInviteFor(null); setInviteCopied(false); }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 8 }}
+              className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-md p-5 space-y-3"
+              onClick={e => e.stopPropagation()}
+            >
+              <div>
+                <p className="font-semibold text-foreground">New invite link</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Send this to {inviteFor.client.owner} at {inviteFor.client.email}. It expires in 7 days
+                  and replaces any earlier link.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={inviteFor.url}
+                  className="flex-1 px-3 py-2 rounded-xl border border-border bg-muted text-xs font-mono"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteFor.url).then(() => {
+                      setInviteCopied(true);
+                      setTimeout(() => setInviteCopied(false), 2000);
+                    });
+                  }}
+                  className="px-3 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 shrink-0"
+                >
+                  {inviteCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <button
+                onClick={() => { setInviteFor(null); setInviteCopied(false); }}
+                className="w-full py-2 rounded-xl border border-border text-sm hover:bg-muted"
+              >
+                Done
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Permissions modal */}
       <AnimatePresence>

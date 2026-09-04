@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, count, inArray, sql } from "drizzle-orm";
+import { eq, and, count, inArray, sql, isNull } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
@@ -98,6 +98,35 @@ app.get("/stats", async (c) => {
     avgPerClient:  clientIds.length > 0 ? Math.round(totalReplies / clientIds.length) : 0,
     weeklyData:    weeklyRows.map((r) => ({ day: r.day, replies: r.replies })),
   });
+});
+
+// ── POST /:id/invite — issue a fresh invite link for an existing client ───────
+// The onboarding wizard shows the invite URL once; if the agency navigates away
+// without copying it, the link was previously unrecoverable.
+
+app.post("/:id/invite", async (c) => {
+  const user = c.get("user");
+  if (user.role !== "agency") return c.json({ message: "Forbidden" }, 403);
+
+  const clientId = c.req.param("id");
+
+  const [rel] = await db
+    .select({ id: agencyClients.id })
+    .from(agencyClients)
+    .where(and(eq(agencyClients.agencyId, user.sub), eq(agencyClients.clientId, clientId)))
+    .limit(1);
+  if (!rel) return c.json({ message: "Not found" }, 404);
+
+  // Invalidate any outstanding unused invites so only the newest link works.
+  await db
+    .delete(clientInvites)
+    .where(and(eq(clientInvites.clientId, clientId), isNull(clientInvites.usedAt)));
+
+  const token     = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await db.insert(clientInvites).values({ token, clientId, agencyId: user.sub, expiresAt });
+
+  return c.json({ token, expiresAt });
 });
 
 // ── GET /:id/permissions — saved feature permissions for a client ─────────────

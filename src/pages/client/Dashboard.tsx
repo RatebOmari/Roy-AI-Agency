@@ -489,8 +489,12 @@ export default function Dashboard() {
               <p className="text-sm font-semibold text-foreground">Get started in 3 steps</p>
               <ol className="mt-1.5 space-y-1 text-xs text-muted-foreground list-decimal list-inside">
                 <li>Expand <strong>Platform Connections</strong> above and connect at least one platform</li>
-                <li>Set your AI reply tone in <Link to="/settings" className="text-primary hover:underline">Settings</Link></li>
-                <li>Replies will start appearing in your <Link to="/inbox" className="text-primary hover:underline">Inbox</Link></li>
+                <li>
+                  Fill in your <Link to="/resources" className="text-primary hover:underline font-medium">Knowledge Base</Link>
+                  {" "}— hours, products and FAQs. This is what the AI answers from, so it&apos;s the
+                  single biggest thing you can do for reply quality.
+                </li>
+                <li>Set your reply tone in <Link to="/settings" className="text-primary hover:underline">Settings</Link>, then replies appear in your <Link to="/inbox" className="text-primary hover:underline">Inbox</Link></li>
               </ol>
             </div>
           </motion.div>

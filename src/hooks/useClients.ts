@@ -17,8 +17,9 @@ const MOCK_CLIENTS: AgencyClient[] = [
   { id: "5", name: "شركة تقنية",    owner: "عمر النجدي",   email: "omar@techco.com",       platforms: ["facebook", "whatsapp"],            replies: 0,   status: "setup"  },
 ];
 
-export function useClients() {
+export function useClients(opts?: { enabled?: boolean }) {
   return useQuery({
+    enabled: opts?.enabled ?? true,
     queryKey: ["clients"],
     queryFn: async () => {
       try {
@@ -47,6 +48,14 @@ export function useUpdateClientPermissions() {
     mutationFn: ({ clientId, permissions }: { clientId: string; permissions: Record<string, { comments: boolean; messages: boolean }> }) =>
       api.post<void>("/clients/action", { action: "updatePermissions", clientId, permissions }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+/** Issues a fresh invite link, replacing any outstanding unused one. */
+export function useRegenerateClientInvite() {
+  return useMutation({
+    mutationFn: (clientId: string) =>
+      api.post<{ token: string; expiresAt: string }>(`/clients/${clientId}/invite`, {}),
   });
 }
 

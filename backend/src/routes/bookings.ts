@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, gte, desc, asc, inArray } from "drizzle-orm";
+import { eq, and, gte, lt, desc, asc, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { bookings, conversations, bookingStatusEnum, bookingSourceEnum } from "../db/schema.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -20,10 +20,23 @@ app.use("*", clientContextMiddleware);
 app.get("/", async (c) => {
   const user  = c.get("user");
   const scope = c.req.query("scope") ?? "upcoming";
-  const limit = Math.min(200, Math.max(1, parseInt(c.req.query("limit") ?? "100")));
+  const limit = Math.min(500, Math.max(1, parseInt(c.req.query("limit") ?? "100")));
 
   const conditions = [eq(bookings.userId, user.sub)];
-  if (scope === "upcoming") {
+
+  // Explicit window (calendar day/week views) takes precedence over scope.
+  const fromRaw = c.req.query("from");
+  const toRaw   = c.req.query("to");
+  const from = fromRaw ? new Date(fromRaw) : null;
+  const to   = toRaw   ? new Date(toRaw)   : null;
+  if ((from && isNaN(from.getTime())) || (to && isNaN(to.getTime()))) {
+    return c.json({ message: "Invalid from/to date" }, 400);
+  }
+
+  if (from || to) {
+    if (from) conditions.push(gte(bookings.scheduledFor, from));
+    if (to)   conditions.push(lt(bookings.scheduledFor, to));
+  } else if (scope === "upcoming") {
     conditions.push(gte(bookings.scheduledFor, new Date()));
     conditions.push(inArray(bookings.status, ["requested", "confirmed"]));
   } else if (scope === "requested") {
@@ -34,7 +47,7 @@ app.get("/", async (c) => {
     .select()
     .from(bookings)
     .where(and(...conditions))
-    .orderBy(scope === "all" ? desc(bookings.scheduledFor) : asc(bookings.scheduledFor))
+    .orderBy((from || to || scope !== "all") ? asc(bookings.scheduledFor) : desc(bookings.scheduledFor))
     .limit(limit);
 
   return c.json(rows);

@@ -6,17 +6,21 @@ import { useCreateBooking, type BookingSource } from "@/hooks/useBookings";
 interface BookingDialogProps {
   /** Where this booking is being taken from. */
   source:       BookingSource;
+  /** Pre-filled when booking for a known customer; blank for manual entry. */
   contactName:  string;
   contactPhone?: string;
   convId?:      string | null;
   callId?:      string | null;
+  /** Day to pre-select (the calendar passes the day being viewed). */
+  defaultDate?: Date;
   onClose:      () => void;
   onCreated?:   () => void;
 }
 
 /** Rounds to the next half hour — a sensible default for "book something". */
-function defaultWhen() {
-  const d = new Date();
+function defaultWhen(day?: Date) {
+  const d = day ? new Date(day) : new Date();
+  if (day) d.setHours(new Date().getHours() + 1, 0, 0, 0);
   d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0);
   // datetime-local wants local time without a zone suffix
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -24,12 +28,15 @@ function defaultWhen() {
 }
 
 export function BookingDialog({
-  source, contactName, contactPhone, convId, callId, onClose, onCreated,
+  source, contactName, contactPhone, convId, callId, defaultDate, onClose, onCreated,
 }: BookingDialogProps) {
+  // Manual bookings (from the calendar) have no customer yet — ask for a name.
+  const nameLocked = contactName.trim().length > 0;
+  const [name, setName] = useState(contactName);
   // A table booking needs party size; an appointment needs duration/staff.
   const [kind, setKind]           = useState<"table" | "appointment">("table");
   const [service, setService]     = useState("Table");
-  const [when, setWhen]           = useState(defaultWhen());
+  const [when, setWhen]           = useState(() => defaultWhen(defaultDate));
   const [partySize, setPartySize] = useState("2");
   const [duration, setDuration]   = useState("30");
   const [staff, setStaff]         = useState("");
@@ -43,13 +50,13 @@ export function BookingDialog({
   };
 
   const submit = () => {
-    if (!service.trim() || !when) return;
+    if (!service.trim() || !when || !name.trim()) return;
     create.mutate(
       {
         source,
         convId: convId ?? null,
         callId: callId ?? null,
-        contactName,
+        contactName: name.trim(),
         contactPhone: contactPhone ?? "",
         service: service.trim(),
         partySize:    kind === "table"       ? Number(partySize) || null : null,
@@ -79,7 +86,7 @@ export function BookingDialog({
             <CalendarClock className="w-4 h-4 text-primary" />
             <div>
               <p className="font-semibold text-foreground text-sm">New booking</p>
-              <p className="text-xs text-muted-foreground">for {contactName}</p>
+              <p className="text-xs text-muted-foreground">{nameLocked ? `for ${contactName}` : "New reservation or appointment"}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted">
@@ -104,6 +111,18 @@ export function BookingDialog({
               </button>
             ))}
           </div>
+
+          {!nameLocked && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Customer name</label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Who is this booking for?"
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">
@@ -185,7 +204,7 @@ export function BookingDialog({
             </button>
             <button
               onClick={submit}
-              disabled={create.isPending || !service.trim() || !when}
+              disabled={create.isPending || !service.trim() || !when || !name.trim()}
               className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {create.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save booking"}

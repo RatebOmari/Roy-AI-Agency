@@ -15,6 +15,7 @@ import { homeRoute } from "@/lib/routing";
 const Dashboard        = lazy(() => import("./pages/client/Dashboard"));
 const Inbox            = lazy(() => import("./pages/client/Inbox"));
 const Comments         = lazy(() => import("./pages/client/Comments"));
+const Bookings         = lazy(() => import("./pages/client/Bookings"));
 const ToneSettings     = lazy(() => import("./pages/client/ToneSettings"));
 const Analytics        = lazy(() => import("./pages/client/Analytics"));
 const Contacts         = lazy(() => import("./pages/client/Contacts"));
@@ -143,6 +144,7 @@ export default function App() {
               <Route path="/dashboard"           element={<ProtectedRoute requiredRole="client"><Dashboard /></ProtectedRoute>} />
               <Route path="/inbox"               element={<ProtectedRoute requiredRole="client"><Inbox /></ProtectedRoute>} />
               <Route path="/comments"            element={<ProtectedRoute requiredRole="client"><Comments /></ProtectedRoute>} />
+              <Route path="/bookings"            element={<ProtectedRoute requiredRole="client"><Bookings /></ProtectedRoute>} />
               <Route path="/contacts"            element={<ProtectedRoute requiredRole="client"><Contacts /></ProtectedRoute>} />
               <Route path="/analytics"           element={<ProtectedRoute requiredRole="client"><Analytics /></ProtectedRoute>} />
               <Route path="/content"             element={<ProtectedRoute requiredRole="client"><Content /></ProtectedRoute>} />

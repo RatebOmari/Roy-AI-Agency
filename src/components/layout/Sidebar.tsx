@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
+  CalendarClock,
   LayoutDashboard, Inbox, Users, BarChart2, Zap,
   Settings, LogOut, ChevronRight, Menu, X, UserCircle,
   CalendarDays, BookOpen, FileText, Megaphone, GitBranch, Radio, MessageSquare, Phone,
@@ -67,6 +68,7 @@ const CLIENT_NAV_GROUPS: NavGroup[] = [
       { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
       { label: "Inbox",      href: "/inbox",      icon: Inbox, badge: true },
       { label: "Comments",   href: "/comments",   icon: MessageSquare },
+      { label: "Bookings",   href: "/bookings",   icon: CalendarClock },
     ],
   },
   {

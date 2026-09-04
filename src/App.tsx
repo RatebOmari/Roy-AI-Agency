@@ -26,7 +26,6 @@ const Flows            = lazy(() => import("./pages/client/Flows"));
 const Team             = lazy(() => import("./pages/client/Team"));
 const Listening        = lazy(() => import("./pages/client/Listening"));
 const Phone            = lazy(() => import("./pages/client/Phone"));
-const Automation       = lazy(() => import("./pages/client/Automation"));
 
 const AgencyDashboard      = lazy(() => import("./pages/agency/Dashboard"));
 const AgencyClients        = lazy(() => import("./pages/agency/Clients"));
@@ -146,7 +145,6 @@ export default function App() {
               <Route path="/comments"            element={<ProtectedRoute requiredRole="client"><Comments /></ProtectedRoute>} />
               <Route path="/contacts"            element={<ProtectedRoute requiredRole="client"><Contacts /></ProtectedRoute>} />
               <Route path="/analytics"           element={<ProtectedRoute requiredRole="client"><Analytics /></ProtectedRoute>} />
-              <Route path="/automation"          element={<ProtectedRoute requiredRole="client"><Automation /></ProtectedRoute>} />
               <Route path="/content"             element={<ProtectedRoute requiredRole="client"><Content /></ProtectedRoute>} />
               <Route path="/resources"           element={<ProtectedRoute requiredRole="client"><Resources /></ProtectedRoute>} />
               <Route path="/templates"           element={<ProtectedRoute requiredRole="client"><Templates /></ProtectedRoute>} />

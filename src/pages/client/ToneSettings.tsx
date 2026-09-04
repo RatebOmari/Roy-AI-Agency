@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings, useSaveSettings, useBrandSettings, useSaveBrandStyle } from "@/hooks/useSettings";
+import { useAutomationRules, useCreateAutomationRule, useUpdateAutomationRule, useDeleteAutomationRule } from "@/hooks/useAutomation";
 import type { ToneSettingsMap, PlatformSettings, AutomationRule, Channel, Platform } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -35,12 +36,6 @@ const BRAND_PRESETS = [
   { label: "Fitness/Sports",  emoji: "💪", value: "High energy bold colors, dynamic action shots, motivational mood, modern gym aesthetic, strong contrast, vibrant and powerful" },
   { label: "Tech/Digital",    emoji: "💻", value: "Minimalist clean design, blue and white tones, crisp sharp imagery, futuristic professional look, flat lay or device mockups" },
   { label: "Luxury/Premium",  emoji: "👑", value: "Dark moody cinematic lighting, gold and black accents, premium textures like marble or velvet, sophisticated elegant, high-end editorial style" },
-];
-
-const MOCK_RULES: AutomationRule[] = [
-  { id: "r1", name: "Auto-send high-confidence replies", trigger: "sentiment_positive", action: "auto_send",   channels: ["instagram_comment", "tiktok_comment", "facebook_comment"], active: true },
-  { id: "r2", name: "Escalate complaints",               trigger: "sentiment_negative", action: "escalate",    channels: ["instagram_dm", "facebook_messenger", "sms"],              active: true },
-  { id: "r3", name: "Auto-reply to pricing questions",   trigger: "contains_word",      action: "skip_review", channels: ["instagram_comment", "tiktok_comment"],                    active: false, triggerValue: "price,cost,how much,pricing" },
 ];
 
 const TRIGGER_OPTIONS: { value: AutomationRule["trigger"]; label: string }[] = [
@@ -339,7 +334,13 @@ export default function ToneSettings() {
   const [escalatePct,   setEscalatePct]   = useState(50);
   const [threshDirty,   setThreshDirty]   = useState(false);
   const [threshSaved,   setThreshSaved]   = useState(false);
-  const [rules,         setRules]         = useState<AutomationRule[]>(MOCK_RULES);
+  // Automation rules are the real, persisted ones. This tab is now the single
+  // home for them — the standalone Automation page (which duplicated this with
+  // a different, read-only threshold UI) has been removed.
+  const { data: rules = [] } = useAutomationRules();
+  const createRule = useCreateAutomationRule();
+  const updateRule = useUpdateAutomationRule();
+  const removeRule = useDeleteAutomationRule();
   const [ruleDialog,    setRuleDialog]    = useState<{ open: boolean; editing?: AutomationRule }>({ open: false });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -361,13 +362,20 @@ export default function ToneSettings() {
     setThreshDirty(true);
   };
   const saveThresholds = () => { setThreshDirty(false); setThreshSaved(true); setTimeout(() => setThreshSaved(false), 2500); };
-  const toggleRule = (id: string) => setRules(prev => prev.map(r => r.id === id ? { ...r, active: !r.active } : r));
-  const deleteRule = (id: string) => { setRules(prev => prev.filter(r => r.id !== id)); setDeleteConfirm(null); };
+  const toggleRule = (id: string) => {
+    const rule = rules.find(r => r.id === id);
+    if (rule) updateRule.mutate({ ...rule, active: !rule.active });
+  };
+  const deleteRule = (id: string) => {
+    removeRule.mutate(id);
+    setDeleteConfirm(null);
+  };
   const saveRule = (form: RuleForm) => {
+    const payload = { ...form, triggerValue: form.triggerValue || undefined };
     if (ruleDialog.editing) {
-      setRules(prev => prev.map(r => r.id === ruleDialog.editing!.id ? { ...r, ...form, triggerValue: form.triggerValue || undefined } : r));
+      updateRule.mutate({ ...ruleDialog.editing, ...payload });
     } else {
-      setRules(prev => [...prev, { id: `r${Date.now()}`, active: true, ...form, triggerValue: form.triggerValue || undefined }]);
+      createRule.mutate({ ...payload, active: true });
     }
     setRuleDialog({ open: false });
   };

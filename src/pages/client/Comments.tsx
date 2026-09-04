@@ -24,11 +24,14 @@ const PLATFORM_BRAND_LABELS: Record<string, string> = {
   whatsapp:  "WhatsApp",
 };
 
-const STATUS_FILTER_IDS: { id: ReplyStatus | "all"; countKey?: "pending" | "sent" | "autoSent" }[] = [
+const STATUS_FILTER_IDS: { id: ReplyStatus | "all"; countKey?: "pending" | "sent" | "autoSent" | "escalated" }[] = [
   { id: "all" },
-  { id: "pending",   countKey: "pending"  },
-  { id: "approved",  countKey: "sent"     },
-  { id: "auto_sent", countKey: "autoSent" },
+  { id: "pending",   countKey: "pending"   },
+  // Lowest-confidence replies the AI won't send. These need a person, so they
+  // get their own filter rather than being reachable only via "All".
+  { id: "escalated", countKey: "escalated" },
+  { id: "approved",  countKey: "sent"      },
+  { id: "auto_sent", countKey: "autoSent"  },
 ];
 
 export default function Comments() {
@@ -87,6 +90,7 @@ export default function Comments() {
 
   const counts = {
     pending:   localComments.filter(c => c.status === "pending").length,
+    escalated: localComments.filter(c => c.status === "escalated").length,
     sent:      localComments.filter(c => c.status === "approved" || c.status === "auto_sent" || c.status === "edited").length,
     autoSent:  localComments.filter(c => c.status === "auto_sent").length,
   };
@@ -94,6 +98,7 @@ export default function Comments() {
   const STATUS_FILTER_LABELS: Record<string, string> = {
     all:       t("common.all"),
     pending:   t("comments.filterReview"),
+    escalated: "Needs you",
     approved:  t("comments.status.approved"),
     auto_sent: t("comments.autoSent"),
   };

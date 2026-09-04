@@ -48,8 +48,8 @@ const TRIGGER_OPTIONS: { value: AutomationRule["trigger"]; label: string }[] = [
 
 const ACTION_OPTIONS: { value: AutomationRule["action"]; label: string }[] = [
   { value: "auto_send",   label: "Auto-send reply"   },
-  { value: "skip_review", label: "Skip review queue" },
-  { value: "escalate",    label: "Escalate to human" },
+  { value: "skip_review", label: "Send without review" },
+  { value: "escalate",    label: "Send to a person" },
   { value: "assign_to",   label: "Assign to agent"   },
 ];
 
@@ -688,7 +688,7 @@ export default function ToneSettings() {
                     <Shield className="w-4 h-4 text-red-600 dark:text-red-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-red-800 dark:text-red-300">Human Escalation</p>
+                    <p className="text-sm font-semibold text-red-800 dark:text-red-300">Needs a person</p>
                     <p className="text-xs text-red-600 dark:text-red-500">Flagged — AI won't reply, your team must respond</p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">

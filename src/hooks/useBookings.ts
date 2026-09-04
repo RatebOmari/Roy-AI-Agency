@@ -51,6 +51,25 @@ export function useBookings(scope: "upcoming" | "requested" | "all" = "upcoming"
   });
 }
 
+/** Bookings within an explicit window — powers the day/week calendar views. */
+export function useBookingsRange(from: Date, to: Date) {
+  const fromIso = from.toISOString();
+  const toIso   = to.toISOString();
+  return useQuery({
+    queryKey: ["bookings", "range", fromIso, toIso],
+    queryFn: async () => {
+      try {
+        return await api.get<Booking[]>(
+          `/bookings?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}&limit=500`
+        );
+      } catch {
+        return [] as Booking[];
+      }
+    },
+    staleTime: 30_000,
+  });
+}
+
 export function useCreateBooking() {
   const qc = useQueryClient();
   return useMutation({

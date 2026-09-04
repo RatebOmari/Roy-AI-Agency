@@ -100,6 +100,35 @@ app.get("/stats", async (c) => {
   });
 });
 
+// ── GET /:id/permissions — saved feature permissions for a client ─────────────
+// Without this the agency UI had no way to read what was actually saved, so it
+// rendered hardcoded defaults and could overwrite real settings on save.
+
+app.get("/:id/permissions", async (c) => {
+  const user = c.get("user");
+  if (user.role !== "agency") return c.json({ message: "Forbidden" }, 403);
+
+  const clientId = c.req.param("id");
+
+  const [rel] = await db
+    .select({ id: agencyClients.id })
+    .from(agencyClients)
+    .where(and(eq(agencyClients.agencyId, user.sub), eq(agencyClients.clientId, clientId)))
+    .limit(1);
+  if (!rel) return c.json({ message: "Not found" }, 404);
+
+  const rows = await db
+    .select({
+      platform:        platformPermissions.platform,
+      commentsEnabled: platformPermissions.commentsEnabled,
+      messagesEnabled: platformPermissions.messagesEnabled,
+    })
+    .from(platformPermissions)
+    .where(eq(platformPermissions.clientId, clientId));
+
+  return c.json(rows);
+});
+
 // ── GET /:id/platforms — credential status for a client ───────────────────────
 
 app.get("/:id/platforms", async (c) => {

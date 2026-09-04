@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "./Sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAgencyClient } from "@/contexts/AgencyClientContext";
@@ -17,13 +16,10 @@ export function AppLayout({ children, role, businessName }: AppLayoutProps) {
   const { user } = useAuth();
   const { selectedClient, selectClient } = useAgencyClient();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
   const showBanner = user?.role === "agency" && !!selectedClient;
 
   const exitClientView = () => {
     selectClient(null);
-    queryClient.clear();
     navigate("/agency/clients");
   };
 

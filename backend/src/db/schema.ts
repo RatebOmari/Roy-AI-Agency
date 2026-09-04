@@ -420,6 +420,10 @@ export const agencyConfig = pgTable("agency_config", {
   id:            uuid("id").primaryKey().defaultRandom(),
   agencyId:      uuid("agency_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
   globalBlocked: text("global_blocked").notNull().default(""),
+  // Agency's own contact details, shown in its Settings.
+  website:       text("website").notNull().default(""),
+  contactEmail:  text("contact_email").notNull().default(""),
+  phone:         text("phone").notNull().default(""),
   updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 });
 

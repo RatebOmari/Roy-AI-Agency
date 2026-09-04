@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -13,7 +12,7 @@ import {
 import type { AgencyClient, ClientStatus, ExtendedPlatform, PlatformFeatureType } from "@/types";
 import {
   useClients, useUpdateClientStatus, useUpdateClientPermissions,
-  useClientPlatforms, useSetClientPlatformCredential, useRevokeClientPlatformCredential,
+  useClientPlatforms, useClientPermissions, useSetClientPlatformCredential, useRevokeClientPlatformCredential,
   useResetClientAiSettings, usePushTemplate,
 } from "@/hooks/useClients";
 import { cn } from "@/lib/utils";
@@ -77,6 +76,23 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
   const credMutation    = useSetClientPlatformCredential();
   const revokeMutation  = useRevokeClientPlatformCredential();
   const { data: platformData = [], isLoading: platformsLoading } = useClientPlatforms(client.id);
+  const { data: savedPerms, isLoading: permsLoading } = useClientPermissions(client.id);
+
+  // Show what's actually saved for this client. Platforms with no stored row
+  // fall back to the defaults; without this the panel rendered defaults for
+  // everyone and saving could overwrite real settings.
+  useEffect(() => {
+    if (!savedPerms) return;
+    setPerms(prev => {
+      const next = { ...prev };
+      for (const row of savedPerms) {
+        const platform = row.platform as ExtendedPlatform;
+        if (!next[platform]) continue;
+        next[platform] = { comments: row.commentsEnabled, messages: row.messagesEnabled };
+      }
+      return next;
+    });
+  }, [savedPerms]);
 
   const isConnected = (platform: string, feature: string) =>
     platformData.some(p => p.platform === platform && p.feature === feature);
@@ -286,10 +302,10 @@ function PermissionsPanel({ client, onClose }: PermissionsPanelProps) {
 
               <button
                 onClick={handleSavePerms}
-                disabled={permsMutation.isPending}
+                disabled={permsMutation.isPending || permsLoading}
                 className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {permsMutation.isPending
+                {permsMutation.isPending || permsLoading
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : permSaved
                     ? <><CheckCircle2 className="w-4 h-4" /> Saved!</>
@@ -444,7 +460,6 @@ export default function AgencyClients() {
   const statusMutation = useUpdateClientStatus();
   const { selectClient } = useAgencyClient();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const resetAi = useResetClientAiSettings();
   const [clients, setClients] = useState<AgencyClient[]>([]);
@@ -654,13 +669,13 @@ export default function AgencyClients() {
                         {openMenu === c.id && (
                           <div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-lg py-1 w-52">
                             <button
-                              onClick={() => { queryClient.clear(); selectClient(c); setOpenMenu(null); navigate("/inbox"); }}
+                              onClick={() => { selectClient(c); setOpenMenu(null); navigate("/inbox"); }}
                               className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-primary font-medium"
                             >
                               <Inbox className="w-4 h-4" /> View Inbox
                             </button>
                             <button
-                              onClick={() => { queryClient.clear(); selectClient(c); setOpenMenu(null); navigate("/dashboard"); }}
+                              onClick={() => { selectClient(c); setOpenMenu(null); navigate("/dashboard"); }}
                               className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted"
                             >
                               <Eye className="w-4 h-4" /> View as Client

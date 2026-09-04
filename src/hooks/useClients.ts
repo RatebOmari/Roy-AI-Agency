@@ -50,6 +50,29 @@ export function useUpdateClientPermissions() {
   });
 }
 
+export interface ClientPlatformPermission {
+  platform:        string;
+  commentsEnabled: boolean;
+  messagesEnabled: boolean;
+}
+
+/** The client's saved feature permissions, so the UI shows what's actually stored. */
+export function useClientPermissions(clientId: string | null) {
+  return useQuery({
+    queryKey: ["clientPermissions", clientId],
+    queryFn: async () => {
+      if (!clientId) return [] as ClientPlatformPermission[];
+      try {
+        return await api.get<ClientPlatformPermission[]>(`/clients/${clientId}/permissions`);
+      } catch {
+        return [] as ClientPlatformPermission[];
+      }
+    },
+    enabled: !!clientId,
+    staleTime: 30_000,
+  });
+}
+
 export function useClientPlatforms(clientId: string | null) {
   return useQuery({
     queryKey: ["clientPlatforms", clientId],

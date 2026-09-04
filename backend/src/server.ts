@@ -40,6 +40,7 @@ import callsRoutes         from "./routes/calls.js";
 import webhookRoutes       from "./routes/webhook.js";
 import agencyRoutes        from "./routes/agency.js";
 import outreachRoutes      from "./routes/outreach.js";
+import bookingsRoutes      from "./routes/bookings.js";
 
 // ── Global unhandled rejection safety net ─────────────────────────────────────
 
@@ -102,6 +103,7 @@ api.route("/brand",          brandRoutes);
 api.route("/calls",          callsRoutes);
 api.route("/agency",         agencyRoutes);
 api.route("/outreach",       outreachRoutes);
+api.route("/bookings",       bookingsRoutes);
 
 // Webhook routes are public — signature-verified, not JWT-authenticated
 app.route("/webhook", webhookRoutes);

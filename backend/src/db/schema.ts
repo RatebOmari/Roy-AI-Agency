@@ -470,3 +470,54 @@ export const comments = pgTable("comments", {
 }, (t) => ({
   userIdIdx: index("comments_user_id_idx").on(t.userId),
 }));
+
+// ── Bookings (table reservations & appointments) ──────────────────────────────
+//
+// One flexible shape covers both a restaurant table ("Table", partySize) and a
+// service appointment ("Haircut", durationMins, staffName).
+//
+// Bookings are request-first: anything captured from a message, call or chatbot
+// lands as `requested` and a person confirms it. The AI may draft a booking but
+// never confirms one — a misread message auto-booking a table is exactly the
+// kind of error that costs a real customer.
+
+export const bookingStatusEnum = pgEnum("booking_status", [
+  "requested", "confirmed", "declined", "cancelled", "completed", "no_show",
+]);
+
+export const bookingSourceEnum = pgEnum("booking_source", [
+  "message", "call", "chatbot", "manual",
+]);
+
+export const bookings = pgTable("bookings", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  userId:       uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Where it came from — any of these may be null (e.g. a manual walk-in).
+  source:       bookingSourceEnum("source").notNull().default("manual"),
+  convId:       uuid("conv_id").references(() => conversations.id, { onDelete: "set null" }),
+  callId:       uuid("call_id").references(() => calls.id, { onDelete: "set null" }),
+  contactId:    uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+
+  // Who it's for
+  contactName:  text("contact_name").notNull().default(""),
+  contactPhone: text("contact_phone").notNull().default(""),
+
+  // What — restaurants use partySize, appointments use durationMins/staffName
+  service:      text("service").notNull().default(""),
+  partySize:    integer("party_size"),
+  durationMins: integer("duration_mins"),
+  staffName:    text("staff_name").notNull().default(""),
+
+  // When
+  scheduledFor: timestamp("scheduled_for").notNull(),
+
+  // State
+  status:       bookingStatusEnum("status").notNull().default("requested"),
+  notes:        text("notes").notNull().default(""),
+  confirmedAt:  timestamp("confirmed_at"),
+  createdAt:    timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  userIdIdx:       index("bookings_user_id_idx").on(t.userId),
+  scheduledForIdx: index("bookings_scheduled_for_idx").on(t.scheduledFor),
+}));

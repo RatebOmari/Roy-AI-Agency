@@ -7,11 +7,12 @@ import { useDashboard } from "@/hooks/useDashboard";
 import { useConversations } from "@/hooks/useConversations";
 import { useFlows } from "@/hooks/useFlows";
 import { useConnectPlatformFeature, useDisconnectPlatformFeature } from "@/hooks/usePlatforms";
+import { useBookings, useUpdateBooking } from "@/hooks/useBookings";
 import type { ExtendedPlatform, PlatformFeatureType, PlatformFeatureStatus } from "@/types";
 import {
   MessageSquare, TrendingUp, Clock, CheckCircle2, Settings, Zap,
   ArrowRight, CalendarDays, Megaphone, GitBranch, Phone, AlertCircle,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, CalendarClock,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -73,6 +74,9 @@ export default function Dashboard() {
   const { data: conversations = [] } = useConversations();
   const { data: flows = [] } = useFlows();
   const connectMutation = useConnectPlatformFeature();
+  const { data: upcomingBookings = [] } = useBookings("upcoming");
+  const requestedBookings = upcomingBookings.filter(b => b.status === "requested");
+  const updateBooking = useUpdateBooking();
   const disconnectMutation = useDisconnectPlatformFeature();
   const [platformsExpanded, setPlatformsExpanded] = useState(false);
 
@@ -182,6 +186,60 @@ export default function Dashboard() {
             </Link>
           </div>
         </motion.div>
+
+        {/* ── Bookings ──────────────────────────────────────────────────────── */}
+        {upcomingBookings.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-card border border-border rounded-2xl overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+              <div className="flex items-center gap-2">
+                <CalendarClock className="w-4 h-4 text-primary" />
+                <h2 className="text-sm font-semibold text-foreground">Upcoming bookings</h2>
+              </div>
+              {requestedBookings.length > 0 && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                  {requestedBookings.length} to confirm
+                </span>
+              )}
+            </div>
+            <div className="divide-y divide-border">
+              {upcomingBookings.slice(0, 5).map(b => (
+                <div key={b.id} className="flex items-center gap-3 px-5 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {b.contactName}
+                      <span className="text-muted-foreground font-normal">
+                        {" · "}{b.service}
+                        {b.partySize ? ` for ${b.partySize}` : ""}
+                        {b.durationMins ? ` (${b.durationMins} min)` : ""}
+                      </span>
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(b.scheduledFor).toLocaleString(undefined, {
+                        weekday: "short", month: "short", day: "numeric",
+                        hour: "2-digit", minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                  {b.status === "requested" ? (
+                    <button
+                      onClick={() => updateBooking.mutate({ id: b.id, status: "confirmed" })}
+                      disabled={updateBooking.isPending}
+                      className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-60 shrink-0"
+                    >
+                      Confirm
+                    </button>
+                  ) : (
+                    <span className="text-xs font-medium text-green-600 dark:text-green-400 shrink-0">Confirmed</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Attention items ───────────────────────────────────────────────── */}
         {attentionItems.length > 0 && (

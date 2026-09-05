@@ -105,12 +105,27 @@ function BookingRow({ booking, onConfirm, onDecline, busy }: {
 
 export default function Bookings() {
   const { user } = useAuth();
-  const [view, setView]     = useState<"day" | "week">("day");
+  const [view, setView]     = useState<"day" | "week" | "month">("day");
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const rangeStart = view === "day" ? anchor : startOfWeek(anchor);
-  const rangeEnd   = view === "day" ? addDays(anchor, 1) : addDays(startOfWeek(anchor), 7);
+  // The month grid starts on the Sunday before the 1st and runs whole weeks.
+  const monthGrid = useMemo(() => {
+    const first     = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const gridStart = startOfWeek(first);
+    const daysInMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
+    const cells = Math.ceil((first.getDay() + daysInMonth) / 7) * 7;
+    return { gridStart, cells };
+  }, [anchor]);
+
+  const rangeStart =
+    view === "day"  ? anchor :
+    view === "week" ? startOfWeek(anchor) :
+                      monthGrid.gridStart;
+  const rangeEnd =
+    view === "day"  ? addDays(anchor, 1) :
+    view === "week" ? addDays(startOfWeek(anchor), 7) :
+                      addDays(monthGrid.gridStart, monthGrid.cells);
 
   const { data: bookings = [], isLoading } = useBookingsRange(rangeStart, rangeEnd);
   const update = useUpdateBooking();
@@ -129,6 +144,7 @@ export default function Bookings() {
   // Group into the days of the current range so empty days still show.
   const days = useMemo(() => {
     const count = view === "day" ? 1 : 7;
+    if (view === "month") return [];
     return Array.from({ length: count }, (_, i) => {
       const date = addDays(rangeStart, i);
       return {
@@ -142,11 +158,20 @@ export default function Bookings() {
 
   const pendingCount = bookings.filter(b => b.status === "requested").length;
 
-  const rangeLabel = view === "day"
-    ? anchor.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
-    : `${rangeStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${addDays(rangeEnd, -1).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  const rangeLabel =
+    view === "day"
+      ? anchor.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
+      : view === "month"
+        ? anchor.toLocaleDateString(undefined, { month: "long", year: "numeric" })
+        : `${rangeStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${addDays(rangeEnd, -1).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 
-  const step = (dir: 1 | -1) => setAnchor(a => addDays(a, dir * (view === "day" ? 1 : 7)));
+  const step = (dir: 1 | -1) => setAnchor(a => {
+    if (view === "month") return new Date(a.getFullYear(), a.getMonth() + dir, 1);
+    return addDays(a, dir * (view === "day" ? 1 : 7));
+  });
+
+  /** Tapping a day in the month grid drills into that day. */
+  const openDay = (date: Date) => { setAnchor(startOfDay(date)); setView("day"); };
 
   return (
     <AppLayout role="client" businessName={user?.businessName ?? "Royto Social"}>
@@ -192,7 +217,7 @@ export default function Bookings() {
           </div>
 
           <div className="flex gap-1 bg-muted rounded-xl p-1">
-            {(["day", "week"] as const).map(v => (
+            {(["day", "week", "month"] as const).map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -211,6 +236,75 @@ export default function Bookings() {
         {isLoading ? (
           <div className="bg-card border border-border rounded-2xl p-10 text-center text-sm text-muted-foreground">
             Loading bookings…
+          </div>
+        ) : view === "month" ? (
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            {/* Weekday header */}
+            <div className="grid grid-cols-7 border-b border-border">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+                <div key={d} className="px-1 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span className="hidden sm:inline">{d}</span>
+                  <span className="sm:hidden">{d[0]}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Day cells */}
+            <div className="grid grid-cols-7">
+              {Array.from({ length: monthGrid.cells }, (_, i) => {
+                const date    = addDays(monthGrid.gridStart, i);
+                const inMonth = date.getMonth() === anchor.getMonth();
+                const today   = isSameDay(date, new Date());
+                const items   = bookings.filter(b => isSameDay(new Date(b.scheduledFor), date));
+                const pending = items.filter(b => b.status === "requested").length;
+
+                return (
+                  <button
+                    key={date.toISOString()}
+                    onClick={() => openDay(date)}
+                    title={items.length ? `${items.length} booking${items.length > 1 ? "s" : ""}` : "Nothing booked"}
+                    className={cn(
+                      "min-h-[68px] sm:min-h-[92px] border-b border-r border-border p-1.5 text-left transition-colors hover:bg-muted/60 flex flex-col gap-1",
+                      !inMonth && "bg-muted/30",
+                      (i + 1) % 7 === 0 && "border-r-0"
+                    )}
+                  >
+                    <span className={cn(
+                      "text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full shrink-0",
+                      today ? "bg-primary text-white"
+                            : inMonth ? "text-foreground" : "text-muted-foreground/50"
+                    )}>
+                      {date.getDate()}
+                    </span>
+
+                    {/* A couple of chips, then a count — keeps phone cells readable */}
+                    <div className="flex-1 min-h-0 space-y-0.5 overflow-hidden">
+                      {items.slice(0, 2).map(b => (
+                        <div
+                          key={b.id}
+                          className={cn(
+                            "text-[10px] leading-tight px-1 py-0.5 rounded border truncate",
+                            STATUS_STYLE[b.status]
+                          )}
+                        >
+                          <span className="hidden sm:inline">{timeFmt(b.scheduledFor)} </span>
+                          {b.contactName || b.service}
+                        </div>
+                      ))}
+                      {items.length > 2 && (
+                        <p className="text-[10px] text-muted-foreground pl-1">+{items.length - 2} more</p>
+                      )}
+                    </div>
+
+                    {pending > 0 && (
+                      <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                        {pending} to confirm
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
